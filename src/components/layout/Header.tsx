@@ -1,0 +1,192 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { Search, ShoppingBag, User, Menu, X, Heart } from "lucide-react";
+import { navItems } from "@/lib/data";
+import { useCartStore } from "@/store/cartStore";
+import { useWishlistStore } from "@/store/wishlistStore";
+import { cn } from "@/lib/utils";
+
+export default function Header() {
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const itemCount = useCartStore((s) => s.itemCount);
+  const toggleCart = useCartStore((s) => s.toggleCart);
+  const wishlistCount = useWishlistStore((s) => s.itemCount);
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 40);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  return (
+    <>
+      {/* Announcement bar */}
+      <div className="bg-stone-900 text-white text-xs text-center py-2 tracking-widest uppercase">
+        Complimentary shipping on orders over $200
+      </div>
+
+      <header
+        className={cn(
+          "sticky top-0 z-50 bg-white transition-shadow duration-300",
+          scrolled ? "shadow-sm" : ""
+        )}
+      >
+        <div className="max-w-screen-xl mx-auto px-4 md:px-8">
+          <div className="flex items-center justify-between h-16 md:h-20">
+            {/* Mobile menu button */}
+            <button
+              className="md:hidden p-2"
+              onClick={() => setMobileOpen(!mobileOpen)}
+              aria-label="Toggle menu"
+            >
+              {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+
+            {/* Logo */}
+            <Link
+              href="/"
+              className="absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0"
+            >
+              <span
+                className="text-2xl md:text-3xl tracking-[0.15em] uppercase"
+                style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 400 }}
+              >
+                TeBoutique
+              </span>
+            </Link>
+
+            {/* Desktop nav */}
+            <nav className="hidden md:flex items-center gap-8 ml-8">
+              {navItems.map((item) => (
+                <div
+                  key={item.label}
+                  className="relative"
+                  onMouseEnter={() => setActiveDropdown(item.label)}
+                  onMouseLeave={() => setActiveDropdown(null)}
+                >
+                  <Link
+                    href={item.href}
+                    className="text-xs tracking-widest uppercase font-light text-stone-800 hover:text-black transition-colors py-6 inline-block"
+                  >
+                    {item.label}
+                  </Link>
+
+                  {item.children && item.children.length > 0 && activeDropdown === item.label && (
+                    <div className="absolute top-full left-0 bg-white shadow-lg border-t border-stone-100 min-w-44 py-4 z-50">
+                      {item.children.map((child) => (
+                        <Link
+                          key={child.label}
+                          href={child.href}
+                          className="block px-6 py-2 text-xs tracking-widest uppercase text-stone-600 hover:text-black hover:bg-stone-50 transition-colors"
+                        >
+                          {child.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </nav>
+
+            {/* Right icons */}
+            <div className="flex items-center gap-1 md:gap-3">
+              <button
+                onClick={() => setSearchOpen(!searchOpen)}
+                className="p-2 hover:bg-stone-50 rounded transition-colors"
+                aria-label="Search"
+              >
+                <Search size={18} />
+              </button>
+              <Link
+                href="/wishlist"
+                className="p-2 hover:bg-stone-50 rounded transition-colors hidden md:block relative"
+                aria-label="Wishlist"
+              >
+                <Heart size={18} />
+                {wishlistCount() > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-stone-900 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">
+                    {wishlistCount()}
+                  </span>
+                )}
+              </Link>
+              <Link
+                href="/account"
+                className="p-2 hover:bg-stone-50 rounded transition-colors hidden md:block"
+                aria-label="Account"
+              >
+                <User size={18} />
+              </Link>
+              <button
+                onClick={toggleCart}
+                className="p-2 hover:bg-stone-50 rounded transition-colors relative"
+                aria-label="Cart"
+              >
+                <ShoppingBag size={18} />
+                {itemCount() > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-stone-900 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">
+                    {itemCount()}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Search bar */}
+        {searchOpen && (
+          <div className="border-t border-stone-100 bg-white px-4 md:px-8 py-4">
+            <div className="max-w-screen-xl mx-auto relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+              <input
+                autoFocus
+                type="search"
+                placeholder="Search for dresses, tops, occasions..."
+                className="w-full pl-9 pr-4 py-3 border border-stone-200 text-sm focus:outline-none focus:border-stone-800 transition-colors bg-stone-50"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Mobile nav */}
+        {mobileOpen && (
+          <div className="md:hidden border-t border-stone-100 bg-white">
+            {navItems.map((item) => (
+              <div key={item.label}>
+                <Link
+                  href={item.href}
+                  className="block px-6 py-4 text-xs tracking-widest uppercase border-b border-stone-100"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {item.label}
+                </Link>
+                {item.children?.map((child) => (
+                  <Link
+                    key={child.label}
+                    href={child.href}
+                    className="block px-10 py-3 text-xs tracking-wider text-stone-500 border-b border-stone-50 bg-stone-50/50"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {child.label}
+                  </Link>
+                ))}
+              </div>
+            ))}
+            <div className="flex gap-4 px-6 py-4">
+              <Link href="/account" className="flex items-center gap-2 text-xs tracking-wider uppercase">
+                <User size={16} /> Account
+              </Link>
+              <Link href="/wishlist" className="flex items-center gap-2 text-xs tracking-wider uppercase">
+                <Heart size={16} /> Wishlist
+              </Link>
+            </div>
+          </div>
+        )}
+      </header>
+    </>
+  );
+}
