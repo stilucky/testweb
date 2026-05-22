@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useWishlistStore } from "@/store/wishlistStore";
 import { useAuthStore } from "@/store/authStore";
+import { useOrderStore } from "@/store/orderStore";
 import { formatPrice, cn } from "@/lib/utils";
 
 function timeAgo(isoString?: string): string {
@@ -40,30 +41,18 @@ function timeAgo(isoString?: string): string {
 
 type Tab = "profile" | "orders" | "addresses" | "wishlist";
 
-const mockOrders: {
-  id: string;
-  date: string;
-  items: { name: string; size: string; color: string; qty: number; price: number }[];
-  total: number;
-  status: "delivered" | "shipped" | "processing" | "cancelled";
-  tracking: string;
-}[] = [];
+const shipStatusConfig = {
+  pending:    { label: "Pending",    icon: Clock,    color: "text-stone-500 bg-stone-100" },
+  processing: { label: "Processing", icon: Clock,    color: "text-amber-600 bg-amber-50" },
+  shipped:    { label: "Shipped",    icon: Truck,    color: "text-blue-600 bg-blue-50" },
+  delivered:  { label: "Delivered",  icon: Check,    color: "text-emerald-600 bg-emerald-50" },
+  cancelled:  { label: "Cancelled",  icon: XCircle,  color: "text-red-500 bg-red-50" },
+};
 
-const mockAddresses: {
-  id: string;
-  label: string;
-  name: string;
-  line1: string;
-  line2: string;
-  country: string;
-  isDefault: boolean;
-}[] = [];
-
-const statusConfig = {
-  delivered: { label: "Delivered", icon: Check, color: "text-emerald-600 bg-emerald-50" },
-  shipped: { label: "Shipped", icon: Truck, color: "text-blue-600 bg-blue-50" },
-  processing: { label: "Processing", icon: Clock, color: "text-amber-600 bg-amber-50" },
-  cancelled: { label: "Cancelled", icon: XCircle, color: "text-red-500 bg-red-50" },
+const payStatusConfig = {
+  paid:     { label: "Paid",     color: "text-emerald-600 bg-emerald-50" },
+  pending:  { label: "Unpaid",   color: "text-amber-600 bg-amber-50" },
+  refunded: { label: "Refunded", color: "text-blue-600 bg-blue-50" },
 };
 
 export default function AccountPage() {
@@ -96,6 +85,13 @@ export default function AccountPage() {
 
   const { items: wishlistItems, removeItem: removeWishlistItem } = useWishlistStore();
   const { getAddresses, removeAddress, setDefaultAddress } = useAuthStore();
+  const { orders: allOrders } = useOrderStore();
+
+  const myOrders = allOrders.filter(
+    (o) =>
+      o.userId === currentUser?.id ||
+      o.email.toLowerCase() === currentUser?.email.toLowerCase()
+  );
 
   if (!currentUser) return null;
 
@@ -286,63 +282,62 @@ export default function AccountPage() {
           {/* Orders */}
           {activeTab === "orders" && (
             <div>
-              <h2 className="text-xs tracking-widest uppercase font-medium mb-8">Order History</h2>
-              {mockOrders.length === 0 ? (
-                <div className="text-center py-16">
+              <h2 className="text-xs tracking-widests uppercase font-medium mb-8">
+                Order History
+                {myOrders.length > 0 && (
+                  <span className="ml-2 text-stone-400 font-normal">({myOrders.length})</span>
+                )}
+              </h2>
+              {myOrders.length === 0 ? (
+                <div className="text-center py-16 border border-dashed border-stone-200">
                   <Package size={48} className="text-stone-200 mx-auto mb-4" />
-                  <p className="text-stone-400">No orders yet</p>
+                  <p className="text-stone-400 mb-1">No orders yet</p>
+                  <p className="text-stone-300 text-xs">Your orders will appear here after checkout</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {mockOrders.map((order) => {
-                    const { label, icon: StatusIcon, color } = statusConfig[order.status];
+                  {myOrders.map((order) => {
+                    const ship = shipStatusConfig[order.status];
+                    const pay = payStatusConfig[order.payment];
+                    const ShipIcon = ship.icon;
                     const isExpanded = expandedOrder === order.id;
+                    const itemCount = order.items.reduce((s, i) => s + i.qty, 0);
 
                     return (
                       <div key={order.id} className="border border-stone-100">
-                        {/* Order header */}
                         <button
                           onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
                           className="w-full flex items-center justify-between p-5 hover:bg-stone-50 transition-colors text-left"
                         >
-                          <div className="flex items-center gap-6">
+                          <div className="flex items-center gap-5">
                             <div>
                               <p className="text-sm font-medium">{order.id}</p>
                               <p className="text-xs text-stone-400 mt-0.5">{order.date}</p>
                             </div>
-                            <div className="hidden md:block">
-                              <p className="text-xs text-stone-400">
-                                {order.items.length} item{order.items.length !== 1 ? "s" : ""}
-                              </p>
-                            </div>
+                            <p className="hidden md:block text-xs text-stone-400">
+                              {itemCount} item{itemCount !== 1 ? "s" : ""}
+                            </p>
                           </div>
-                          <div className="flex items-center gap-4">
-                            <span
-                              className={cn(
-                                "flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full font-medium",
-                                color
-                              )}
-                            >
-                              <StatusIcon size={10} />
-                              {label}
+                          <div className="flex items-center gap-3 flex-wrap justify-end">
+                            {/* Shipping status */}
+                            <span className={cn("flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full font-medium", ship.color)}>
+                              <ShipIcon size={10} />
+                              {ship.label}
                             </span>
-                            <p
-                              className="text-sm font-medium"
-                              style={{ fontFamily: "var(--font-cormorant), serif" }}
-                            >
+                            {/* Payment status */}
+                            <span className={cn("text-[11px] px-2.5 py-1 rounded-full font-medium", pay.color)}>
+                              {pay.label}
+                            </span>
+                            <p className="text-sm font-medium min-w-14 text-right" style={{ fontFamily: "var(--font-cormorant), serif" }}>
                               {formatPrice(order.total)}
                             </p>
                             <ChevronRight
                               size={14}
-                              className={cn(
-                                "text-stone-400 transition-transform shrink-0",
-                                isExpanded && "rotate-90"
-                              )}
+                              className={cn("text-stone-400 transition-transform shrink-0", isExpanded && "rotate-90")}
                             />
                           </div>
                         </button>
 
-                        {/* Order detail */}
                         {isExpanded && (
                           <div className="border-t border-stone-100 px-5 pb-5">
                             <div className="pt-4 space-y-3">
@@ -354,22 +349,36 @@ export default function AccountPage() {
                                       Size: {item.size} · Color: {item.color} · Qty: {item.qty}
                                     </p>
                                   </div>
-                                  <p className="text-sm">{formatPrice(item.price * item.qty)}</p>
+                                  <p className="text-sm shrink-0 ml-4">{formatPrice(item.price * item.qty)}</p>
                                 </div>
                               ))}
                             </div>
-                            <div className="mt-4 pt-4 border-t border-stone-100 flex items-center justify-between">
-                              <p className="text-xs text-stone-400">
-                                Tracking: <span className="text-stone-600 font-mono">{order.tracking}</span>
-                              </p>
-                              <div className="flex gap-3">
-                                <button className="text-xs tracking-wider uppercase underline underline-offset-2 hover:text-stone-600 transition-colors">
-                                  Track
-                                </button>
-                                <button className="text-xs tracking-wider uppercase underline underline-offset-2 hover:text-stone-600 transition-colors">
-                                  Return
-                                </button>
+                            <div className="mt-4 pt-4 border-t border-stone-100 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                              <div>
+                                <p className="text-stone-400 mb-0.5">Subtotal</p>
+                                <p className="text-stone-700">{formatPrice(order.subtotal)}</p>
                               </div>
+                              {order.discount > 0 && (
+                                <div>
+                                  <p className="text-stone-400 mb-0.5">Discount</p>
+                                  <p className="text-emerald-600">−{formatPrice(order.discount)}</p>
+                                </div>
+                              )}
+                              <div>
+                                <p className="text-stone-400 mb-0.5">Shipping</p>
+                                <p className="text-stone-700">
+                                  {order.shippingCost === 0 ? "Free" : formatPrice(order.shippingCost)}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-stone-400 mb-0.5">Payment</p>
+                                <p className="text-stone-700 capitalize">{order.paymentMethod}</p>
+                              </div>
+                            </div>
+                            <div className="mt-3 pt-3 border-t border-stone-100">
+                              <p className="text-xs text-stone-400">
+                                Ship to: <span className="text-stone-600">{order.shippingAddress}</span>
+                              </p>
                             </div>
                           </div>
                         )}
