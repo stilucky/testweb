@@ -40,67 +40,24 @@ function timeAgo(isoString?: string): string {
 
 type Tab = "profile" | "orders" | "addresses" | "wishlist";
 
-const mockOrders = [
-  {
-    id: "ORD-24051",
-    date: "May 12, 2026",
-    items: [
-      { name: "Celestine Lace Dress", size: "S", color: "Ivory", qty: 1, price: 285 },
-      { name: "Vivienne Blazer", size: "S", color: "Camel", qty: 1, price: 245 },
-    ],
-    total: 530,
-    status: "delivered" as const,
-    tracking: "1Z999AA10123456784",
-  },
-  {
-    id: "ORD-24038",
-    date: "Apr 28, 2026",
-    items: [{ name: "Margot Slip Dress", size: "M", color: "Black", qty: 1, price: 155 }],
-    total: 155,
-    status: "shipped" as const,
-    tracking: "1Z999AA10123456785",
-  },
-  {
-    id: "ORD-24019",
-    date: "Apr 3, 2026",
-    items: [
-      { name: "Elara Wrap Top", size: "S", color: "Terracotta", qty: 1, price: 145 },
-      { name: "Solène Palazzo Pants", size: "S", color: "Ecru", qty: 1, price: 175 },
-    ],
-    total: 320,
-    status: "delivered" as const,
-    tracking: "1Z999AA10123456786",
-  },
-  {
-    id: "ORD-23997",
-    date: "Mar 15, 2026",
-    items: [{ name: "Isabelle Cocktail Dress", size: "XS", color: "Midnight", qty: 1, price: 265 }],
-    total: 265,
-    status: "delivered" as const,
-    tracking: "1Z999AA10123456787",
-  },
-];
+const mockOrders: {
+  id: string;
+  date: string;
+  items: { name: string; size: string; color: string; qty: number; price: number }[];
+  total: number;
+  status: "delivered" | "shipped" | "processing" | "cancelled";
+  tracking: string;
+}[] = [];
 
-const mockAddresses = [
-  {
-    id: "1",
-    label: "Home",
-    name: "Sophie Laurent",
-    line1: "123 Maple Street, Apt 4B",
-    line2: "Vancouver, BC V6B 2N4",
-    country: "Canada",
-    isDefault: true,
-  },
-  {
-    id: "2",
-    label: "Office",
-    name: "Sophie Laurent",
-    line1: "800 Robson Street, Suite 1200",
-    line2: "Vancouver, BC V6Z 3B7",
-    country: "Canada",
-    isDefault: false,
-  },
-];
+const mockAddresses: {
+  id: string;
+  label: string;
+  name: string;
+  line1: string;
+  line2: string;
+  country: string;
+  isDefault: boolean;
+}[] = [];
 
 const statusConfig = {
   delivered: { label: "Delivered", icon: Check, color: "text-emerald-600 bg-emerald-50" },
