@@ -22,6 +22,22 @@ import { useWishlistStore } from "@/store/wishlistStore";
 import { useAuthStore } from "@/store/authStore";
 import { formatPrice, cn } from "@/lib/utils";
 
+function timeAgo(isoString?: string): string {
+  if (!isoString) return "Never";
+  const diff = Date.now() - new Date(isoString).getTime();
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  const months = Math.floor(days / 30);
+  const years = Math.floor(days / 365);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes} minute${minutes > 1 ? "s" : ""} ago`;
+  if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
+  if (days < 30) return `${days} day${days > 1 ? "s" : ""} ago`;
+  if (months < 12) return `${months} month${months > 1 ? "s" : ""} ago`;
+  return `${years} year${years > 1 ? "s" : ""} ago`;
+}
+
 type Tab = "profile" | "orders" | "addresses" | "wishlist";
 
 const mockOrders = [
@@ -294,11 +310,16 @@ export default function AccountPage() {
                 <div className="flex items-center justify-between border-b border-stone-100 pb-5">
                   <div>
                     <p className="text-sm">Password</p>
-                    <p className="text-xs text-stone-400 mt-0.5">Last changed 3 months ago</p>
+                    <p className="text-xs text-stone-400 mt-0.5">
+                      Last changed: {timeAgo(currentUser?.passwordChangedAt)}
+                    </p>
                   </div>
-                  <button className="text-xs tracking-wider uppercase underline underline-offset-2 hover:text-stone-600 transition-colors">
+                  <Link
+                    href="/auth/forgot-password"
+                    className="text-xs tracking-wider uppercase underline underline-offset-2 hover:text-stone-600 transition-colors"
+                  >
                     Change
-                  </button>
+                  </Link>
                 </div>
               </div>
             </div>

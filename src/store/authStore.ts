@@ -11,6 +11,7 @@ export interface User {
   phone?: string;
   role: "customer" | "admin";
   createdAt: string;
+  passwordChangedAt?: string;
 }
 
 interface StoredUser extends User {
@@ -113,12 +114,17 @@ export const useAuthStore = create<AuthStore>()(
         if (!exists) {
           return { success: false, error: "No account found with this email" };
         }
+        const changedAt = new Date().toISOString();
         set((s) => ({
           users: s.users.map((u) =>
             u.email.toLowerCase() === email.toLowerCase()
-              ? { ...u, password: newPassword }
+              ? { ...u, password: newPassword, passwordChangedAt: changedAt }
               : u
           ),
+          currentUser:
+            s.currentUser?.email.toLowerCase() === email.toLowerCase()
+              ? { ...s.currentUser, passwordChangedAt: changedAt }
+              : s.currentUser,
         }));
         return { success: true };
       },
