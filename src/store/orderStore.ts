@@ -77,6 +77,15 @@ export const useOrderStore = create<OrderStore>()(
           orders: s.orders.map((o) => (o.id === id ? { ...o, payment } : o)),
         })),
     }),
-    { name: "teboutique-orders" }
+    {
+      name: "teboutique-orders",
+      version: 2,
+      migrate: (persisted: unknown, version: number) => {
+        if (version < 2) {
+          return { orders: [] };
+        }
+        return persisted;
+      },
+    }
   )
 );

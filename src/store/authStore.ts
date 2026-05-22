@@ -54,16 +54,6 @@ interface AuthStore {
 
 const defaultUsers: StoredUser[] = [
   {
-    id: "u1",
-    firstName: "Sophie",
-    lastName: "Laurent",
-    email: "sophie@example.com",
-    password: "password123",
-    phone: "+1 604 555 0198",
-    role: "customer",
-    createdAt: "2024-01-15",
-  },
-  {
     id: "admin1",
     firstName: "Admin",
     lastName: "TeBoutique",
@@ -71,6 +61,15 @@ const defaultUsers: StoredUser[] = [
     password: "admin123",
     role: "admin",
     createdAt: "2024-01-01",
+  },
+  {
+    id: "test1",
+    firstName: "Test",
+    lastName: "User",
+    email: "test@teboutique.com",
+    password: "test123",
+    role: "customer",
+    createdAt: "2026-01-01",
   },
 ];
 
@@ -200,6 +199,19 @@ export const useAuthStore = create<AuthStore>()(
         }));
       },
     }),
-    { name: "teboutique-auth" }
+    {
+      name: "teboutique-auth",
+      version: 3,
+      migrate: (persisted: unknown, version: number) => {
+        const state = persisted as { users?: StoredUser[]; currentUser?: unknown; userAddresses?: unknown };
+        if (version < 3) {
+          // Wipe all old users, reset to defaultUsers only
+          state.users = defaultUsers;
+          state.currentUser = null;
+          state.userAddresses = {};
+        }
+        return state;
+      },
+    }
   )
 );
