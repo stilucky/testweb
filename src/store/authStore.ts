@@ -3,6 +3,19 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+export interface Address {
+  id: string;
+  label: string;
+  firstName: string;
+  lastName: string;
+  line1: string;
+  city: string;
+  postal: string;
+  country: string;
+  phone?: string;
+  isDefault: boolean;
+}
+
 export interface User {
   id: string;
   firstName: string;
@@ -21,6 +34,7 @@ interface StoredUser extends User {
 interface AuthStore {
   currentUser: User | null;
   users: StoredUser[];
+  userAddresses: Record<string, Address[]>;
   login: (email: string, password: string) => { success: boolean; error?: string };
   register: (data: {
     firstName: string;
@@ -32,6 +46,10 @@ interface AuthStore {
   updateProfile: (data: Partial<Pick<User, "firstName" | "lastName" | "email" | "phone">>) => void;
   resetPassword: (email: string, newPassword: string) => { success: boolean; error?: string };
   emailExists: (email: string) => boolean;
+  getAddresses: () => Address[];
+  addAddress: (address: Omit<Address, "id">) => void;
+  removeAddress: (id: string) => void;
+  setDefaultAddress: (id: string) => void;
 }
 
 const defaultUsers: StoredUser[] = [
@@ -61,6 +79,7 @@ export const useAuthStore = create<AuthStore>()(
     (set, get) => ({
       currentUser: null,
       users: defaultUsers,
+      userAddresses: {},
 
       login: (email, password) => {
         const found = get().users.find(
@@ -131,6 +150,55 @@ export const useAuthStore = create<AuthStore>()(
 
       emailExists: (email) =>
         get().users.some((u) => u.email.toLowerCase() === email.toLowerCase()),
+
+      getAddresses: () => {
+        const uid = get().currentUser?.id;
+        if (!uid) return [];
+        return get().userAddresses[uid] ?? [];
+      },
+
+      addAddress: (address) => {
+        const uid = get().currentUser?.id;
+        if (!uid) return;
+        const newAddr: Address = { ...address, id: `addr-${Date.now()}` };
+        set((s) => {
+          const existing = s.userAddresses[uid] ?? [];
+          const updated = address.isDefault
+            ? existing.map((a) => ({ ...a, isDefault: false }))
+            : existing;
+          return {
+            userAddresses: {
+              ...s.userAddresses,
+              [uid]: [...updated, newAddr],
+            },
+          };
+        });
+      },
+
+      removeAddress: (id) => {
+        const uid = get().currentUser?.id;
+        if (!uid) return;
+        set((s) => ({
+          userAddresses: {
+            ...s.userAddresses,
+            [uid]: (s.userAddresses[uid] ?? []).filter((a) => a.id !== id),
+          },
+        }));
+      },
+
+      setDefaultAddress: (id) => {
+        const uid = get().currentUser?.id;
+        if (!uid) return;
+        set((s) => ({
+          userAddresses: {
+            ...s.userAddresses,
+            [uid]: (s.userAddresses[uid] ?? []).map((a) => ({
+              ...a,
+              isDefault: a.id === id,
+            })),
+          },
+        }));
+      },
     }),
     { name: "teboutique-auth" }
   )

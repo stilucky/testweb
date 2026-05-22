@@ -17,6 +17,8 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
+import { useOrderStore } from "@/store/orderStore";
+import { useAuthStore, type Address } from "@/store/authStore";
 import { formatPrice, cn } from "@/lib/utils";
 
 const StripePaymentForm = dynamic(
@@ -67,6 +69,9 @@ interface InfoForm {
 
 export default function CheckoutPage() {
   const { items, total, clearCart } = useCartStore();
+  const { addOrder } = useOrderStore();
+  const { currentUser, addAddress, getAddresses } = useAuthStore();
+  const [saveAddress, setSaveAddress] = useState(false);
 
   const [step, setStep] = useState<Step>("information");
   const [orderPlaced, setOrderPlaced] = useState(false);
@@ -166,10 +171,52 @@ export default function CheckoutPage() {
     }
   };
 
+  // ─── Save address if requested ───
+  const maybeSaveAddress = () => {
+    if (!saveAddress || !currentUser) return;
+    const existingAddresses = getAddresses();
+    addAddress({
+      label: "Home",
+      firstName: info.firstName,
+      lastName: info.lastName,
+      line1: info.address,
+      city: info.city,
+      postal: info.postal,
+      country: info.country,
+      phone: info.phone || undefined,
+      isDefault: existingAddresses.length === 0,
+    });
+  };
+
   // ─── Order success ───
   const handleOrderSuccess = () => {
-    const num = `ORD-${Math.floor(10000 + Math.random() * 90000)}`;
-    setOrderNumber(num);
+    maybeSaveAddress();
+    const shippingOption = shippingOptions.find((s) => s.id === selectedShipping);
+    const orderId = addOrder({
+      customer: `${info.firstName} ${info.lastName}`.trim() || "Guest",
+      email: info.email,
+      phone: info.phone || undefined,
+      items: items.map((item) => ({
+        name: item.product.name,
+        qty: item.quantity,
+        price: item.product.salePrice ?? item.product.price,
+        size: item.selectedSize,
+        color: item.selectedColor,
+        image: item.product.images[0],
+      })),
+      subtotal,
+      shippingCost,
+      discount: discountAmount,
+      total: orderTotal,
+      status: "pending",
+      payment: payMethod === "bank" ? "pending" : "paid",
+      paymentMethod: payMethod,
+      shippingMethod: shippingOption?.label ?? "Standard Shipping",
+      shippingAddress: `${info.address}, ${info.city}, ${info.postal}, ${info.country}`,
+      couponCode: appliedCoupon?.code,
+      userId: currentUser?.id,
+    });
+    setOrderNumber(orderId);
     clearCart();
     setOrderPlaced(true);
   };
@@ -405,6 +452,22 @@ export default function CheckoutPage() {
                       className="w-full px-4 py-3 border border-stone-200 text-sm focus:outline-none focus:border-stone-800 transition-colors"
                     />
                   </div>
+
+                  {currentUser && (
+                    <div className="col-span-2">
+                      <label className="flex items-center gap-2.5 cursor-pointer select-none group">
+                        <input
+                          type="checkbox"
+                          checked={saveAddress}
+                          onChange={(e) => setSaveAddress(e.target.checked)}
+                          className="w-4 h-4 accent-stone-900"
+                        />
+                        <span className="text-xs text-stone-500 group-hover:text-stone-700 transition-colors">
+                          Save this address to my account
+                        </span>
+                      </label>
+                    </div>
+                  )}
                 </div>
               </div>
 

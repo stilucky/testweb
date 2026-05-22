@@ -95,6 +95,7 @@ export default function AccountPage() {
   }, [currentUser]);
 
   const { items: wishlistItems, removeItem: removeWishlistItem } = useWishlistStore();
+  const { getAddresses, removeAddress, setDefaultAddress } = useAuthStore();
 
   if (!currentUser) return null;
 
@@ -381,50 +382,77 @@ export default function AccountPage() {
           )}
 
           {/* Addresses */}
-          {activeTab === "addresses" && (
-            <div>
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-xs tracking-widest uppercase font-medium">Saved Addresses</h2>
-                <button className="flex items-center gap-1.5 text-xs tracking-widest uppercase hover:text-stone-600 transition-colors border border-stone-200 px-4 py-2 hover:bg-stone-50">
-                  <Plus size={12} />
-                  Add Address
-                </button>
-              </div>
-              <div className="grid md:grid-cols-2 gap-4">
-                {mockAddresses.map((addr) => (
-                  <div key={addr.id} className="border border-stone-100 p-6 relative">
-                    {addr.isDefault && (
-                      <span className="absolute top-4 right-4 text-[10px] bg-stone-900 text-white px-2 py-0.5 tracking-widest uppercase">
-                        Default
-                      </span>
+          {activeTab === "addresses" && (() => {
+            const addresses = getAddresses();
+            return (
+              <div>
+                <div className="flex items-center justify-between mb-8">
+                  <h2 className="text-xs tracking-widest uppercase font-medium">
+                    Saved Addresses
+                    {addresses.length > 0 && (
+                      <span className="ml-2 text-stone-400 font-normal">({addresses.length})</span>
                     )}
-                    <p className="text-xs tracking-widest uppercase text-stone-400 mb-3">{addr.label}</p>
-                    <div className="space-y-1 text-sm">
-                      <p className="font-medium">{addr.name}</p>
-                      <p className="text-stone-500">{addr.line1}</p>
-                      <p className="text-stone-500">{addr.line2}</p>
-                      <p className="text-stone-500">{addr.country}</p>
-                    </div>
-                    <div className="flex gap-4 mt-5 pt-4 border-t border-stone-100">
-                      <button className="text-xs tracking-wider uppercase underline underline-offset-2 hover:text-stone-600 transition-colors">
-                        Edit
-                      </button>
-                      {!addr.isDefault && (
-                        <>
-                          <button className="text-xs tracking-wider uppercase underline underline-offset-2 hover:text-stone-600 transition-colors">
-                            Set Default
-                          </button>
-                          <button className="text-xs tracking-wider uppercase text-red-400 underline underline-offset-2 hover:text-red-600 transition-colors ml-auto">
-                            Delete
-                          </button>
-                        </>
-                      )}
-                    </div>
+                  </h2>
+                </div>
+
+                {addresses.length === 0 ? (
+                  <div className="text-center py-16 border border-dashed border-stone-200">
+                    <MapPin size={36} className="text-stone-200 mx-auto mb-3" />
+                    <p className="text-stone-400 text-sm mb-1">No saved addresses yet</p>
+                    <p className="text-stone-300 text-xs">
+                      Check "Save address" at checkout to save your shipping address here.
+                    </p>
                   </div>
-                ))}
+                ) : (
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {addresses.map((addr) => (
+                      <div key={addr.id} className="border border-stone-100 p-6 relative">
+                        {addr.isDefault && (
+                          <span className="absolute top-4 right-4 text-[10px] bg-stone-900 text-white px-2 py-0.5 tracking-widest uppercase">
+                            Default
+                          </span>
+                        )}
+                        <p className="text-xs tracking-widest uppercase text-stone-400 mb-3">{addr.label}</p>
+                        <div className="space-y-1 text-sm">
+                          <p className="font-medium">{addr.firstName} {addr.lastName}</p>
+                          <p className="text-stone-500">{addr.line1}</p>
+                          <p className="text-stone-500">{addr.city}, {addr.postal}</p>
+                          <p className="text-stone-500">{addr.country}</p>
+                          {addr.phone && <p className="text-stone-400 text-xs">{addr.phone}</p>}
+                        </div>
+                        <div className="flex gap-4 mt-5 pt-4 border-t border-stone-100">
+                          {!addr.isDefault && (
+                            <>
+                              <button
+                                onClick={() => setDefaultAddress(addr.id)}
+                                className="text-xs tracking-wider uppercase underline underline-offset-2 hover:text-stone-600 transition-colors"
+                              >
+                                Set Default
+                              </button>
+                              <button
+                                onClick={() => removeAddress(addr.id)}
+                                className="text-xs tracking-wider uppercase text-red-400 underline underline-offset-2 hover:text-red-600 transition-colors ml-auto"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
+                          {addr.isDefault && (
+                            <button
+                              onClick={() => removeAddress(addr.id)}
+                              className="text-xs tracking-wider uppercase text-red-400 underline underline-offset-2 hover:text-red-600 transition-colors ml-auto"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Wishlist */}
           {activeTab === "wishlist" && (
