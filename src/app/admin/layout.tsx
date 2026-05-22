@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
 import AdminNav from "./AdminNav";
+import AdminGuard from "./AdminGuard";
 
 export const metadata: Metadata = {
   title: { default: "Admin", template: "%s | Admin — TeBoutique" },
@@ -9,6 +10,7 @@ export const metadata: Metadata = {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
+    <AdminGuard>
     <div className="min-h-screen flex bg-stone-50">
       {/* Sidebar */}
       <aside className="w-60 bg-white border-r border-stone-100 flex flex-col shrink-0 sticky top-0 h-screen">
@@ -45,5 +47,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {children}
       </main>
     </div>
+    </AdminGuard>
   );
 }

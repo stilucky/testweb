@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   User,
@@ -18,6 +19,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { useWishlistStore } from "@/store/wishlistStore";
+import { useAuthStore } from "@/store/authStore";
 import { formatPrice, cn } from "@/lib/utils";
 
 type Tab = "profile" | "orders" | "addresses" | "wishlist";
@@ -92,17 +94,36 @@ const statusConfig = {
 };
 
 export default function AccountPage() {
+  const router = useRouter();
+  const { currentUser, logout, updateProfile } = useAuthStore();
   const [activeTab, setActiveTab] = useState<Tab>("profile");
   const [editingProfile, setEditingProfile] = useState(false);
   const [profile, setProfile] = useState({
-    firstName: "Sophie",
-    lastName: "Laurent",
-    email: "sophie.laurent@email.com",
-    phone: "+1 604 555 0198",
+    firstName: currentUser?.firstName ?? "",
+    lastName: currentUser?.lastName ?? "",
+    email: currentUser?.email ?? "",
+    phone: currentUser?.phone ?? "",
   });
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!currentUser) router.push("/auth");
+  }, [currentUser, router]);
+
+  useEffect(() => {
+    if (currentUser) {
+      setProfile({
+        firstName: currentUser.firstName,
+        lastName: currentUser.lastName,
+        email: currentUser.email,
+        phone: currentUser.phone ?? "",
+      });
+    }
+  }, [currentUser]);
+
   const { items: wishlistItems, removeItem: removeWishlistItem } = useWishlistStore();
+
+  if (!currentUser) return null;
 
   const tabs = [
     { id: "profile" as Tab, label: "Profile", icon: User },
@@ -125,7 +146,10 @@ export default function AccountPage() {
           </h1>
           <p className="text-stone-400 text-sm mt-1">{profile.email}</p>
         </div>
-        <button className="hidden md:flex items-center gap-2 text-xs text-stone-400 hover:text-stone-900 transition-colors tracking-wide uppercase">
+        <button
+          onClick={() => { logout(); router.push("/"); }}
+          className="hidden md:flex items-center gap-2 text-xs text-stone-400 hover:text-stone-900 transition-colors tracking-wide uppercase"
+        >
           <LogOut size={14} />
           Sign Out
         </button>
@@ -187,7 +211,11 @@ export default function AccountPage() {
 
               {editingProfile ? (
                 <form
-                  onSubmit={(e) => { e.preventDefault(); setEditingProfile(false); }}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    updateProfile(profile);
+                    setEditingProfile(false);
+                  }}
                   className="space-y-4 max-w-lg"
                 >
                   <div className="grid grid-cols-2 gap-4">

@@ -6,6 +6,7 @@ import { Search, ShoppingBag, User, Menu, X, Heart } from "lucide-react";
 import { navItems } from "@/lib/data";
 import { useCartStore } from "@/store/cartStore";
 import { useWishlistStore } from "@/store/wishlistStore";
+import { useAuthStore } from "@/store/authStore";
 import { cn } from "@/lib/utils";
 
 export default function Header() {
@@ -16,6 +17,8 @@ export default function Header() {
   const itemCount = useCartStore((s) => s.itemCount);
   const toggleCart = useCartStore((s) => s.toggleCart);
   const wishlistCount = useWishlistStore((s) => s.itemCount);
+  const { currentUser, logout } = useAuthStore();
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 40);
@@ -114,13 +117,56 @@ export default function Header() {
                   </span>
                 )}
               </Link>
-              <Link
-                href="/account"
-                className="p-2 hover:bg-stone-50 rounded transition-colors hidden md:block"
-                aria-label="Account"
-              >
-                <User size={18} />
-              </Link>
+              {currentUser ? (
+                <div className="relative hidden md:block">
+                  <button
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    className="flex items-center gap-2 p-1 hover:bg-stone-50 rounded transition-colors"
+                    aria-label="Account"
+                  >
+                    <div className="w-7 h-7 rounded-full bg-stone-900 text-white flex items-center justify-center text-[11px] font-medium tracking-wide">
+                      {currentUser.firstName[0]}{currentUser.lastName[0]}
+                    </div>
+                  </button>
+                  {userMenuOpen && (
+                    <div className="absolute right-0 top-full mt-2 bg-white border border-stone-100 shadow-lg min-w-48 py-2 z-50">
+                      <div className="px-4 py-3 border-b border-stone-100">
+                        <p className="text-sm font-medium">{currentUser.firstName} {currentUser.lastName}</p>
+                        <p className="text-xs text-stone-400 mt-0.5 truncate">{currentUser.email}</p>
+                      </div>
+                      {[
+                        { label: "My Account", href: "/account" },
+                        { label: "Orders", href: "/account?tab=orders" },
+                        { label: "Wishlist", href: "/wishlist" },
+                        ...(currentUser.role === "admin" ? [{ label: "Admin Dashboard", href: "/admin" }] : []),
+                      ].map((item) => (
+                        <Link
+                          key={item.label}
+                          href={item.href}
+                          onClick={() => setUserMenuOpen(false)}
+                          className="block px-4 py-2.5 text-xs tracking-widest uppercase text-stone-600 hover:text-black hover:bg-stone-50 transition-colors"
+                        >
+                          {item.label}
+                        </Link>
+                      ))}
+                      <button
+                        onClick={() => { logout(); setUserMenuOpen(false); }}
+                        className="block w-full text-left px-4 py-2.5 text-xs tracking-widest uppercase text-stone-400 hover:text-red-600 hover:bg-stone-50 transition-colors border-t border-stone-100 mt-1"
+                      >
+                        Sign Out
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Link
+                  href="/auth"
+                  className="p-2 hover:bg-stone-50 rounded transition-colors hidden md:block"
+                  aria-label="Account"
+                >
+                  <User size={18} />
+                </Link>
+              )}
               <button
                 onClick={toggleCart}
                 className="p-2 hover:bg-stone-50 rounded transition-colors relative"
