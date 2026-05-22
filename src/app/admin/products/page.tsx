@@ -39,6 +39,8 @@ const allColors = [
   { name: "Coral", hex: "#FF7F50" },
 ];
 
+type FormColor = { name: string; hex: string; imageUrls: string };
+
 type FormData = {
   name: string;
   slug: string;
@@ -50,7 +52,7 @@ type FormData = {
   category: string;
   gender: "women" | "men" | "unisex";
   sizes: string[];
-  colors: { name: string; hex: string }[];
+  colors: FormColor[];
   images: string;
   isNew: boolean;
   isBestSeller: boolean;
@@ -117,7 +119,11 @@ export default function AdminProductsPage() {
       category: product.category,
       gender: product.gender,
       sizes: [...product.sizes],
-      colors: [...product.colors],
+      colors: product.colors.map((c) => ({
+        name: c.name,
+        hex: c.hex,
+        imageUrls: (c.images ?? []).join("\n"),
+      })),
       images: product.images.join("\n"),
       isNew: product.isNew,
       isBestSeller: product.isBestSeller,
@@ -151,10 +157,15 @@ export default function AdminProductsPage() {
   const handleSave = () => {
     if (!validate()) return;
 
-    const imageList = form.images
-      .split("\n")
-      .map((u) => u.trim())
-      .filter(Boolean);
+    const parseUrls = (raw: string) =>
+      raw.split("\n").map((u) => u.trim()).filter(Boolean);
+
+    const imageList = parseUrls(form.images);
+    const builtColors = form.colors.map((c) => ({
+      name: c.name,
+      hex: c.hex,
+      images: parseUrls(c.imageUrls),
+    }));
 
     if (editingProduct) {
       setProductList((prev) =>
@@ -172,8 +183,8 @@ export default function AdminProductsPage() {
                 category: form.category,
                 gender: form.gender,
                 sizes: form.sizes,
-                colors: form.colors,
-                images: imageList,
+                colors: builtColors,
+                images: imageList.length ? imageList : (builtColors[0]?.images ?? []),
                 isNew: form.isNew,
                 isBestSeller: form.isBestSeller,
                 featured: form.featured,
@@ -195,8 +206,8 @@ export default function AdminProductsPage() {
         category: form.category,
         gender: form.gender,
         sizes: form.sizes,
-        colors: form.colors,
-        images: imageList,
+        colors: builtColors,
+        images: imageList.length ? imageList : (builtColors[0]?.images ?? []),
         isNew: form.isNew,
         isBestSeller: form.isBestSeller,
         featured: form.featured,
@@ -225,7 +236,14 @@ export default function AdminProductsPage() {
       ...f,
       colors: f.colors.some((c) => c.name === color.name)
         ? f.colors.filter((c) => c.name !== color.name)
-        : [...f.colors, color],
+        : [...f.colors, { ...color, imageUrls: "" }],
+    }));
+  };
+
+  const updateColorImages = (colorName: string, imageUrls: string) => {
+    setForm((f) => ({
+      ...f,
+      colors: f.colors.map((c) => c.name === colorName ? { ...c, imageUrls } : c),
     }));
   };
 
@@ -653,7 +671,7 @@ export default function AdminProductsPage() {
                 <label className="block text-xs tracking-widest uppercase text-stone-500 mb-2">
                   Colors <span className="text-red-500">*</span>
                 </label>
-                <div className="flex gap-2 flex-wrap">
+                <div className="flex gap-2 flex-wrap mb-3">
                   {allColors.map((color) => {
                     const selected = form.colors.some((c) => c.name === color.name);
                     return (
@@ -671,30 +689,53 @@ export default function AdminProductsPage() {
                     );
                   })}
                 </div>
-                {form.colors.length > 0 && (
-                  <p className="text-xs text-stone-400 mt-2">
-                    Selected: {form.colors.map((c) => c.name).join(", ")}
-                  </p>
-                )}
                 {errors.colors && <p className="text-xs text-red-500 mt-1">{errors.colors}</p>}
+
+                {/* Per-color image inputs */}
+                {form.colors.length > 0 && (
+                  <div className="space-y-3 mt-3">
+                    {form.colors.map((c) => (
+                      <div key={c.name} className="border border-stone-100 p-3 bg-stone-50/50">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span
+                            className="w-4 h-4 rounded-full border border-stone-300 shrink-0"
+                            style={{ backgroundColor: c.hex }}
+                          />
+                          <span className="text-xs font-medium text-stone-700">{c.name}</span>
+                          <span className="text-[10px] text-stone-400">— images for this color</span>
+                        </div>
+                        <textarea
+                          value={c.imageUrls}
+                          onChange={(e) => updateColorImages(c.name, e.target.value)}
+                          placeholder="https://images.unsplash.com/photo-xxx?w=800"
+                          rows={2}
+                          className="w-full px-3 py-2 border border-stone-200 bg-white text-xs focus:outline-none focus:border-stone-800 transition-colors resize-none font-mono"
+                        />
+                        <p className="text-[10px] text-stone-400 mt-1">One URL per line</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              {/* Images */}
+              {/* Default / fallback images */}
               <div>
-                <label className="block text-xs tracking-widest uppercase text-stone-500 mb-2">
-                  Image URLs <span className="text-red-500">*</span>
+                <label className="block text-xs tracking-widest uppercase text-stone-500 mb-1">
+                  Default Images <span className="text-red-500">*</span>
                 </label>
+                <p className="text-[11px] text-stone-400 mb-2">
+                  Fallback when no color selected. Leave empty to use first color's images.
+                </p>
                 <textarea
                   value={form.images}
                   onChange={(e) => setForm((f) => ({ ...f, images: e.target.value }))}
                   placeholder={"https://images.unsplash.com/photo-xxx?w=800\nhttps://images.unsplash.com/photo-yyy?w=800"}
-                  rows={3}
+                  rows={2}
                   className={cn(
                     "w-full px-4 py-3 border text-sm focus:outline-none transition-colors resize-none font-mono",
                     errors.images ? "border-red-400" : "border-stone-200 focus:border-stone-800"
                   )}
                 />
-                <p className="text-[11px] text-stone-400 mt-1">One URL per line. First image is the main image.</p>
                 {errors.images && <p className="text-xs text-red-500 mt-0.5">{errors.images}</p>}
               </div>
 
