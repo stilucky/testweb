@@ -1,13 +1,29 @@
 "use client";
 
-import { useMemo } from "react";
-import { TrendingUp, ShoppingBag, Users, BarChart2, BarChart3 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { TrendingUp, ShoppingBag, Users, BarChart2, BarChart3, Filter } from "lucide-react";
 import { useOrderStore } from "@/store/orderStore";
 import { useAuthStore } from "@/store/authStore";
 import { products } from "@/lib/data";
 import { formatPrice } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+type DatePreset = "7d" | "30d" | "3m" | "6m" | "1y" | "all" | "custom";
+
+function getPresetRange(preset: DatePreset): { from: Date | null; to: Date | null } {
+  const now = new Date();
+  const to = new Date(now);
+  if (preset === "all" || preset === "custom") return { from: null, to: null };
+  const from = new Date(now);
+  if (preset === "7d") from.setDate(from.getDate() - 7);
+  else if (preset === "30d") from.setDate(from.getDate() - 30);
+  else if (preset === "3m") from.setMonth(from.getMonth() - 3);
+  else if (preset === "6m") from.setMonth(from.getMonth() - 6);
+  else if (preset === "1y") from.setFullYear(from.getFullYear() - 1);
+  return { from, to };
+}
 
 function getLast6Months(): { year: number; month: number; label: string }[] {
   const result = [];
@@ -23,13 +39,46 @@ export default function AnalyticsPage() {
   const { orders } = useOrderStore();
   const { users } = useAuthStore();
 
-  const customerCount = users.filter((u) => u.role === "customer").length;
+  const [selectedUser, setSelectedUser] = useState<string>("all");
+  const [datePreset, setDatePreset] = useState<DatePreset>("6m");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+
+  const customers = users.filter((u) => u.role === "customer");
+  const customerCount = customers.length;
+
+  const filteredOrders = useMemo(() => {
+    let result = orders;
+
+    // Filter by user
+    if (selectedUser !== "all") {
+      const user = users.find((u) => u.id === selectedUser);
+      if (user) {
+        result = result.filter(
+          (o) => o.userId === selectedUser || o.email.toLowerCase() === user.email.toLowerCase()
+        );
+      }
+    }
+
+    // Filter by date
+    const { from, to } = datePreset === "custom"
+      ? {
+          from: customFrom ? new Date(customFrom) : null,
+          to: customTo ? new Date(customTo + "T23:59:59") : null,
+        }
+      : getPresetRange(datePreset);
+
+    if (from) result = result.filter((o) => new Date(o.createdAt) >= from);
+    if (to) result = result.filter((o) => new Date(o.createdAt) <= to);
+
+    return result;
+  }, [orders, selectedUser, datePreset, customFrom, customTo, users]);
 
   const last6 = useMemo(() => getLast6Months(), []);
 
   const monthlyRevenue = useMemo(() => {
     return last6.map(({ year, month, label }) => {
-      const monthOrders = orders.filter((o) => {
+      const monthOrders = filteredOrders.filter((o) => {
         const d = new Date(o.createdAt);
         return d.getFullYear() === year && d.getMonth() === month;
       });
@@ -38,14 +87,14 @@ export default function AnalyticsPage() {
         .reduce((s, o) => s + o.total, 0);
       return { label, revenue, orders: monthOrders.length };
     });
-  }, [orders, last6]);
+  }, [filteredOrders, last6]);
 
   const totalRevenue = useMemo(
-    () => orders.filter((o) => o.payment === "paid").reduce((s, o) => s + o.total, 0),
-    [orders]
+    () => filteredOrders.filter((o) => o.payment === "paid").reduce((s, o) => s + o.total, 0),
+    [filteredOrders]
   );
 
-  const totalOrders = orders.length;
+  const totalOrders = filteredOrders.length;
   const aov = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
   const productMap = useMemo(() => {
@@ -56,28 +105,22 @@ export default function AnalyticsPage() {
 
   const topProducts = useMemo(() => {
     const agg: Record<string, { name: string; sold: number; revenue: number; category: string }> = {};
-    orders.forEach((o) => {
+    filteredOrders.forEach((o) => {
       o.items.forEach((item) => {
-        const key = item.name;
-        if (!agg[key]) {
-          agg[key] = {
-            name: item.name,
-            sold: 0,
-            revenue: 0,
-            category: productMap[item.name.toLowerCase()] ?? "—",
-          };
+        if (!agg[item.name]) {
+          agg[item.name] = { name: item.name, sold: 0, revenue: 0, category: productMap[item.name.toLowerCase()] ?? "—" };
         }
-        agg[key].sold += item.qty;
-        agg[key].revenue += item.price * item.qty;
+        agg[item.name].sold += item.qty;
+        agg[item.name].revenue += item.price * item.qty;
       });
     });
     return Object.values(agg).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
-  }, [orders, productMap]);
+  }, [filteredOrders, productMap]);
 
   const categoryBreakdown = useMemo(() => {
     const cat: Record<string, number> = {};
     let grandTotal = 0;
-    orders.forEach((o) => {
+    filteredOrders.forEach((o) => {
       o.items.forEach((item) => {
         const category = productMap[item.name.toLowerCase()] ?? "Other";
         const rev = item.price * item.qty;
@@ -92,44 +135,32 @@ export default function AnalyticsPage() {
         pct: grandTotal > 0 ? Math.round((revenue / grandTotal) * 100) : 0,
       }))
       .sort((a, b) => b.revenue - a.revenue);
-  }, [orders, productMap]);
+  }, [filteredOrders, productMap]);
 
   const maxRevenue = Math.max(...monthlyRevenue.map((m) => m.revenue), 1);
 
   const avgItemsPerOrder = useMemo(() => {
     if (totalOrders === 0) return 0;
-    const totalItems = orders.reduce((s, o) => s + o.items.reduce((si, i) => si + i.qty, 0), 0);
+    const totalItems = filteredOrders.reduce((s, o) => s + o.items.reduce((si, i) => si + i.qty, 0), 0);
     return totalItems / totalOrders;
-  }, [orders, totalOrders]);
+  }, [filteredOrders, totalOrders]);
 
   const kpis = [
-    {
-      label: "Total Revenue",
-      value: totalRevenue > 0 ? formatPrice(totalRevenue) : "$0",
-      icon: TrendingUp,
-      sub: "from paid orders",
-    },
-    {
-      label: "Total Orders",
-      value: String(totalOrders),
-      icon: ShoppingBag,
-      sub: "all time",
-    },
-    {
-      label: "Avg Order Value",
-      value: aov > 0 ? formatPrice(aov) : "$0",
-      icon: BarChart2,
-      sub: "per transaction",
-    },
-    {
-      label: "Customers",
-      value: String(customerCount),
-      icon: Users,
-      sub: "registered accounts",
-    },
+    { label: "Total Revenue", value: totalRevenue > 0 ? formatPrice(totalRevenue) : "$0", icon: TrendingUp, sub: "from paid orders" },
+    { label: "Total Orders", value: String(totalOrders), icon: ShoppingBag, sub: "in selected period" },
+    { label: "Avg Order Value", value: aov > 0 ? formatPrice(aov) : "$0", icon: BarChart2, sub: "per transaction" },
+    { label: "Customers", value: String(customerCount), icon: Users, sub: "registered accounts" },
   ];
 
-  const rangeLabel = `${last6[0].label} – ${last6[5].label} ${new Date().getFullYear()}`;
+  const PRESETS: { key: DatePreset; label: string }[] = [
+    { key: "7d", label: "7 days" },
+    { key: "30d", label: "30 days" },
+    { key: "3m", label: "3 months" },
+    { key: "6m", label: "6 months" },
+    { key: "1y", label: "1 year" },
+    { key: "all", label: "All time" },
+    { key: "custom", label: "Custom" },
+  ];
 
   return (
     <div className="p-8">
@@ -141,7 +172,75 @@ export default function AnalyticsPage() {
         >
           Analytics
         </h1>
-        <p className="text-stone-400 text-sm mt-1">Last 6 months — {rangeLabel}</p>
+        <p className="text-stone-400 text-sm mt-1">
+          {selectedUser === "all"
+            ? "All customers"
+            : users.find((u) => u.id === selectedUser)
+              ? `${users.find((u) => u.id === selectedUser)!.firstName} ${users.find((u) => u.id === selectedUser)!.lastName}`
+              : "Selected customer"}
+          {" · "}
+          {PRESETS.find((p) => p.key === datePreset)?.label ?? "Custom range"}
+        </p>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3 mb-8 bg-white border border-stone-100 p-4">
+        <div className="flex items-center gap-2">
+          <Filter size={13} className="text-stone-400 shrink-0" />
+          <span className="text-[10px] tracking-widests uppercase text-stone-400">Filters</span>
+        </div>
+
+        {/* User filter */}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] tracking-widests uppercase text-stone-400">Customer</span>
+          <select
+            value={selectedUser}
+            onChange={(e) => setSelectedUser(e.target.value)}
+            className="border border-stone-200 text-xs px-3 py-1.5 text-stone-700 focus:outline-none focus:border-stone-800 bg-white"
+          >
+            <option value="all">All customers</option>
+            {customers.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.firstName} {u.lastName} ({u.email})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Date preset */}
+        <div className="flex items-center gap-1 border border-stone-200">
+          {PRESETS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setDatePreset(key)}
+              className={cn(
+                "px-3 py-1.5 text-xs tracking-wide transition-colors",
+                datePreset === key ? "bg-stone-900 text-white" : "text-stone-500 hover:bg-stone-50"
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Custom date inputs */}
+        {datePreset === "custom" && (
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={customFrom}
+              onChange={(e) => setCustomFrom(e.target.value)}
+              className="border border-stone-200 text-xs px-3 py-1.5 text-stone-700 focus:outline-none focus:border-stone-800"
+            />
+            <span className="text-xs text-stone-400">→</span>
+            <input
+              type="date"
+              value={customTo}
+              onChange={(e) => setCustomTo(e.target.value)}
+              className="border border-stone-200 text-xs px-3 py-1.5 text-stone-700 focus:outline-none focus:border-stone-800"
+            />
+          </div>
+        )}
       </div>
 
       {/* KPIs */}
@@ -149,7 +248,7 @@ export default function AnalyticsPage() {
         {kpis.map(({ label, value, icon: Icon, sub }) => (
           <div key={label} className="bg-white border border-stone-100 p-6">
             <div className="flex items-start justify-between mb-4">
-              <p className="text-xs tracking-widest uppercase text-stone-400">{label}</p>
+              <p className="text-xs tracking-widests uppercase text-stone-400">{label}</p>
               <div className="p-2 bg-stone-50 rounded-sm">
                 <Icon size={14} className="text-stone-600" />
               </div>
@@ -166,14 +265,14 @@ export default function AnalyticsPage() {
         {/* Revenue Bar Chart */}
         <div className="lg:col-span-2 bg-white border border-stone-100">
           <div className="px-6 py-5 border-b border-stone-100">
-            <h2 className="text-xs tracking-widest uppercase font-medium">Monthly Revenue</h2>
+            <h2 className="text-xs tracking-widests uppercase font-medium">Monthly Revenue</h2>
           </div>
           <div className="p-6">
             {totalOrders === 0 ? (
               <div className="h-48 flex flex-col items-center justify-center text-center">
                 <BarChart3 size={36} className="text-stone-200 mb-3" />
-                <p className="text-stone-400 text-sm">No orders yet</p>
-                <p className="text-stone-300 text-xs mt-1">Revenue data will appear once orders are placed</p>
+                <p className="text-stone-400 text-sm">No orders in this period</p>
+                <p className="text-stone-300 text-xs mt-1">Try adjusting the date filter</p>
               </div>
             ) : (
               <>
@@ -213,12 +312,12 @@ export default function AnalyticsPage() {
         {/* Category Breakdown */}
         <div className="bg-white border border-stone-100">
           <div className="px-6 py-5 border-b border-stone-100">
-            <h2 className="text-xs tracking-widest uppercase font-medium">Revenue by Category</h2>
+            <h2 className="text-xs tracking-widests uppercase font-medium">Revenue by Category</h2>
           </div>
           <div className="p-6">
             {categoryBreakdown.length === 0 ? (
               <div className="py-8 text-center">
-                <p className="text-stone-400 text-sm">No data yet</p>
+                <p className="text-stone-400 text-sm">No data for this period</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -229,10 +328,7 @@ export default function AnalyticsPage() {
                       <span className="text-xs font-medium text-stone-800">{formatPrice(revenue)}</span>
                     </div>
                     <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-stone-900 rounded-full transition-all"
-                        style={{ width: `${pct}%` }}
-                      />
+                      <div className="h-full bg-stone-900 rounded-full transition-all" style={{ width: `${pct}%` }} />
                     </div>
                     <p className="text-[10px] text-stone-400 mt-1">{pct}% of total</p>
                   </div>
@@ -246,19 +342,18 @@ export default function AnalyticsPage() {
       {/* Top Products Table */}
       <div className="bg-white border border-stone-100">
         <div className="px-6 py-5 border-b border-stone-100">
-          <h2 className="text-xs tracking-widest uppercase font-medium">Top Products by Revenue</h2>
+          <h2 className="text-xs tracking-widests uppercase font-medium">Top Products by Revenue</h2>
         </div>
         {topProducts.length === 0 ? (
           <div className="py-16 text-center">
-            <p className="text-stone-400 text-sm">No sales data yet</p>
-            <p className="text-stone-300 text-xs mt-1">Product performance will appear once orders are placed</p>
+            <p className="text-stone-400 text-sm">No sales data for this period</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-stone-50">
-                  <th className="text-left text-[10px] tracking-widest uppercase text-stone-400 font-normal px-6 py-3">#</th>
+                  <th className="text-left text-[10px] tracking-widests uppercase text-stone-400 font-normal px-6 py-3">#</th>
                   <th className="text-left text-[10px] tracking-widests uppercase text-stone-400 font-normal px-6 py-3">Product</th>
                   <th className="text-left text-[10px] tracking-widests uppercase text-stone-400 font-normal px-6 py-3">Category</th>
                   <th className="text-right text-[10px] tracking-widests uppercase text-stone-400 font-normal px-6 py-3">Units Sold</th>
@@ -272,10 +367,7 @@ export default function AnalyticsPage() {
                     <td className="px-6 py-4 text-sm font-medium">{name}</td>
                     <td className="px-6 py-4 text-xs text-stone-400 capitalize">{category}</td>
                     <td className="px-6 py-4 text-sm text-right">{sold}</td>
-                    <td
-                      className="px-6 py-4 text-sm text-right font-medium"
-                      style={{ fontFamily: "var(--font-cormorant), serif" }}
-                    >
+                    <td className="px-6 py-4 text-sm text-right font-medium" style={{ fontFamily: "var(--font-cormorant), serif" }}>
                       {formatPrice(revenue)}
                     </td>
                   </tr>
@@ -285,30 +377,15 @@ export default function AnalyticsPage() {
           </div>
         )}
 
-        {/* Summary footer */}
         <div className="grid grid-cols-3 divide-x divide-stone-100 border-t border-stone-100">
           {[
-            {
-              label: "Paid Orders",
-              value: String(orders.filter((o) => o.payment === "paid").length),
-              note: "successfully charged",
-            },
-            {
-              label: "Avg Items / Order",
-              value: avgItemsPerOrder > 0 ? avgItemsPerOrder.toFixed(1) : "—",
-              note: "units per transaction",
-            },
-            {
-              label: "Pending Orders",
-              value: String(orders.filter((o) => o.status === "pending" || o.status === "processing").length),
-              note: "awaiting fulfilment",
-            },
+            { label: "Paid Orders", value: String(filteredOrders.filter((o) => o.payment === "paid").length), note: "successfully charged" },
+            { label: "Avg Items / Order", value: avgItemsPerOrder > 0 ? avgItemsPerOrder.toFixed(1) : "—", note: "units per transaction" },
+            { label: "Pending Orders", value: String(filteredOrders.filter((o) => o.status === "pending" || o.status === "processing").length), note: "awaiting fulfilment" },
           ].map(({ label, value, note }) => (
             <div key={label} className="px-6 py-5 text-center">
-              <p className="text-xs tracking-widest uppercase text-stone-400 mb-2">{label}</p>
-              <p className="text-2xl text-stone-900" style={{ fontFamily: "var(--font-cormorant), serif" }}>
-                {value}
-              </p>
+              <p className="text-xs tracking-widests uppercase text-stone-400 mb-2">{label}</p>
+              <p className="text-2xl text-stone-900" style={{ fontFamily: "var(--font-cormorant), serif" }}>{value}</p>
               <p className="text-[10px] text-stone-400 mt-1">{note}</p>
             </div>
           ))}

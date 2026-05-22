@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Search, ShoppingBag, User, Menu, X, Heart } from "lucide-react";
 import { navItems } from "@/lib/data";
 import { useCartStore } from "@/store/cartStore";
@@ -18,6 +19,7 @@ export default function Header() {
   const toggleCart = useCartStore((s) => s.toggleCart);
   const wishlistCount = useWishlistStore((s) => s.itemCount);
   const { currentUser, logout } = useAuthStore();
+  const router = useRouter();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -150,7 +152,7 @@ export default function Header() {
                         </Link>
                       ))}
                       <button
-                        onClick={() => { logout(); setUserMenuOpen(false); }}
+                        onClick={() => { logout(); setUserMenuOpen(false); router.push("/"); }}
                         className="block w-full text-left px-4 py-2.5 text-xs tracking-widest uppercase text-stone-400 hover:text-red-600 hover:bg-stone-50 transition-colors border-t border-stone-100 mt-1"
                       >
                         Sign Out

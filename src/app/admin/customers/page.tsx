@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Filter, Mail, ChevronDown, ChevronUp, Users } from "lucide-react";
+import { Search, Filter, Mail, ChevronDown, ChevronUp, Users, Trash2, X } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 import { useOrderStore } from "@/store/orderStore";
@@ -9,7 +9,7 @@ import { useOrderStore } from "@/store/orderStore";
 type SortKey = "name" | "joined" | "orders" | "totalSpent";
 
 export default function CustomersPage() {
-  const { users } = useAuthStore();
+  const { users, deleteUser } = useAuthStore();
   const { orders } = useOrderStore();
 
   const [search, setSearch] = useState("");
@@ -17,8 +17,9 @@ export default function CustomersPage() {
   const [sortKey, setSortKey] = useState<SortKey>("joined");
   const [sortAsc, setSortAsc] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // Build enriched customer list from real users + real orders
   const customers = users
     .filter((u) => u.role === "customer")
     .map((u) => {
@@ -77,6 +78,18 @@ export default function CustomersPage() {
 
   const totalRevenue = customers.reduce((s, c) => s + c.totalSpent, 0);
   const activeCount = customers.filter((c) => c.status === "active").length;
+
+  const handleDeleteConfirm = () => {
+    if (!confirmDelete) return;
+    const result = deleteUser(confirmDelete.id);
+    if (!result.success) {
+      setDeleteError(result.error ?? "Failed to delete");
+    } else {
+      setConfirmDelete(null);
+      setDeleteError(null);
+      if (expandedId === confirmDelete.id) setExpandedId(null);
+    }
+  };
 
   return (
     <div className="p-8">
@@ -161,16 +174,17 @@ export default function CustomersPage() {
                       </button>
                     </th>
                     <th className="text-right px-6 py-3">
-                      <button onClick={() => toggleSort("orders")} className="flex items-center gap-1 text-[10px] tracking-widest uppercase text-stone-400 font-normal hover:text-stone-700 ml-auto">
+                      <button onClick={() => toggleSort("orders")} className="flex items-center gap-1 text-[10px] tracking-widests uppercase text-stone-400 font-normal hover:text-stone-700 ml-auto">
                         Orders <SortIcon k="orders" />
                       </button>
                     </th>
                     <th className="text-right px-6 py-3">
-                      <button onClick={() => toggleSort("totalSpent")} className="flex items-center gap-1 text-[10px] tracking-widest uppercase text-stone-400 font-normal hover:text-stone-700 ml-auto">
+                      <button onClick={() => toggleSort("totalSpent")} className="flex items-center gap-1 text-[10px] tracking-widests uppercase text-stone-400 font-normal hover:text-stone-700 ml-auto">
                         Spent <SortIcon k="totalSpent" />
                       </button>
                     </th>
                     <th className="text-left text-[10px] tracking-widests uppercase text-stone-400 font-normal px-6 py-3">Status</th>
+                    <th className="text-left text-[10px] tracking-widests uppercase text-stone-400 font-normal px-6 py-3"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-50">
@@ -212,10 +226,23 @@ export default function CustomersPage() {
                               {c.status}
                             </span>
                           </td>
+                          <td className="px-6 py-4">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteError(null);
+                                setConfirmDelete({ id: c.id, name: c.name });
+                              }}
+                              className="p-1.5 text-stone-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                              title="Delete customer"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </td>
                         </tr>
                         {isExpanded && (
                           <tr key={`${c.id}-exp`} className="bg-stone-50/60">
-                            <td colSpan={6} className="px-6 py-4">
+                            <td colSpan={7} className="px-6 py-4">
                               <div className="flex flex-wrap gap-8 text-sm">
                                 <div>
                                   <p className="text-[10px] tracking-widests uppercase text-stone-400 mb-1">Last Order</p>
@@ -258,6 +285,49 @@ export default function CustomersPage() {
           </>
         )}
       </div>
+
+      {/* Delete confirmation modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white w-full max-w-sm p-6 shadow-xl">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="text-base font-medium text-stone-900">Delete Customer</h3>
+                <p className="text-sm text-stone-500 mt-1">This action cannot be undone.</p>
+              </div>
+              <button onClick={() => { setConfirmDelete(null); setDeleteError(null); }} className="text-stone-400 hover:text-stone-600">
+                <X size={18} />
+              </button>
+            </div>
+
+            <p className="text-sm text-stone-700 mb-2">
+              Are you sure you want to delete <span className="font-medium">{confirmDelete.name}</span>?
+            </p>
+            <p className="text-xs text-stone-400 mb-5">
+              Their account and saved addresses will be permanently removed. Orders will remain in the system.
+            </p>
+
+            {deleteError && (
+              <p className="text-xs text-red-500 mb-4 bg-red-50 px-3 py-2">{deleteError}</p>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setConfirmDelete(null); setDeleteError(null); }}
+                className="flex-1 py-2.5 border border-stone-200 text-sm text-stone-600 hover:bg-stone-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="flex-1 py-2.5 bg-red-600 text-white text-sm hover:bg-red-700 transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

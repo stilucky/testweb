@@ -46,6 +46,7 @@ interface AuthStore {
   updateProfile: (data: Partial<Pick<User, "firstName" | "lastName" | "email" | "phone">>) => void;
   resetPassword: (email: string, newPassword: string) => { success: boolean; error?: string };
   emailExists: (email: string) => boolean;
+  deleteUser: (id: string) => { success: boolean; error?: string };
   getAddresses: () => Address[];
   addAddress: (address: Omit<Address, "id">) => void;
   removeAddress: (id: string) => void;
@@ -143,6 +144,20 @@ export const useAuthStore = create<AuthStore>()(
             s.currentUser?.email.toLowerCase() === email.toLowerCase()
               ? { ...s.currentUser, passwordChangedAt: changedAt }
               : s.currentUser,
+        }));
+        return { success: true };
+      },
+
+      deleteUser: (id) => {
+        const target = get().users.find((u) => u.id === id);
+        if (!target) return { success: false, error: "User not found" };
+        if (target.role === "admin") return { success: false, error: "Cannot delete admin accounts" };
+        if (get().currentUser?.id === id) return { success: false, error: "Cannot delete your own account" };
+        set((s) => ({
+          users: s.users.filter((u) => u.id !== id),
+          userAddresses: Object.fromEntries(
+            Object.entries(s.userAddresses).filter(([uid]) => uid !== id)
+          ),
         }));
         return { success: true };
       },
