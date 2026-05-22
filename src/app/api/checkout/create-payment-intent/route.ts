@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "");
-
 export async function POST(req: NextRequest) {
   try {
     const { amount, currency = "cad" } = await req.json();
@@ -17,6 +15,8 @@ export async function POST(req: NextRequest) {
         { status: 503 }
       );
     }
+
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100),
