@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { TrendingUp, ShoppingBag, Users, BarChart2, BarChart3, Filter } from "lucide-react";
 import { useOrderStore } from "@/store/orderStore";
 import { useAuthStore } from "@/store/authStore";
@@ -98,17 +100,31 @@ export default function AnalyticsPage() {
   const aov = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
   const productMap = useMemo(() => {
-    const map: Record<string, string> = {};
-    products.forEach((p) => { map[p.name.toLowerCase()] = p.category; });
+    const map: Record<string, { category: string; image: string; slug: string }> = {};
+    products.forEach((p) => {
+      map[p.name.toLowerCase()] = {
+        category: p.category,
+        image: p.images[0] ?? "",
+        slug: p.slug,
+      };
+    });
     return map;
   }, []);
 
   const topProducts = useMemo(() => {
-    const agg: Record<string, { name: string; sold: number; revenue: number; category: string }> = {};
+    const agg: Record<string, { name: string; sold: number; revenue: number; category: string; image: string; slug: string }> = {};
     filteredOrders.forEach((o) => {
       o.items.forEach((item) => {
         if (!agg[item.name]) {
-          agg[item.name] = { name: item.name, sold: 0, revenue: 0, category: productMap[item.name.toLowerCase()] ?? "—" };
+          const meta = productMap[item.name.toLowerCase()];
+          agg[item.name] = {
+            name: item.name,
+            sold: 0,
+            revenue: 0,
+            category: meta?.category ?? "—",
+            image: meta?.image ?? (item.image ?? ""),
+            slug: meta?.slug ?? "",
+          };
         }
         agg[item.name].sold += item.qty;
         agg[item.name].revenue += item.price * item.qty;
@@ -361,10 +377,37 @@ export default function AnalyticsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-50">
-                {topProducts.map(({ name, category, sold, revenue }, i) => (
+                {topProducts.map(({ name, category, sold, revenue, image, slug }, i) => (
                   <tr key={name} className="hover:bg-stone-50/50 transition-colors">
                     <td className="px-6 py-4 text-xs text-stone-300 font-medium">0{i + 1}</td>
-                    <td className="px-6 py-4 text-sm font-medium">{name}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        {image ? (
+                          <div className="relative w-10 h-12 shrink-0 overflow-hidden bg-stone-100">
+                            <Image
+                              src={image}
+                              alt={name}
+                              fill
+                              className="object-cover"
+                              sizes="40px"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-12 shrink-0 bg-stone-100" />
+                        )}
+                        {slug ? (
+                          <Link
+                            href={`/products/${slug}`}
+                            target="_blank"
+                            className="text-sm font-medium hover:text-stone-500 hover:underline underline-offset-2 transition-colors"
+                          >
+                            {name}
+                          </Link>
+                        ) : (
+                          <span className="text-sm font-medium">{name}</span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-6 py-4 text-xs text-stone-400 capitalize">{category}</td>
                     <td className="px-6 py-4 text-sm text-right">{sold}</td>
                     <td className="px-6 py-4 text-sm text-right font-medium" style={{ fontFamily: "var(--font-cormorant), serif" }}>
