@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { SlidersHorizontal, X, ChevronDown } from "lucide-react";
 import { products } from "@/lib/data";
@@ -28,7 +28,7 @@ const categoryOptions = [
   { label: "Outerwear", value: "outerwear" },
 ];
 
-export default function ProductsPage() {
+function ProductsContent() {
   const searchParams = useSearchParams();
   const filterParam = searchParams.get("filter");
   const categoryParam = searchParams.get("category") ?? "all";
@@ -257,5 +257,29 @@ export default function ProductsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={
+      <div className="max-w-screen-xl mx-auto px-4 md:px-8 py-12">
+        <div className="text-center mb-10">
+          <div className="h-12 w-48 bg-stone-100 rounded mx-auto mb-3 animate-pulse" />
+          <div className="h-4 w-24 bg-stone-100 rounded mx-auto animate-pulse" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="space-y-3">
+              <div className="aspect-[3/4] bg-stone-100 animate-pulse" />
+              <div className="h-4 bg-stone-100 rounded animate-pulse" />
+              <div className="h-3 w-2/3 bg-stone-100 rounded animate-pulse" />
+            </div>
+          ))}
+        </div>
+      </div>
+    }>
+      <ProductsContent />
+    </Suspense>
   );
 }
