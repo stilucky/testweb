@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -13,9 +14,28 @@ import {
   Loader2,
   CreditCard,
   Building2,
+  AlertCircle,
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { formatPrice, cn } from "@/lib/utils";
+
+const StripePaymentForm = dynamic(
+  () => import("@/components/checkout/StripePaymentForm"),
+  { ssr: false, loading: () => <PaymentLoader /> }
+);
+const PayPalCheckout = dynamic(
+  () => import("@/components/checkout/PayPalCheckout"),
+  { ssr: false, loading: () => <PaymentLoader /> }
+);
+
+function PaymentLoader() {
+  return (
+    <div className="flex items-center justify-center py-12 gap-3 text-stone-400 text-sm">
+      <Loader2 size={16} className="animate-spin" />
+      Loading payment...
+    </div>
+  );
+}
 
 type Step = "information" | "shipping" | "payment";
 type PayMethod = "card" | "paypal" | "bank";
@@ -33,21 +53,6 @@ const shippingOptions = [
   { id: "overnight", label: "Overnight", sub: "Next business day", price: 45 },
 ];
 
-function formatCardNumber(v: string) {
-  return v.replace(/\D/g, "").slice(0, 16).replace(/(.{4})/g, "$1 ").trim();
-}
-function formatExpiry(v: string) {
-  const d = v.replace(/\D/g, "").slice(0, 4);
-  return d.length >= 3 ? `${d.slice(0, 2)} / ${d.slice(2)}` : d;
-}
-function detectCardBrand(num: string): string {
-  const n = num.replace(/\s/g, "");
-  if (/^4/.test(n)) return "Visa";
-  if (/^5[1-5]/.test(n)) return "Mastercard";
-  if (/^3[47]/.test(n)) return "Amex";
-  return "";
-}
-
 interface InfoForm {
   email: string;
   newsletter: boolean;
@@ -59,12 +64,6 @@ interface InfoForm {
   country: string;
   phone: string;
 }
-interface CardForm {
-  number: string;
-  name: string;
-  expiry: string;
-  cvc: string;
-}
 
 export default function CheckoutPage() {
   const { items, total, clearCart } = useCartStore();
@@ -73,23 +72,21 @@ export default function CheckoutPage() {
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
 
-  // Shipping
   const [selectedShipping, setSelectedShipping] = useState("standard");
-
-  // Coupon
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<(typeof COUPONS)[string] & { code: string } | null>(null);
   const [couponError, setCouponError] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
 
-  // Payment
   const [payMethod, setPayMethod] = useState<PayMethod>("card");
-  const [cardForm, setCardForm] = useState<CardForm>({ number: "", name: "", expiry: "", cvc: "" });
-  const [cardErrors, setCardErrors] = useState<Partial<CardForm>>({});
   const [placing, setPlacing] = useState(false);
 
-  // Info form
+  // Stripe state
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentSetupError, setPaymentSetupError] = useState("");
+
   const [info, setInfo] = useState<InfoForm>({
     email: "",
     newsletter: false,
@@ -106,13 +103,11 @@ export default function CheckoutPage() {
   // ─── Calculations ───
   const subtotal = total();
   const shippingCost = subtotal >= 200 ? 0 : (shippingOptions.find((s) => s.id === selectedShipping)?.price ?? 15);
-
   const discountAmount = appliedCoupon
     ? appliedCoupon.type === "percent"
       ? Math.round((subtotal * appliedCoupon.value) / 100 * 100) / 100
       : appliedCoupon.value
     : 0;
-
   const orderTotal = subtotal - discountAmount + shippingCost;
 
   // ─── Coupon ───
@@ -147,31 +142,45 @@ export default function CheckoutPage() {
     return Object.keys(e).length === 0;
   };
 
-  // ─── Validate card ───
-  const validateCard = () => {
-    if (payMethod !== "card") return true;
-    const e: Partial<CardForm> = {};
-    const num = cardForm.number.replace(/\s/g, "");
-    if (num.length < 16) e.number = "Enter a valid 16-digit card number";
-    if (!cardForm.name.trim()) e.name = "Required";
-    const exp = cardForm.expiry.replace(/\s/g, "");
-    if (exp.length < 5) e.expiry = "Enter MM / YY";
-    if (cardForm.cvc.length < 3) e.cvc = "Enter 3–4 digits";
-    setCardErrors(e);
-    return Object.keys(e).length === 0;
+  // ─── Go to payment step — create Stripe PaymentIntent ───
+  const handleContinueToPayment = async () => {
+    setPaymentSetupError("");
+    setPaymentLoading(true);
+    setClientSecret(null);
+
+    try {
+      const res = await fetch("/api/checkout/create-payment-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: orderTotal }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to initialize payment");
+      setClientSecret(data.clientSecret ?? null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Payment setup failed";
+      setPaymentSetupError(msg);
+    } finally {
+      setPaymentLoading(false);
+      setStep("payment");
+    }
   };
 
-  // ─── Place order ───
-  const handlePlaceOrder = () => {
-    if (!validateCard()) return;
+  // ─── Order success ───
+  const handleOrderSuccess = () => {
+    const num = `ORD-${Math.floor(10000 + Math.random() * 90000)}`;
+    setOrderNumber(num);
+    clearCart();
+    setOrderPlaced(true);
+  };
+
+  // ─── Bank transfer order ───
+  const handleBankOrder = () => {
     setPlacing(true);
     setTimeout(() => {
-      const num = `ORD-${Math.floor(10000 + Math.random() * 90000)}`;
-      setOrderNumber(num);
-      clearCart();
-      setOrderPlaced(true);
+      handleOrderSuccess();
       setPlacing(false);
-    }, 1800);
+    }, 1000);
   };
 
   // ─── Order Confirmed screen ───
@@ -411,7 +420,6 @@ export default function CheckoutPage() {
           {/* ─── Step 2: Shipping ─── */}
           {step === "shipping" && (
             <div className="space-y-6">
-              {/* Confirmed info summary */}
               <div className="bg-stone-50 px-5 py-4 flex items-center justify-between text-sm">
                 <div className="space-y-1 text-stone-500">
                   <p><span className="text-stone-400 text-xs mr-2">Contact</span>{info.email}</p>
@@ -483,10 +491,18 @@ export default function CheckoutPage() {
                   Back
                 </button>
                 <button
-                  onClick={() => setStep("payment")}
-                  className="flex-1 py-4 bg-stone-900 text-white text-xs tracking-widest uppercase hover:bg-stone-700 transition-colors"
+                  onClick={handleContinueToPayment}
+                  disabled={paymentLoading}
+                  className="flex-1 py-4 bg-stone-900 text-white text-xs tracking-widest uppercase hover:bg-stone-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
                 >
-                  Continue to Payment
+                  {paymentLoading ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      Preparing...
+                    </>
+                  ) : (
+                    "Continue to Payment"
+                  )}
                 </button>
               </div>
             </div>
@@ -495,7 +511,6 @@ export default function CheckoutPage() {
           {/* ─── Step 3: Payment ─── */}
           {step === "payment" && (
             <div className="space-y-6">
-              {/* Confirmed info summary */}
               <div className="bg-stone-50 px-5 py-4 space-y-1 text-sm text-stone-500">
                 <div className="flex justify-between">
                   <p><span className="text-stone-400 text-xs mr-2">Contact</span>{info.email}</p>
@@ -503,7 +518,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex justify-between">
                   <p><span className="text-stone-400 text-xs mr-2">Ship to</span>{info.address}, {info.city}</p>
-                  <button onClick={() => setStep("shipping")} className="text-xs underline underline-offset-2 text-stone-400 hover:text-stone-900">Change</button>
+                  <button onClick={() => { setStep("shipping"); setClientSecret(null); }} className="text-xs underline underline-offset-2 text-stone-400 hover:text-stone-900">Change</button>
                 </div>
                 <p>
                   <span className="text-stone-400 text-xs mr-2">Method</span>
@@ -540,164 +555,121 @@ export default function CheckoutPage() {
                   ))}
                 </div>
 
-                {/* Credit card form */}
+                {/* Stripe error / setup error */}
+                {paymentSetupError && payMethod === "card" && (
+                  <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 mb-4 text-sm">
+                    <AlertCircle size={14} className="shrink-0" />
+                    {paymentSetupError}
+                    <span className="ml-1 text-xs">
+                      (Add <span className="font-mono">STRIPE_SECRET_KEY</span> to .env.local)
+                    </span>
+                  </div>
+                )}
+
+                {/* ── Stripe Card ── */}
                 {payMethod === "card" && (
-                  <div className="space-y-4 border border-stone-200 p-5">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-xs tracking-widest uppercase text-stone-400">Card Details</p>
-                      <div className="flex gap-1.5">
-                        {["Visa", "Mastercard", "Amex"].map((b) => (
-                          <span
-                            key={b}
-                            className={cn(
-                              "text-[10px] px-2 py-0.5 border transition-colors",
-                              detectCardBrand(cardForm.number) === b
-                                ? "border-stone-900 text-stone-900 font-medium"
-                                : "border-stone-200 text-stone-300"
-                            )}
-                          >
-                            {b}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={cardForm.number}
-                        onChange={(e) =>
-                          setCardForm((f) => ({ ...f, number: formatCardNumber(e.target.value) }))
-                        }
-                        placeholder="1234 5678 9012 3456"
-                        maxLength={19}
-                        className={cn(
-                          "w-full px-4 py-3 border text-sm focus:outline-none transition-colors font-mono tracking-wider",
-                          cardErrors.number ? "border-red-400" : "border-stone-200 focus:border-stone-800"
-                        )}
-                      />
-                      {cardErrors.number && <p className="text-xs text-red-500 mt-1">{cardErrors.number}</p>}
-                    </div>
-                    <div>
-                      <input
-                        type="text"
-                        value={cardForm.name}
-                        onChange={(e) => setCardForm((f) => ({ ...f, name: e.target.value.toUpperCase() }))}
-                        placeholder="CARDHOLDER NAME"
-                        className={cn(
-                          "w-full px-4 py-3 border text-sm focus:outline-none transition-colors tracking-widest uppercase",
-                          cardErrors.name ? "border-red-400" : "border-stone-200 focus:border-stone-800"
-                        )}
-                      />
-                      {cardErrors.name && <p className="text-xs text-red-500 mt-1">{cardErrors.name}</p>}
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={cardForm.expiry}
-                          onChange={(e) =>
-                            setCardForm((f) => ({ ...f, expiry: formatExpiry(e.target.value) }))
-                          }
-                          placeholder="MM / YY"
-                          maxLength={7}
-                          className={cn(
-                            "w-full px-4 py-3 border text-sm focus:outline-none transition-colors font-mono",
-                            cardErrors.expiry ? "border-red-400" : "border-stone-200 focus:border-stone-800"
-                          )}
-                        />
-                        {cardErrors.expiry && <p className="text-xs text-red-500 mt-1">{cardErrors.expiry}</p>}
-                      </div>
-                      <div>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={cardForm.cvc}
-                          onChange={(e) =>
-                            setCardForm((f) => ({ ...f, cvc: e.target.value.replace(/\D/g, "").slice(0, 4) }))
-                          }
-                          placeholder="CVC"
-                          maxLength={4}
-                          className={cn(
-                            "w-full px-4 py-3 border text-sm focus:outline-none transition-colors font-mono",
-                            cardErrors.cvc ? "border-red-400" : "border-stone-200 focus:border-stone-800"
-                          )}
-                        />
-                        {cardErrors.cvc && <p className="text-xs text-red-500 mt-1">{cardErrors.cvc}</p>}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* PayPal */}
-                {payMethod === "paypal" && (
-                  <div className="border border-stone-200 p-8 text-center">
-                    <div className="text-3xl font-bold mb-3" style={{ color: "#003087" }}>
-                      Pay<span style={{ color: "#009cde" }}>Pal</span>
-                    </div>
-                    <p className="text-sm text-stone-500">
-                      You will be redirected to PayPal to complete your payment securely.
-                    </p>
-                  </div>
-                )}
-
-                {/* Bank transfer */}
-                {payMethod === "bank" && (
-                  <div className="border border-stone-200 p-5 space-y-3 text-sm text-stone-600">
-                    <p className="text-xs tracking-widest uppercase text-stone-400 mb-4">Bank Transfer Details</p>
-                    {[
-                      { label: "Bank", value: "CIBC — Commerce Bank" },
-                      { label: "Account Name", value: "TeBoutique Inc." },
-                      { label: "Account Number", value: "1234 5678 9012" },
-                      { label: "Routing Number", value: "021 000 089" },
-                      { label: "Reference", value: `ORDER-${Date.now().toString().slice(-6)}` },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="flex justify-between border-b border-stone-100 pb-2">
-                        <span className="text-stone-400 text-xs">{label}</span>
-                        <span className="font-mono text-xs">{value}</span>
-                      </div>
-                    ))}
-                    <p className="text-xs text-stone-400 pt-2">
-                      Your order will be confirmed within 1–2 business days upon receipt of payment.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Place order */}
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => setStep("shipping")}
-                  className="flex-1 py-4 border border-stone-200 text-xs tracking-widest uppercase hover:bg-stone-50 transition-colors"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={handlePlaceOrder}
-                  disabled={placing}
-                  className="flex-1 py-4 bg-stone-900 text-white text-xs tracking-widest uppercase hover:bg-stone-700 transition-colors font-medium disabled:opacity-60 flex items-center justify-center gap-2"
-                >
-                  {placing ? (
-                    <>
-                      <Loader2 size={14} className="animate-spin" />
-                      Processing...
-                    </>
+                  clientSecret ? (
+                    <StripePaymentForm
+                      clientSecret={clientSecret}
+                      amount={orderTotal}
+                      onSuccess={handleOrderSuccess}
+                      onBack={() => { setStep("shipping"); setClientSecret(null); }}
+                    />
+                  ) : paymentLoading ? (
+                    <PaymentLoader />
                   ) : (
-                    `Place Order · ${formatPrice(orderTotal)}`
-                  )}
-                </button>
+                    /* Fallback: Stripe not configured — show manual card note */
+                    <div className="space-y-4">
+                      <div className="border border-amber-200 bg-amber-50 p-5 text-center">
+                        <p className="text-sm text-amber-700 font-medium mb-1">Stripe not configured</p>
+                        <p className="text-xs text-amber-600">
+                          Add <span className="font-mono">STRIPE_SECRET_KEY</span> and{" "}
+                          <span className="font-mono">NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</span> to{" "}
+                          <span className="font-mono">.env.local</span> to accept card payments.
+                        </p>
+                      </div>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => { setStep("shipping"); setClientSecret(null); }}
+                          className="flex-1 py-4 border border-stone-200 text-xs tracking-widest uppercase hover:bg-stone-50 transition-colors"
+                        >
+                          Back
+                        </button>
+                        <button
+                          disabled
+                          className="flex-1 py-4 bg-stone-300 text-white text-xs tracking-widest uppercase cursor-not-allowed"
+                        >
+                          Pay · {formatPrice(orderTotal)}
+                        </button>
+                      </div>
+                    </div>
+                  )
+                )}
+
+                {/* ── PayPal ── */}
+                {payMethod === "paypal" && (
+                  <PayPalCheckout
+                    amount={orderTotal}
+                    onSuccess={handleOrderSuccess}
+                    onBack={() => { setStep("shipping"); setClientSecret(null); }}
+                  />
+                )}
+
+                {/* ── Bank Transfer ── */}
+                {payMethod === "bank" && (
+                  <div className="space-y-6">
+                    <div className="border border-stone-200 p-5 space-y-3 text-sm text-stone-600">
+                      <p className="text-xs tracking-widest uppercase text-stone-400 mb-4">Bank Transfer Details</p>
+                      {[
+                        { label: "Bank", value: "CIBC — Commerce Bank" },
+                        { label: "Account Name", value: "TeBoutique Inc." },
+                        { label: "Account Number", value: "1234 5678 9012" },
+                        { label: "Routing Number", value: "021 000 089" },
+                        { label: "Reference", value: `ORDER-${Date.now().toString().slice(-6)}` },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="flex justify-between border-b border-stone-100 pb-2">
+                          <span className="text-stone-400 text-xs">{label}</span>
+                          <span className="font-mono text-xs">{value}</span>
+                        </div>
+                      ))}
+                      <p className="text-xs text-stone-400 pt-2">
+                        Your order will be confirmed within 1–2 business days upon receipt of payment.
+                      </p>
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => { setStep("shipping"); setClientSecret(null); }}
+                        className="flex-1 py-4 border border-stone-200 text-xs tracking-widest uppercase hover:bg-stone-50 transition-colors"
+                      >
+                        Back
+                      </button>
+                      <button
+                        onClick={handleBankOrder}
+                        disabled={placing}
+                        className="flex-1 py-4 bg-stone-900 text-white text-xs tracking-widest uppercase hover:bg-stone-700 transition-colors font-medium disabled:opacity-60 flex items-center justify-center gap-2"
+                      >
+                        {placing ? (
+                          <>
+                            <Loader2 size={14} className="animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          `Place Order · ${formatPrice(orderTotal)}`
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-xs text-stone-400 text-center flex items-center justify-center gap-1">
+                      <Lock size={10} /> 256-bit SSL encryption · Your payment is secure
+                    </p>
+                  </div>
+                )}
               </div>
-              <p className="text-xs text-stone-400 text-center flex items-center justify-center gap-1">
-                <Lock size={10} /> 256-bit SSL encryption · Your payment is secure
-              </p>
             </div>
           )}
         </div>
 
         {/* ─── Right: Order Summary ─── */}
         <div className="lg:col-span-2">
-          {/* Mobile toggle */}
           <button
             onClick={() => setSummaryOpen(!summaryOpen)}
             className="lg:hidden w-full flex items-center justify-between p-4 border border-stone-200 mb-4 text-xs tracking-widest uppercase"
@@ -714,7 +686,6 @@ export default function CheckoutPage() {
           <div className={cn("bg-stone-50 p-6 sticky top-24", !summaryOpen && "hidden lg:block")}>
             <h2 className="text-xs tracking-widest uppercase font-medium mb-5 hidden lg:block">Order Summary</h2>
 
-            {/* Items */}
             <div className="divide-y divide-stone-100 mb-5">
               {items.map((item, idx) => (
                 <div key={idx} className="flex gap-3 py-3">
@@ -753,12 +724,7 @@ export default function CheckoutPage() {
                       <p className="text-[11px] text-emerald-600">{appliedCoupon.label}</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setAppliedCoupon(null)}
-                    className="text-stone-400 hover:text-stone-700 text-xs"
-                  >
-                    ✕
-                  </button>
+                  <button onClick={() => setAppliedCoupon(null)} className="text-stone-400 hover:text-stone-700 text-xs">✕</button>
                 </div>
               ) : (
                 <div className="flex gap-2">
@@ -821,7 +787,6 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* Trust */}
             <div className="mt-5 pt-4 border-t border-stone-100 flex flex-wrap gap-3 justify-center">
               {["Free Returns", "SSL Secure", "Authenticity Guaranteed"].map((t) => (
                 <span key={t} className="flex items-center gap-1 text-[10px] text-stone-400 tracking-wide">

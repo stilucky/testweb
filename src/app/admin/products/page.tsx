@@ -335,8 +335,9 @@ export default function AdminProductsPage() {
       {/* Table */}
       <div className="bg-white border border-stone-100 overflow-hidden">
         <div className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-stone-100 bg-stone-50">
-          <p className="col-span-5 text-[10px] tracking-widest uppercase text-stone-400">Product</p>
-          <p className="col-span-2 text-[10px] tracking-widest uppercase text-stone-400">Category</p>
+          <p className="col-span-4 text-[10px] tracking-widest uppercase text-stone-400">Product</p>
+          <p className="col-span-1 text-[10px] tracking-widest uppercase text-stone-400">Category</p>
+          <p className="col-span-2 text-[10px] tracking-widest uppercase text-stone-400">Labels</p>
           <p className="col-span-2 text-[10px] tracking-widest uppercase text-stone-400 text-right">Price</p>
           <p className="col-span-1 text-[10px] tracking-widest uppercase text-stone-400 text-center">Stock</p>
           <p className="col-span-2 text-[10px] tracking-widest uppercase text-stone-400 text-right">Actions</p>
@@ -353,7 +354,7 @@ export default function AdminProductsPage() {
               const { cls: stockCls } = stockBadge(product.stock);
               return (
                 <div key={product.id} className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-stone-50/50 transition-colors">
-                  <div className="col-span-5 flex items-center gap-4 min-w-0">
+                  <div className="col-span-4 flex items-center gap-4 min-w-0">
                     <div className="relative w-12 h-16 bg-stone-100 shrink-0 overflow-hidden">
                       <Image
                         src={product.images[0]}
@@ -366,21 +367,26 @@ export default function AdminProductsPage() {
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">{product.name}</p>
                       <p className="text-xs text-stone-400 mt-0.5 truncate">{product.shortDescription}</p>
-                      <div className="flex gap-1.5 mt-1.5">
-                        {product.isNew && (
-                          <span className="text-[10px] bg-stone-900 text-white px-1.5 py-0.5 tracking-wider uppercase">New</span>
-                        )}
-                        {product.isBestSeller && (
-                          <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 tracking-wider uppercase">Bestseller</span>
-                        )}
-                        {product.salePrice && (
-                          <span className="text-[10px] bg-red-50 text-red-500 px-1.5 py-0.5 tracking-wider uppercase">Sale</span>
-                        )}
-                      </div>
                     </div>
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-1">
                     <p className="text-xs text-stone-500 capitalize">{product.category}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <div className="flex flex-col gap-1">
+                      {product.isNew && (
+                        <span className="text-[10px] bg-stone-900 text-white px-1.5 py-0.5 tracking-wider uppercase w-fit">New</span>
+                      )}
+                      {product.isBestSeller && (
+                        <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 tracking-wider uppercase w-fit">Bestseller</span>
+                      )}
+                      {product.salePrice && (
+                        <span className="text-[10px] bg-red-50 text-red-500 px-1.5 py-0.5 tracking-wider uppercase w-fit">Sale</span>
+                      )}
+                      {!product.isNew && !product.isBestSeller && !product.salePrice && (
+                        <span className="text-[10px] text-stone-300">—</span>
+                      )}
+                    </div>
                   </div>
                   <div className="col-span-2 text-right">
                     {product.salePrice ? (

@@ -1,17 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { cn } from "@/lib/utils";
 
+type AuthMode = "login" | "register";
+type RegisterStep = "form" | "otp";
+
 export default function AuthPage() {
   const router = useRouter();
   const { login, register } = useAuthStore();
 
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<AuthMode>("login");
+  const [registerStep, setRegisterStep] = useState<RegisterStep>("form");
+  const [pendingEmail, setPendingEmail] = useState("");
+
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -25,9 +31,37 @@ export default function AuthPage() {
     confirmPassword: "",
   });
 
+  const [otpDigits, setOtpDigits] = useState(["", "", "", "", "", ""]);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+
   const update = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((f) => ({ ...f, [field]: e.target.value }));
     setError("");
+  };
+
+  const startResendCooldown = () => {
+    setResendCooldown(60);
+    const interval = setInterval(() => {
+      setResendCooldown((c) => {
+        if (c <= 1) { clearInterval(interval); return 0; }
+        return c - 1;
+      });
+    }, 1000);
+  };
+
+  const sendVerifyOTP = async (email: string, name?: string) => {
+    const res = await fetch("/api/auth/send-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, purpose: "verify", name }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Failed to send code");
+    if (data.devOTP) {
+      setError(`[Dev mode] Your code is: ${data.devOTP}`);
+    }
+    return data;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,7 +69,7 @@ export default function AuthPage() {
     setError("");
     setLoading(true);
 
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 400));
 
     if (mode === "login") {
       const result = login(form.email, form.password);
@@ -45,40 +79,229 @@ export default function AuthPage() {
       } else {
         setError(result.error ?? "Login failed");
       }
-    } else {
-      if (form.password !== form.confirmPassword) {
-        setError("Passwords do not match");
-        setLoading(false);
-        return;
-      }
-      if (form.password.length < 6) {
-        setError("Password must be at least 6 characters");
-        setLoading(false);
-        return;
-      }
-      const result = register({
-        firstName: form.firstName,
-        lastName: form.lastName,
-        email: form.email,
-        password: form.password,
-      });
-      if (result.success) {
-        setSuccess("Account created! Redirecting...");
-        setTimeout(() => router.push("/account"), 1000);
-      } else {
-        setError(result.error ?? "Registration failed");
-      }
+      setLoading(false);
+      return;
     }
 
+    // Register flow
+    if (form.password !== form.confirmPassword) {
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
+    }
+    if (form.password.length < 6) {
+      setError("Password must be at least 6 characters");
+      setLoading(false);
+      return;
+    }
+
+    const result = register({
+      firstName: form.firstName,
+      lastName: form.lastName,
+      email: form.email,
+      password: form.password,
+    });
+
+    if (!result.success) {
+      setError(result.error ?? "Registration failed");
+      setLoading(false);
+      return;
+    }
+
+    // Account created — now send activation OTP
+    setPendingEmail(form.email);
+    try {
+      await sendVerifyOTP(form.email, form.firstName);
+      startResendCooldown();
+      setRegisterStep("otp");
+    } catch {
+      // OTP failed but account is created — let them in anyway
+      setSuccess("Account created! Redirecting...");
+      setTimeout(() => router.push("/account"), 1000);
+    }
     setLoading(false);
   };
 
-  const switchMode = (newMode: "login" | "register") => {
+  const handleOTPChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return;
+    const next = [...otpDigits];
+    next[index] = value.slice(-1);
+    setOtpDigits(next);
+    setError("");
+    if (value && index < 5) otpRefs.current[index + 1]?.focus();
+  };
+
+  const handleOTPKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleOTPPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (!pasted) return;
+    const next = [...otpDigits];
+    pasted.split("").forEach((ch, i) => { if (i < 6) next[i] = ch; });
+    setOtpDigits(next);
+    otpRefs.current[Math.min(pasted.length, 5)]?.focus();
+  };
+
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    const code = otpDigits.join("");
+    if (code.length < 6) {
+      setError("Please enter the complete 6-digit code");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: pendingEmail, code, purpose: "verify" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Invalid code");
+      setSuccess("Account verified! Redirecting...");
+      setTimeout(() => router.push("/account"), 1000);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Verification failed");
+      setOtpDigits(["", "", "", "", "", ""]);
+      otpRefs.current[0]?.focus();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    if (resendCooldown > 0) return;
+    setError("");
+    setLoading(true);
+    try {
+      await sendVerifyOTP(pendingEmail, form.firstName);
+      startResendCooldown();
+      setOtpDigits(["", "", "", "", "", ""]);
+      otpRefs.current[0]?.focus();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to resend");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSkipVerification = () => {
+    setSuccess("Account created! Redirecting...");
+    setTimeout(() => router.push("/account"), 800);
+  };
+
+  const switchMode = (newMode: AuthMode) => {
     setMode(newMode);
+    setRegisterStep("form");
     setError("");
     setSuccess("");
+    setOtpDigits(["", "", "", "", "", ""]);
     setForm({ firstName: "", lastName: "", email: "", password: "", confirmPassword: "" });
   };
+
+  // OTP verification step after register
+  if (mode === "register" && registerStep === "otp") {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center px-4 py-16">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-10">
+            <Link href="/">
+              <span
+                className="text-3xl tracking-[0.15em] uppercase"
+                style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 400 }}
+              >
+                TeBoutique
+              </span>
+            </Link>
+          </div>
+
+          <div className="mb-8">
+            <h1 className="text-2xl font-light tracking-wide mb-2">Verify Your Email</h1>
+            <p className="text-sm text-stone-400 leading-relaxed">
+              We sent a 6-digit code to{" "}
+              <span className="text-stone-700 font-medium">{pendingEmail}</span>.
+              Enter it below to activate your account.
+            </p>
+          </div>
+
+          {error && !error.startsWith("[Dev") && (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 mb-5 text-sm">
+              <AlertCircle size={15} className="shrink-0" />
+              {error}
+            </div>
+          )}
+          {error && error.startsWith("[Dev") && (
+            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 mb-5 text-sm font-mono">
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 mb-5 text-sm">
+              <CheckCircle2 size={15} className="shrink-0" />
+              {success}
+            </div>
+          )}
+
+          <form onSubmit={handleVerifyOTP} className="space-y-6">
+            <div className="flex gap-2 justify-between" onPaste={handleOTPPaste}>
+              {otpDigits.map((digit, i) => (
+                <input
+                  key={i}
+                  ref={(el) => { otpRefs.current[i] = el; }}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleOTPChange(i, e.target.value)}
+                  onKeyDown={(e) => handleOTPKeyDown(i, e)}
+                  className={cn(
+                    "w-12 h-14 text-center text-xl font-light border transition-colors focus:outline-none",
+                    digit ? "border-stone-800 bg-stone-50" : "border-stone-200",
+                    "focus:border-stone-800"
+                  )}
+                />
+              ))}
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || otpDigits.join("").length < 6}
+              className="w-full py-4 bg-stone-900 text-white text-xs tracking-widest uppercase hover:bg-stone-700 transition-colors disabled:opacity-60"
+            >
+              {loading ? "Verifying..." : "Activate Account"}
+            </button>
+          </form>
+
+          <div className="mt-4 text-center space-y-3">
+            <div>
+              <span className="text-xs text-stone-400">Didn't receive the code? </span>
+              <button
+                type="button"
+                onClick={handleResendOTP}
+                disabled={resendCooldown > 0 || loading}
+                className="text-xs text-stone-700 underline disabled:text-stone-400 disabled:no-underline"
+              >
+                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend"}
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={handleSkipVerification}
+              className="text-xs text-stone-400 hover:text-stone-600 transition-colors"
+            >
+              Skip for now
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-16">
@@ -197,9 +420,12 @@ export default function AuthPage() {
 
           {mode === "login" && (
             <div className="text-right">
-              <button type="button" className="text-xs text-stone-400 hover:text-stone-700 transition-colors underline">
+              <Link
+                href="/auth/forgot-password"
+                className="text-xs text-stone-400 hover:text-stone-700 transition-colors underline"
+              >
                 Forgot password?
-              </button>
+              </Link>
             </div>
           )}
 

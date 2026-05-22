@@ -29,6 +29,8 @@ interface AuthStore {
   }) => { success: boolean; error?: string };
   logout: () => void;
   updateProfile: (data: Partial<Pick<User, "firstName" | "lastName" | "email" | "phone">>) => void;
+  resetPassword: (email: string, newPassword: string) => { success: boolean; error?: string };
+  emailExists: (email: string) => boolean;
 }
 
 const defaultUsers: StoredUser[] = [
@@ -103,6 +105,26 @@ export const useAuthStore = create<AuthStore>()(
             u.id === s.currentUser?.id ? { ...u, ...data } : u
           ),
         })),
+
+      resetPassword: (email, newPassword) => {
+        const exists = get().users.some(
+          (u) => u.email.toLowerCase() === email.toLowerCase()
+        );
+        if (!exists) {
+          return { success: false, error: "No account found with this email" };
+        }
+        set((s) => ({
+          users: s.users.map((u) =>
+            u.email.toLowerCase() === email.toLowerCase()
+              ? { ...u, password: newPassword }
+              : u
+          ),
+        }));
+        return { success: true };
+      },
+
+      emailExists: (email) =>
+        get().users.some((u) => u.email.toLowerCase() === email.toLowerCase()),
     }),
     { name: "teboutique-auth" }
   )
