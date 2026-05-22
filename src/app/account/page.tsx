@@ -253,7 +253,7 @@ export default function AccountPage() {
                     {
                       label: "Member Since",
                       value: currentUser.createdAt
-                        ? new Date(currentUser.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+                        ? new Date(currentUser.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
                         : "—",
                     },
                   ].map(({ label, value }) => (
