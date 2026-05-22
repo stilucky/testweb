@@ -138,7 +138,7 @@ export default function AnalyticsPage() {
     let grandTotal = 0;
     filteredOrders.forEach((o) => {
       o.items.forEach((item) => {
-        const category = productMap[item.name.toLowerCase()] ?? "Other";
+        const category = productMap[item.name.toLowerCase()]?.category ?? "Other";
         const rev = item.price * item.qty;
         cat[category] = (cat[category] ?? 0) + rev;
         grandTotal += rev;
