@@ -250,7 +250,12 @@ export default function AccountPage() {
                     { label: "Name", value: `${profile.firstName} ${profile.lastName}` },
                     { label: "Email", value: profile.email },
                     { label: "Phone", value: profile.phone },
-                    { label: "Member Since", value: "January 2024" },
+                    {
+                      label: "Member Since",
+                      value: currentUser.createdAt
+                        ? new Date(currentUser.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+                        : "—",
+                    },
                   ].map(({ label, value }) => (
                     <div key={label} className="flex items-start justify-between border-b border-stone-100 pb-5">
                       <p className="text-xs tracking-widest uppercase text-stone-400 pt-0.5">{label}</p>
