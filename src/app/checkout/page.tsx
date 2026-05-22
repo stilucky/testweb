@@ -93,15 +93,15 @@ export default function CheckoutPage() {
   const [paymentSetupError, setPaymentSetupError] = useState("");
 
   const [info, setInfo] = useState<InfoForm>({
-    email: "",
+    email: currentUser?.email ?? "",
     newsletter: false,
-    firstName: "",
-    lastName: "",
+    firstName: currentUser?.firstName ?? "",
+    lastName: currentUser?.lastName ?? "",
     address: "",
     city: "",
     postal: "",
     country: "",
-    phone: "",
+    phone: currentUser?.phone ?? "",
   });
   const [infoErrors, setInfoErrors] = useState<Partial<InfoForm>>({});
 

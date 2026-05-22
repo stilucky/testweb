@@ -87,11 +87,13 @@ export default function AccountPage() {
   const { getAddresses, removeAddress, setDefaultAddress } = useAuthStore();
   const { orders: allOrders } = useOrderStore();
 
-  const myOrders = allOrders.filter(
-    (o) =>
-      o.userId === currentUser?.id ||
-      o.email.toLowerCase() === currentUser?.email.toLowerCase()
-  );
+  const myOrders = (allOrders ?? []).filter((o) => {
+    if (!currentUser) return false;
+    return (
+      (o.userId && o.userId === currentUser.id) ||
+      o.email.toLowerCase() === currentUser.email.toLowerCase()
+    );
+  });
 
   if (!currentUser) return null;
 
