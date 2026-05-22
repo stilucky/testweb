@@ -22,6 +22,7 @@ export interface Product {
 export interface Color {
   name: string;
   hex: string;
+  images?: string[];
 }
 
 export interface CartItem {

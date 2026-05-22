@@ -23,6 +23,15 @@ export default function ProductDetailPage({ params }: Props) {
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState("");
   const [selectedColor, setSelectedColor] = useState(product.colors[0]?.name ?? "");
+
+  const handleColorChange = (colorName: string) => {
+    setSelectedColor(colorName);
+    setSelectedImage(0);
+  };
+
+  const activeColor = product.colors.find((c) => c.name === selectedColor);
+  const displayImages =
+    activeColor?.images?.length ? activeColor.images : product.images;
   const [wishlisted, setWishlisted] = useState(false);
   const [sizeError, setSizeError] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>("description");
@@ -80,7 +89,7 @@ export default function ProductDetailPage({ params }: Props) {
         <div className="flex gap-3">
           {/* Thumbnails */}
           <div className="flex flex-col gap-2 w-16 shrink-0">
-            {product.images.map((img, i) => (
+            {displayImages.map((img, i) => (
               <button
                 key={i}
                 onClick={() => setSelectedImage(i)}
@@ -97,11 +106,11 @@ export default function ProductDetailPage({ params }: Props) {
           {/* Main image */}
           <div className="flex-1 relative aspect-[3/4] bg-stone-50 overflow-hidden">
             <Image
-              src={product.images[selectedImage]}
-              alt={product.name}
+              src={displayImages[selectedImage] ?? displayImages[0]}
+              alt={`${product.name} — ${selectedColor}`}
               fill
               priority
-              className="object-cover"
+              className="object-cover transition-opacity duration-300"
               sizes="(max-width: 768px) 100vw, 50vw"
             />
             {product.isNew && (
@@ -155,12 +164,12 @@ export default function ProductDetailPage({ params }: Props) {
               {product.colors.map((color) => (
                 <button
                   key={color.name}
-                  onClick={() => setSelectedColor(color.name)}
+                  onClick={() => handleColorChange(color.name)}
                   title={color.name}
                   className={cn(
                     "w-8 h-8 rounded-full border-2 transition-all",
                     selectedColor === color.name
-                      ? "border-stone-900 scale-110"
+                      ? "border-stone-900 scale-110 shadow-sm"
                       : "border-stone-200 hover:border-stone-400"
                   )}
                   style={{ backgroundColor: color.hex }}
