@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -12,39 +11,21 @@ import {
   Check,
   Tag,
   Loader2,
-  CreditCard,
-  Building2,
   AlertCircle,
   ExternalLink,
   ShoppingBag,
+  User,
+  LogIn,
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { useOrderStore } from "@/store/orderStore";
-import { useAuthStore, type Address } from "@/store/authStore";
+import { useAuthStore } from "@/store/authStore";
 import { useCouponStore } from "@/store/couponStore";
 import { useSubscriberStore } from "@/store/subscriberStore";
 import { formatPrice, cn } from "@/lib/utils";
 
-const StripePaymentForm = dynamic(
-  () => import("@/components/checkout/StripePaymentForm"),
-  { ssr: false, loading: () => <PaymentLoader /> }
-);
-const PayPalCheckout = dynamic(
-  () => import("@/components/checkout/PayPalCheckout"),
-  { ssr: false, loading: () => <PaymentLoader /> }
-);
-
-function PaymentLoader() {
-  return (
-    <div className="flex items-center justify-center py-12 gap-3 text-stone-400 text-sm">
-      <Loader2 size={16} className="animate-spin" />
-      Loading payment...
-    </div>
-  );
-}
-
 type Step = "information" | "shipping" | "payment";
-type PayMethod = "card" | "paypal" | "bank" | "shopify";
+type CheckoutMode = "guest" | "signin";
 
 const shippingOptions = [
   { id: "standard", label: "Standard Shipping", sub: "5–7 business days", price: 15 },
@@ -70,27 +51,22 @@ export default function CheckoutPage() {
   const { currentUser, addAddress, getAddresses } = useAuthStore();
   const { validateCoupon, useCoupon } = useCouponStore();
   const { markCouponUsed } = useSubscriberStore();
-  const [saveAddress, setSaveAddress] = useState(false);
 
+  const [saveAddress, setSaveAddress] = useState(false);
+  const [checkoutMode, setCheckoutMode] = useState<CheckoutMode>("guest");
   const [step, setStep] = useState<Step>("information");
-  const [orderPlaced, setOrderPlaced] = useState(false);
-  const [orderNumber, setOrderNumber] = useState("");
 
   const [selectedShipping, setSelectedShipping] = useState("standard");
   const [couponInput, setCouponInput] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; label: string; type: "percent" | "fixed"; value: number } | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string; label: string; type: "percent" | "fixed"; value: number;
+  } | null>(null);
   const [couponError, setCouponError] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
 
-  const [payMethod, setPayMethod] = useState<PayMethod>("card");
-  const [placing, setPlacing] = useState(false);
+  const [shopifyError, setShopifyError] = useState("");
   const [shopifyRedirecting, setShopifyRedirecting] = useState(false);
-
-  // Stripe state
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [paymentLoading, setPaymentLoading] = useState(false);
-  const [paymentSetupError, setPaymentSetupError] = useState("");
 
   const [info, setInfo] = useState<InfoForm>({
     email: currentUser?.email ?? "",
@@ -134,7 +110,7 @@ export default function CheckoutPage() {
     }, 600);
   };
 
-  // ─── Validate info step ───
+  // ─── Validate info ───
   const validateInfo = () => {
     const e: Partial<InfoForm> = {};
     if (!info.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(info.email)) e.email = "Valid email required";
@@ -148,31 +124,7 @@ export default function CheckoutPage() {
     return Object.keys(e).length === 0;
   };
 
-  // ─── Go to payment step — create Stripe PaymentIntent ───
-  const handleContinueToPayment = async () => {
-    setPaymentSetupError("");
-    setPaymentLoading(true);
-    setClientSecret(null);
-
-    try {
-      const res = await fetch("/api/checkout/create-payment-intent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: orderTotal }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to initialize payment");
-      setClientSecret(data.clientSecret ?? null);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Payment setup failed";
-      setPaymentSetupError(msg);
-    } finally {
-      setPaymentLoading(false);
-      setStep("payment");
-    }
-  };
-
-  // ─── Save address if requested ───
+  // ─── Save address ───
   const maybeSaveAddress = () => {
     if (!saveAddress || !currentUser) return;
     const existingAddresses = getAddresses();
@@ -189,69 +141,10 @@ export default function CheckoutPage() {
     });
   };
 
-  // ─── Order success ───
-  const handleOrderSuccess = () => {
-    maybeSaveAddress();
-    const shippingOption = shippingOptions.find((s) => s.id === selectedShipping);
-    const orderItems = items.map((item) => ({
-      name: item.product.name,
-      qty: item.quantity,
-      price: item.product.salePrice ?? item.product.price,
-      size: item.selectedSize,
-      color: item.selectedColor,
-      image: item.product.images[0],
-    }));
-    const orderId = addOrder({
-      customer: `${info.firstName} ${info.lastName}`.trim() || "Guest",
-      email: info.email,
-      phone: info.phone || undefined,
-      items: orderItems,
-      subtotal,
-      shippingCost,
-      discount: discountAmount,
-      total: orderTotal,
-      status: "pending",
-      payment: payMethod === "bank" ? "pending" : "paid",
-      paymentMethod: payMethod,
-      shippingMethod: shippingOption?.label ?? "Standard Shipping",
-      shippingAddress: `${info.address}, ${info.city}, ${info.postal}, ${info.country}`,
-      couponCode: appliedCoupon?.code,
-      userId: currentUser?.id,
-    });
-    if (appliedCoupon) {
-      useCoupon(appliedCoupon.code);
-      markCouponUsed(info.email);
-    }
-
-    // Send order confirmation email (fire-and-forget)
-    fetch("/api/order/confirm", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        orderId,
-        customer: `${info.firstName} ${info.lastName}`.trim() || "Guest",
-        email: info.email,
-        items: orderItems,
-        subtotal,
-        shippingCost,
-        discount: discountAmount,
-        total: orderTotal,
-        shippingAddress: `${info.address}, ${info.city}, ${info.postal}, ${info.country}`,
-        shippingMethod: shippingOption?.label ?? "Standard Shipping",
-        paymentMethod: payMethod,
-        couponCode: appliedCoupon?.code,
-      }),
-    }).catch(() => {});
-
-    setOrderNumber(orderId);
-    clearCart();
-    setOrderPlaced(true);
-  };
-
-  // ─── Shopify checkout ───
+  // ─── Shopify Checkout ───
   const handleShopifyCheckout = async () => {
     setShopifyRedirecting(true);
-    setPaymentSetupError("");
+    setShopifyError("");
     try {
       maybeSaveAddress();
       const shippingOption = shippingOptions.find((s) => s.id === selectedShipping);
@@ -263,7 +156,6 @@ export default function CheckoutPage() {
         color: item.selectedColor,
         image: item.product.images[0],
       }));
-      // Save local order first (pending payment)
       const orderId = addOrder({
         customer: `${info.firstName} ${info.lastName}`.trim() || "Guest",
         email: info.email,
@@ -288,74 +180,56 @@ export default function CheckoutPage() {
       const res = await fetch("/api/shopify/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items, info, selectedShipping, discountAmount, appliedCoupon, localOrderId: orderId }),
+        body: JSON.stringify({
+          items,
+          info,
+          selectedShipping,
+          discountAmount,
+          appliedCoupon,
+          localOrderId: orderId,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Shopify checkout failed");
       clearCart();
       window.location.href = data.invoiceUrl;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to redirect to Shopify";
-      setPaymentSetupError(msg);
+      const msg = err instanceof Error ? err.message : "Failed to redirect to Shopify. Please try again.";
+      setShopifyError(msg);
       setShopifyRedirecting(false);
     }
   };
 
-  // ─── Bank transfer order ───
-  const handleBankOrder = () => {
-    setPlacing(true);
-    setTimeout(() => {
-      handleOrderSuccess();
-      setPlacing(false);
-    }, 1000);
-  };
-
-  // ─── Order Confirmed screen ───
-  if (orderPlaced) {
+  // ─── Empty cart ───
+  if (items.length === 0) {
     return (
-      <div className="min-h-[80vh] flex flex-col items-center justify-center text-center px-4 py-16">
-        <div className="w-20 h-20 border-2 border-stone-900 rounded-full flex items-center justify-center mb-8">
-          <Check size={32} />
-        </div>
-        <p className="text-xs tracking-[0.3em] uppercase text-stone-400 mb-3">Thank You</p>
-        <h1
-          className="text-4xl md:text-5xl mb-4"
-          style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4">
+        <ShoppingBag size={40} className="text-stone-200 mb-4" />
+        <p className="text-stone-500 mb-6">Your cart is empty</p>
+        <Link
+          href="/products"
+          className="bg-stone-900 text-white text-xs tracking-widest uppercase px-8 py-4 hover:bg-stone-700 transition-colors"
         >
-          Order Confirmed
-        </h1>
-        <p className="text-stone-500 mb-1">
-          Order <span className="font-medium text-stone-900 font-mono">{orderNumber}</span>
-        </p>
-        <p className="text-stone-400 text-sm mb-2">
-          A confirmation has been sent to <span className="text-stone-700">{info.email || "your email"}</span>
-        </p>
-        <p className="text-stone-400 text-sm mb-12">
-          Estimated delivery: {shippingOptions.find((s) => s.id === selectedShipping)?.sub ?? "5–7 business days"}
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <Link
-            href="/account"
-            className="inline-block border border-stone-200 text-xs tracking-widest uppercase px-8 py-4 hover:bg-stone-50 transition-colors"
-          >
-            Track Order
-          </Link>
-          <Link
-            href="/products"
-            className="inline-block bg-stone-900 text-white text-xs tracking-widest uppercase px-10 py-4 hover:bg-stone-700 transition-colors"
-          >
-            Continue Shopping
-          </Link>
-        </div>
+          Shop Now
+        </Link>
       </div>
     );
   }
+
+  const stepLabels: Record<Step, string> = {
+    information: "Information",
+    shipping: "Shipping",
+    payment: "Review & Pay",
+  };
 
   return (
     <div className="max-w-screen-xl mx-auto px-4 md:px-8 py-10">
       {/* Top bar */}
       <div className="flex items-center justify-between mb-10">
-        <Link href="/cart" className="flex items-center gap-2 text-xs tracking-widest uppercase text-stone-400 hover:text-stone-900 transition-colors">
+        <Link
+          href="/cart"
+          className="flex items-center gap-2 text-xs tracking-widest uppercase text-stone-400 hover:text-stone-900 transition-colors"
+        >
           <ArrowLeft size={14} /> Cart
         </Link>
         <Link href="/">
@@ -395,7 +269,7 @@ export default function CheckoutPage() {
                 )}
               </span>
               <span className={cn("hidden sm:block", step === s ? "text-stone-900" : "text-stone-400")}>
-                {s}
+                {stepLabels[s]}
               </span>
             </div>
             {i < 2 && <span className="text-stone-200">—</span>}
@@ -410,153 +284,222 @@ export default function CheckoutPage() {
           {/* ─── Step 1: Information ─── */}
           {step === "information" && (
             <div className="space-y-6">
-              <div>
-                <h2 className="text-xs tracking-widest uppercase font-medium mb-5">Contact Information</h2>
-                <div className="space-y-4">
-                  <div>
-                    <input
-                      type="email"
-                      value={info.email}
-                      onChange={(e) => setInfo((f) => ({ ...f, email: e.target.value }))}
-                      placeholder="Email address"
-                      className={cn(
-                        "w-full px-4 py-3 border text-sm focus:outline-none transition-colors",
-                        infoErrors.email ? "border-red-400 bg-red-50/30" : "border-stone-200 focus:border-stone-800"
-                      )}
-                    />
-                    {infoErrors.email && <p className="text-xs text-red-500 mt-1">{infoErrors.email}</p>}
-                  </div>
-                  <label className="flex items-center gap-2 text-xs text-stone-500 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={info.newsletter}
-                      onChange={(e) => setInfo((f) => ({ ...f, newsletter: e.target.checked }))}
-                      className="accent-stone-900"
-                    />
-                    Email me with exclusive offers and style news
-                  </label>
-                </div>
-              </div>
 
-              <div>
-                <h2 className="text-xs tracking-widest uppercase font-medium mb-5">Shipping Address</h2>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <input
-                      type="text"
-                      value={info.firstName}
-                      onChange={(e) => setInfo((f) => ({ ...f, firstName: e.target.value }))}
-                      placeholder="First name"
+              {/* Guest / Sign In toggle (only when not logged in) */}
+              {!currentUser && (
+                <div>
+                  <div className="flex gap-px bg-stone-100 p-1 mb-4">
+                    <button
+                      onClick={() => setCheckoutMode("guest")}
                       className={cn(
-                        "w-full px-4 py-3 border text-sm focus:outline-none transition-colors",
-                        infoErrors.firstName ? "border-red-400" : "border-stone-200 focus:border-stone-800"
-                      )}
-                    />
-                    {infoErrors.firstName && <p className="text-xs text-red-500 mt-1">{infoErrors.firstName}</p>}
-                  </div>
-                  <div>
-                    <input
-                      type="text"
-                      value={info.lastName}
-                      onChange={(e) => setInfo((f) => ({ ...f, lastName: e.target.value }))}
-                      placeholder="Last name"
-                      className={cn(
-                        "w-full px-4 py-3 border text-sm focus:outline-none transition-colors",
-                        infoErrors.lastName ? "border-red-400" : "border-stone-200 focus:border-stone-800"
-                      )}
-                    />
-                    {infoErrors.lastName && <p className="text-xs text-red-500 mt-1">{infoErrors.lastName}</p>}
-                  </div>
-                  <div className="col-span-2">
-                    <input
-                      type="text"
-                      value={info.address}
-                      onChange={(e) => setInfo((f) => ({ ...f, address: e.target.value }))}
-                      placeholder="Street address"
-                      className={cn(
-                        "w-full px-4 py-3 border text-sm focus:outline-none transition-colors",
-                        infoErrors.address ? "border-red-400" : "border-stone-200 focus:border-stone-800"
-                      )}
-                    />
-                    {infoErrors.address && <p className="text-xs text-red-500 mt-1">{infoErrors.address}</p>}
-                  </div>
-                  <div>
-                    <input
-                      type="text"
-                      value={info.city}
-                      onChange={(e) => setInfo((f) => ({ ...f, city: e.target.value }))}
-                      placeholder="City"
-                      className={cn(
-                        "w-full px-4 py-3 border text-sm focus:outline-none transition-colors",
-                        infoErrors.city ? "border-red-400" : "border-stone-200 focus:border-stone-800"
-                      )}
-                    />
-                    {infoErrors.city && <p className="text-xs text-red-500 mt-1">{infoErrors.city}</p>}
-                  </div>
-                  <div>
-                    <input
-                      type="text"
-                      value={info.postal}
-                      onChange={(e) => setInfo((f) => ({ ...f, postal: e.target.value }))}
-                      placeholder="Postal code"
-                      className={cn(
-                        "w-full px-4 py-3 border text-sm focus:outline-none transition-colors",
-                        infoErrors.postal ? "border-red-400" : "border-stone-200 focus:border-stone-800"
-                      )}
-                    />
-                    {infoErrors.postal && <p className="text-xs text-red-500 mt-1">{infoErrors.postal}</p>}
-                  </div>
-                  <div className="col-span-2 relative">
-                    <select
-                      value={info.country}
-                      onChange={(e) => setInfo((f) => ({ ...f, country: e.target.value }))}
-                      className={cn(
-                        "w-full px-4 py-3 border text-sm focus:outline-none transition-colors appearance-none bg-white",
-                        infoErrors.country ? "border-red-400" : "border-stone-200 focus:border-stone-800"
+                        "flex-1 flex items-center justify-center gap-2 py-3 text-xs tracking-widest uppercase transition-colors",
+                        checkoutMode === "guest"
+                          ? "bg-white text-stone-900 shadow-sm"
+                          : "text-stone-400 hover:text-stone-600"
                       )}
                     >
-                      <option value="">Select country</option>
-                      {["Canada", "United States", "United Kingdom", "Australia", "Vietnam", "France", "Germany", "Japan"].map((c) => (
-                        <option key={c}>{c}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
-                    {infoErrors.country && <p className="text-xs text-red-500 mt-1">{infoErrors.country}</p>}
-                  </div>
-                  <div className="col-span-2">
-                    <input
-                      type="tel"
-                      value={info.phone}
-                      onChange={(e) => setInfo((f) => ({ ...f, phone: e.target.value }))}
-                      placeholder="Phone number (optional)"
-                      className="w-full px-4 py-3 border border-stone-200 text-sm focus:outline-none focus:border-stone-800 transition-colors"
-                    />
+                      <User size={13} />
+                      Guest Checkout
+                    </button>
+                    <button
+                      onClick={() => setCheckoutMode("signin")}
+                      className={cn(
+                        "flex-1 flex items-center justify-center gap-2 py-3 text-xs tracking-widest uppercase transition-colors",
+                        checkoutMode === "signin"
+                          ? "bg-white text-stone-900 shadow-sm"
+                          : "text-stone-400 hover:text-stone-600"
+                      )}
+                    >
+                      <LogIn size={13} />
+                      Sign In
+                    </button>
                   </div>
 
-                  {currentUser && (
-                    <div className="col-span-2">
-                      <label className="flex items-center gap-2.5 cursor-pointer select-none group">
-                        <input
-                          type="checkbox"
-                          checked={saveAddress}
-                          onChange={(e) => setSaveAddress(e.target.checked)}
-                          className="w-4 h-4 accent-stone-900"
-                        />
-                        <span className="text-xs text-stone-500 group-hover:text-stone-700 transition-colors">
-                          Save this address to my account
-                        </span>
-                      </label>
+                  {checkoutMode === "signin" ? (
+                    <div className="border border-stone-200 p-6 text-center space-y-4">
+                      <p className="text-sm text-stone-600">
+                        Sign in to use saved addresses and view your order history.
+                      </p>
+                      <Link
+                        href="/auth/login?redirect=/checkout"
+                        className="inline-block bg-stone-900 text-white text-xs tracking-widests uppercase px-8 py-3.5 hover:bg-stone-700 transition-colors"
+                      >
+                        Sign In to My Account
+                      </Link>
+                      <p className="text-xs text-stone-400">
+                        No account?{" "}
+                        <Link href="/auth/register" className="underline underline-offset-2 hover:text-stone-700">
+                          Create one
+                        </Link>{" "}
+                        — or continue as guest below.
+                      </p>
+                      <button
+                        onClick={() => setCheckoutMode("guest")}
+                        className="block w-full text-xs text-stone-400 underline underline-offset-2 hover:text-stone-700 transition-colors mt-1"
+                      >
+                        Continue as guest instead
+                      </button>
                     </div>
+                  ) : (
+                    <p className="text-xs text-stone-400 text-center">
+                      No account needed — just enter your details below.
+                    </p>
                   )}
                 </div>
-              </div>
+              )}
 
-              <button
-                onClick={() => { if (validateInfo()) setStep("shipping"); }}
-                className="w-full py-4 bg-stone-900 text-white text-xs tracking-widest uppercase hover:bg-stone-700 transition-colors font-medium"
-              >
-                Continue to Shipping
-              </button>
+              {/* Show form in guest mode, or always if logged in */}
+              {(checkoutMode === "guest" || currentUser) && (
+                <>
+                  <div>
+                    <h2 className="text-xs tracking-widest uppercase font-medium mb-5">Contact Information</h2>
+                    <div className="space-y-4">
+                      <div>
+                        <input
+                          type="email"
+                          value={info.email}
+                          onChange={(e) => setInfo((f) => ({ ...f, email: e.target.value }))}
+                          placeholder="Email address"
+                          className={cn(
+                            "w-full px-4 py-3 border text-sm focus:outline-none transition-colors",
+                            infoErrors.email ? "border-red-400 bg-red-50/30" : "border-stone-200 focus:border-stone-800"
+                          )}
+                        />
+                        {infoErrors.email && <p className="text-xs text-red-500 mt-1">{infoErrors.email}</p>}
+                      </div>
+                      <label className="flex items-center gap-2 text-xs text-stone-500 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={info.newsletter}
+                          onChange={(e) => setInfo((f) => ({ ...f, newsletter: e.target.checked }))}
+                          className="accent-stone-900"
+                        />
+                        Email me with exclusive offers and style news
+                      </label>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h2 className="text-xs tracking-widests uppercase font-medium mb-5">Shipping Address</h2>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <input
+                          type="text"
+                          value={info.firstName}
+                          onChange={(e) => setInfo((f) => ({ ...f, firstName: e.target.value }))}
+                          placeholder="First name"
+                          className={cn(
+                            "w-full px-4 py-3 border text-sm focus:outline-none transition-colors",
+                            infoErrors.firstName ? "border-red-400" : "border-stone-200 focus:border-stone-800"
+                          )}
+                        />
+                        {infoErrors.firstName && <p className="text-xs text-red-500 mt-1">{infoErrors.firstName}</p>}
+                      </div>
+                      <div>
+                        <input
+                          type="text"
+                          value={info.lastName}
+                          onChange={(e) => setInfo((f) => ({ ...f, lastName: e.target.value }))}
+                          placeholder="Last name"
+                          className={cn(
+                            "w-full px-4 py-3 border text-sm focus:outline-none transition-colors",
+                            infoErrors.lastName ? "border-red-400" : "border-stone-200 focus:border-stone-800"
+                          )}
+                        />
+                        {infoErrors.lastName && <p className="text-xs text-red-500 mt-1">{infoErrors.lastName}</p>}
+                      </div>
+                      <div className="col-span-2">
+                        <input
+                          type="text"
+                          value={info.address}
+                          onChange={(e) => setInfo((f) => ({ ...f, address: e.target.value }))}
+                          placeholder="Street address"
+                          className={cn(
+                            "w-full px-4 py-3 border text-sm focus:outline-none transition-colors",
+                            infoErrors.address ? "border-red-400" : "border-stone-200 focus:border-stone-800"
+                          )}
+                        />
+                        {infoErrors.address && <p className="text-xs text-red-500 mt-1">{infoErrors.address}</p>}
+                      </div>
+                      <div>
+                        <input
+                          type="text"
+                          value={info.city}
+                          onChange={(e) => setInfo((f) => ({ ...f, city: e.target.value }))}
+                          placeholder="City"
+                          className={cn(
+                            "w-full px-4 py-3 border text-sm focus:outline-none transition-colors",
+                            infoErrors.city ? "border-red-400" : "border-stone-200 focus:border-stone-800"
+                          )}
+                        />
+                        {infoErrors.city && <p className="text-xs text-red-500 mt-1">{infoErrors.city}</p>}
+                      </div>
+                      <div>
+                        <input
+                          type="text"
+                          value={info.postal}
+                          onChange={(e) => setInfo((f) => ({ ...f, postal: e.target.value }))}
+                          placeholder="Postal code"
+                          className={cn(
+                            "w-full px-4 py-3 border text-sm focus:outline-none transition-colors",
+                            infoErrors.postal ? "border-red-400" : "border-stone-200 focus:border-stone-800"
+                          )}
+                        />
+                        {infoErrors.postal && <p className="text-xs text-red-500 mt-1">{infoErrors.postal}</p>}
+                      </div>
+                      <div className="col-span-2 relative">
+                        <select
+                          value={info.country}
+                          onChange={(e) => setInfo((f) => ({ ...f, country: e.target.value }))}
+                          className={cn(
+                            "w-full px-4 py-3 border text-sm focus:outline-none transition-colors appearance-none bg-white",
+                            infoErrors.country ? "border-red-400" : "border-stone-200 focus:border-stone-800"
+                          )}
+                        >
+                          <option value="">Select country</option>
+                          {["Canada", "United States", "United Kingdom", "Australia", "Vietnam", "France", "Germany", "Japan"].map((c) => (
+                            <option key={c}>{c}</option>
+                          ))}
+                        </select>
+                        <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+                        {infoErrors.country && <p className="text-xs text-red-500 mt-1">{infoErrors.country}</p>}
+                      </div>
+                      <div className="col-span-2">
+                        <input
+                          type="tel"
+                          value={info.phone}
+                          onChange={(e) => setInfo((f) => ({ ...f, phone: e.target.value }))}
+                          placeholder="Phone number (optional)"
+                          className="w-full px-4 py-3 border border-stone-200 text-sm focus:outline-none focus:border-stone-800 transition-colors"
+                        />
+                      </div>
+
+                      {currentUser && (
+                        <div className="col-span-2">
+                          <label className="flex items-center gap-2.5 cursor-pointer select-none group">
+                            <input
+                              type="checkbox"
+                              checked={saveAddress}
+                              onChange={(e) => setSaveAddress(e.target.checked)}
+                              className="w-4 h-4 accent-stone-900"
+                            />
+                            <span className="text-xs text-stone-500 group-hover:text-stone-700 transition-colors">
+                              Save this address to my account
+                            </span>
+                          </label>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => { if (validateInfo()) setStep("shipping"); }}
+                    className="w-full py-4 bg-stone-900 text-white text-xs tracking-widests uppercase hover:bg-stone-700 transition-colors font-medium"
+                  >
+                    Continue to Shipping
+                  </button>
+                </>
+              )}
             </div>
           )}
 
@@ -577,7 +520,7 @@ export default function CheckoutPage() {
               </div>
 
               <div>
-                <h2 className="text-xs tracking-widest uppercase font-medium mb-5">Shipping Method</h2>
+                <h2 className="text-xs tracking-widests uppercase font-medium mb-5">Shipping Method</h2>
                 <div className="space-y-3">
                   {shippingOptions.map((opt) => {
                     const isFree = subtotal >= 200 && opt.id === "standard";
@@ -629,270 +572,120 @@ export default function CheckoutPage() {
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={() => setStep("information")}
-                  className="flex-1 py-4 border border-stone-200 text-xs tracking-widest uppercase hover:bg-stone-50 transition-colors"
+                  className="flex-1 py-4 border border-stone-200 text-xs tracking-widests uppercase hover:bg-stone-50 transition-colors"
                 >
                   Back
                 </button>
                 <button
-                  onClick={handleContinueToPayment}
-                  disabled={paymentLoading}
-                  className="flex-1 py-4 bg-stone-900 text-white text-xs tracking-widest uppercase hover:bg-stone-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                  onClick={() => setStep("payment")}
+                  className="flex-1 py-4 bg-stone-900 text-white text-xs tracking-widests uppercase hover:bg-stone-700 transition-colors"
                 >
-                  {paymentLoading ? (
-                    <>
-                      <Loader2 size={14} className="animate-spin" />
-                      Preparing...
-                    </>
-                  ) : (
-                    "Continue to Payment"
-                  )}
+                  Review Order
                 </button>
               </div>
             </div>
           )}
 
-          {/* ─── Step 3: Payment ─── */}
+          {/* ─── Step 3: Review & Pay ─── */}
           {step === "payment" && (
             <div className="space-y-6">
-              <div className="bg-stone-50 px-5 py-4 space-y-1 text-sm text-stone-500">
+              {/* Order summary row */}
+              <div className="bg-stone-50 px-5 py-4 space-y-1.5 text-sm text-stone-500">
                 <div className="flex justify-between">
                   <p><span className="text-stone-400 text-xs mr-2">Contact</span>{info.email}</p>
                   <button onClick={() => setStep("information")} className="text-xs underline underline-offset-2 text-stone-400 hover:text-stone-900">Change</button>
                 </div>
                 <div className="flex justify-between">
-                  <p><span className="text-stone-400 text-xs mr-2">Ship to</span>{info.address}, {info.city}</p>
-                  <button onClick={() => { setStep("shipping"); setClientSecret(null); }} className="text-xs underline underline-offset-2 text-stone-400 hover:text-stone-900">Change</button>
+                  <p><span className="text-stone-400 text-xs mr-2">Ship to</span>{info.address}, {info.city}, {info.postal}</p>
+                  <button onClick={() => setStep("information")} className="text-xs underline underline-offset-2 text-stone-400 hover:text-stone-900">Change</button>
                 </div>
-                <p>
-                  <span className="text-stone-400 text-xs mr-2">Method</span>
-                  {shippingOptions.find((s) => s.id === selectedShipping)?.label}
-                  {" · "}
-                  {subtotal >= 200 && selectedShipping === "standard"
-                    ? "Free"
-                    : formatPrice(shippingOptions.find((s) => s.id === selectedShipping)?.price ?? 0)}
-                </p>
+                <div className="flex justify-between">
+                  <p>
+                    <span className="text-stone-400 text-xs mr-2">Method</span>
+                    {shippingOptions.find((s) => s.id === selectedShipping)?.label}
+                    {" · "}
+                    {subtotal >= 200 && selectedShipping === "standard"
+                      ? "Free"
+                      : formatPrice(shippingOptions.find((s) => s.id === selectedShipping)?.price ?? 0)}
+                  </p>
+                  <button onClick={() => setStep("shipping")} className="text-xs underline underline-offset-2 text-stone-400 hover:text-stone-900">Change</button>
+                </div>
               </div>
 
-              {/* Payment method selector */}
-              <div>
-                <h2 className="text-xs tracking-widest uppercase font-medium mb-4">Payment Method</h2>
-
-                {/* Shopify — featured option */}
-                <button
-                  onClick={() => setPayMethod("shopify")}
-                  className={cn(
-                    "w-full flex items-center justify-between px-5 py-4 border mb-3 transition-all",
-                    payMethod === "shopify"
-                      ? "border-[#96BF48] bg-[#96BF48]/5"
-                      : "border-stone-200 hover:border-[#96BF48]/60"
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0",
-                      payMethod === "shopify" ? "border-[#96BF48]" : "border-stone-300"
-                    )}>
-                      {payMethod === "shopify" && <div className="w-2 h-2 rounded-full bg-[#96BF48]" />}
-                    </div>
-                    <ShoppingBag size={16} className={payMethod === "shopify" ? "text-[#96BF48]" : "text-stone-400"} />
-                    <div className="text-left">
-                      <p className="text-sm font-medium">Checkout with Shopify</p>
-                      <p className="text-xs text-stone-400">Secure payment · Shopify manages shipping &amp; fulfillment</p>
-                    </div>
+              {/* Shopify checkout panel */}
+              <div className="border border-stone-200 p-6 space-y-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-[#96BF48]/10 rounded-full flex items-center justify-center shrink-0">
+                    <ShoppingBag size={18} className="text-[#96BF48]" />
                   </div>
-                  <span className="text-[10px] tracking-widest uppercase px-2 py-1 bg-[#96BF48]/10 text-[#5a7a23] font-medium">Recommended</span>
-                </button>
+                  <div>
+                    <p className="text-sm font-medium text-stone-900">Shopify Secure Checkout</p>
+                    <p className="text-xs text-stone-400 mt-0.5">You&apos;ll be redirected to complete payment securely</p>
+                  </div>
+                </div>
 
-                <div className="grid grid-cols-3 gap-3 mb-6">
-                  {([
-                    { id: "card" as PayMethod, label: "Credit Card", icon: CreditCard },
-                    { id: "paypal" as PayMethod, label: "PayPal", icon: Building2 },
-                    { id: "bank" as PayMethod, label: "Bank Transfer", icon: Building2 },
-                  ]).map(({ id, label, icon: Icon }) => (
-                    <button
-                      key={id}
-                      onClick={() => setPayMethod(id)}
-                      className={cn(
-                        "flex flex-col items-center gap-2 py-4 border text-xs tracking-wide uppercase transition-all",
-                        payMethod === id
-                          ? "border-stone-900 bg-stone-900 text-white"
-                          : "border-stone-200 text-stone-500 hover:border-stone-400"
-                      )}
-                    >
-                      <Icon size={18} />
-                      {label}
-                    </button>
+                <p className="text-xs text-stone-500 leading-relaxed">
+                  Your order is managed end-to-end by Shopify — including payment processing, shipping dispatch,
+                  and tracking updates sent directly to your email.
+                </p>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px] text-stone-500">
+                  {[
+                    "Credit / Debit Card",
+                    "Apple Pay & Google Pay",
+                    "PayPal",
+                    "SSL encrypted",
+                    "Shopify fulfillment",
+                    "Email order tracking",
+                  ].map((f) => (
+                    <span key={f} className="flex items-center gap-1.5">
+                      <Check size={10} className="text-[#96BF48] shrink-0" /> {f}
+                    </span>
                   ))}
                 </div>
 
-                {/* ── Shopify Checkout ── */}
-                {payMethod === "shopify" && (
-                  <div className="space-y-5">
-                    <div className="border border-[#96BF48]/30 bg-[#96BF48]/5 p-5 space-y-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <ShoppingBag size={15} className="text-[#96BF48]" />
-                        <p className="text-sm font-medium text-stone-800">Shopify Secure Checkout</p>
-                      </div>
-                      <p className="text-xs text-stone-500 leading-relaxed">
-                        You will be redirected to Shopify&apos;s hosted checkout page to complete your payment securely.
-                        Shopify handles all payment processing, order fulfillment, and shipping tracking.
-                      </p>
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-stone-400 pt-1">
-                        {["Stripe / PayPal / Apple Pay", "SSL encrypted", "Order tracking via email", "Shopify-managed fulfillment"].map((f) => (
-                          <span key={f} className="flex items-center gap-1">
-                            <Check size={9} className="text-[#96BF48]" /> {f}
-                          </span>
-                        ))}
-                      </div>
+                {shopifyError && (
+                  <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm">
+                    <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-xs mb-0.5">Checkout unavailable</p>
+                      <p className="text-xs">{shopifyError}</p>
                     </div>
-
-                    {paymentSetupError && (
-                      <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm">
-                        <AlertCircle size={14} className="shrink-0" />
-                        {paymentSetupError}
-                      </div>
-                    )}
-
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => { setStep("shipping"); setClientSecret(null); }}
-                        className="flex-1 py-4 border border-stone-200 text-xs tracking-widest uppercase hover:bg-stone-50 transition-colors"
-                      >
-                        Back
-                      </button>
-                      <button
-                        onClick={handleShopifyCheckout}
-                        disabled={shopifyRedirecting}
-                        className="flex-1 py-4 bg-[#96BF48] text-white text-xs tracking-widest uppercase hover:bg-[#7aa33a] transition-colors font-medium disabled:opacity-60 flex items-center justify-center gap-2"
-                      >
-                        {shopifyRedirecting ? (
-                          <>
-                            <Loader2 size={14} className="animate-spin" />
-                            Redirecting...
-                          </>
-                        ) : (
-                          <>
-                            <ExternalLink size={13} />
-                            Pay · {formatPrice(orderTotal)}
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    <p className="text-xs text-stone-400 text-center flex items-center justify-center gap-1">
-                      <Lock size={10} /> You&apos;ll be redirected to Shopify&apos;s secure payment page
-                    </p>
-                  </div>
-                )}
-
-                {/* Stripe error / setup error */}
-                {paymentSetupError && payMethod === "card" && (
-                  <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 mb-4 text-sm">
-                    <AlertCircle size={14} className="shrink-0" />
-                    {paymentSetupError}
-                    <span className="ml-1 text-xs">
-                      (Add <span className="font-mono">STRIPE_SECRET_KEY</span> to .env.local)
-                    </span>
-                  </div>
-                )}
-
-                {/* ── Stripe Card ── */}
-                {payMethod === "card" && (
-                  clientSecret ? (
-                    <StripePaymentForm
-                      clientSecret={clientSecret}
-                      amount={orderTotal}
-                      onSuccess={handleOrderSuccess}
-                      onBack={() => { setStep("shipping"); setClientSecret(null); }}
-                    />
-                  ) : paymentLoading ? (
-                    <PaymentLoader />
-                  ) : (
-                    /* Fallback: Stripe not configured — show manual card note */
-                    <div className="space-y-4">
-                      <div className="border border-amber-200 bg-amber-50 p-5 text-center">
-                        <p className="text-sm text-amber-700 font-medium mb-1">Stripe not configured</p>
-                        <p className="text-xs text-amber-600">
-                          Add <span className="font-mono">STRIPE_SECRET_KEY</span> and{" "}
-                          <span className="font-mono">NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</span> to{" "}
-                          <span className="font-mono">.env.local</span> to accept card payments.
-                        </p>
-                      </div>
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => { setStep("shipping"); setClientSecret(null); }}
-                          className="flex-1 py-4 border border-stone-200 text-xs tracking-widest uppercase hover:bg-stone-50 transition-colors"
-                        >
-                          Back
-                        </button>
-                        <button
-                          disabled
-                          className="flex-1 py-4 bg-stone-300 text-white text-xs tracking-widest uppercase cursor-not-allowed"
-                        >
-                          Pay · {formatPrice(orderTotal)}
-                        </button>
-                      </div>
-                    </div>
-                  )
-                )}
-
-                {/* ── PayPal ── */}
-                {payMethod === "paypal" && (
-                  <PayPalCheckout
-                    amount={orderTotal}
-                    onSuccess={handleOrderSuccess}
-                    onBack={() => { setStep("shipping"); setClientSecret(null); }}
-                  />
-                )}
-
-                {/* ── Bank Transfer ── */}
-                {payMethod === "bank" && (
-                  <div className="space-y-6">
-                    <div className="border border-stone-200 p-5 space-y-3 text-sm text-stone-600">
-                      <p className="text-xs tracking-widest uppercase text-stone-400 mb-4">Bank Transfer Details</p>
-                      {[
-                        { label: "Bank", value: "CIBC — Commerce Bank" },
-                        { label: "Account Name", value: "TeBoutique Inc." },
-                        { label: "Account Number", value: "1234 5678 9012" },
-                        { label: "Routing Number", value: "021 000 089" },
-                        { label: "Reference", value: `ORDER-${Date.now().toString().slice(-6)}` },
-                      ].map(({ label, value }) => (
-                        <div key={label} className="flex justify-between border-b border-stone-100 pb-2">
-                          <span className="text-stone-400 text-xs">{label}</span>
-                          <span className="font-mono text-xs">{value}</span>
-                        </div>
-                      ))}
-                      <p className="text-xs text-stone-400 pt-2">
-                        Your order will be confirmed within 1–2 business days upon receipt of payment.
-                      </p>
-                    </div>
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => { setStep("shipping"); setClientSecret(null); }}
-                        className="flex-1 py-4 border border-stone-200 text-xs tracking-widest uppercase hover:bg-stone-50 transition-colors"
-                      >
-                        Back
-                      </button>
-                      <button
-                        onClick={handleBankOrder}
-                        disabled={placing}
-                        className="flex-1 py-4 bg-stone-900 text-white text-xs tracking-widest uppercase hover:bg-stone-700 transition-colors font-medium disabled:opacity-60 flex items-center justify-center gap-2"
-                      >
-                        {placing ? (
-                          <>
-                            <Loader2 size={14} className="animate-spin" />
-                            Processing...
-                          </>
-                        ) : (
-                          `Place Order · ${formatPrice(orderTotal)}`
-                        )}
-                      </button>
-                    </div>
-                    <p className="text-xs text-stone-400 text-center flex items-center justify-center gap-1">
-                      <Lock size={10} /> 256-bit SSL encryption · Your payment is secure
-                    </p>
                   </div>
                 )}
               </div>
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setStep("shipping")}
+                  className="flex-1 py-4 border border-stone-200 text-xs tracking-widests uppercase hover:bg-stone-50 transition-colors"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={handleShopifyCheckout}
+                  disabled={shopifyRedirecting}
+                  className="flex-1 py-4 bg-[#96BF48] text-white text-xs tracking-widests uppercase hover:bg-[#7aa33a] transition-colors font-semibold disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  {shopifyRedirecting ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      Redirecting to Shopify...
+                    </>
+                  ) : (
+                    <>
+                      <ExternalLink size={13} />
+                      Pay · {formatPrice(orderTotal)}
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <p className="text-[11px] text-stone-400 text-center flex items-center justify-center gap-1.5">
+                <Lock size={10} />
+                Secured by Shopify · 256-bit SSL encryption
+              </p>
             </div>
           )}
         </div>
@@ -901,7 +694,7 @@ export default function CheckoutPage() {
         <div className="lg:col-span-2">
           <button
             onClick={() => setSummaryOpen(!summaryOpen)}
-            className="lg:hidden w-full flex items-center justify-between p-4 border border-stone-200 mb-4 text-xs tracking-widest uppercase"
+            className="lg:hidden w-full flex items-center justify-between p-4 border border-stone-200 mb-4 text-xs tracking-widests uppercase"
           >
             <span className="flex items-center gap-2">
               {summaryOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -913,7 +706,7 @@ export default function CheckoutPage() {
           </button>
 
           <div className={cn("bg-stone-50 p-6 sticky top-24", !summaryOpen && "hidden lg:block")}>
-            <h2 className="text-xs tracking-widest uppercase font-medium mb-5 hidden lg:block">Order Summary</h2>
+            <h2 className="text-xs tracking-widests uppercase font-medium mb-5 hidden lg:block">Order Summary</h2>
 
             <div className="divide-y divide-stone-100 mb-5">
               {items.map((item, idx) => (
@@ -971,7 +764,7 @@ export default function CheckoutPage() {
                   <button
                     onClick={handleApplyCoupon}
                     disabled={couponLoading}
-                    className="px-4 py-2.5 border border-stone-900 text-xs tracking-widest uppercase hover:bg-stone-900 hover:text-white transition-colors whitespace-nowrap disabled:opacity-50"
+                    className="px-4 py-2.5 border border-stone-900 text-xs tracking-widests uppercase hover:bg-stone-900 hover:text-white transition-colors whitespace-nowrap disabled:opacity-50"
                   >
                     {couponLoading ? <Loader2 size={12} className="animate-spin" /> : "Apply"}
                   </button>
@@ -1016,7 +809,7 @@ export default function CheckoutPage() {
             </div>
 
             <div className="mt-5 pt-4 border-t border-stone-100 flex flex-wrap gap-3 justify-center">
-              {["Free Returns", "SSL Secure", "Authenticity Guaranteed"].map((t) => (
+              {["Free Returns", "SSL Secure", "Shopify Verified"].map((t) => (
                 <span key={t} className="flex items-center gap-1 text-[10px] text-stone-400 tracking-wide">
                   <Check size={9} className="text-emerald-500" /> {t}
                 </span>
