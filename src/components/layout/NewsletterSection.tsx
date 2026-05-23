@@ -17,7 +17,7 @@ export default function NewsletterSection() {
   const { subscribe } = useSubscriberStore();
   const { addCoupon } = useCouponStore();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = email.trim();
     if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
@@ -27,35 +27,40 @@ export default function NewsletterSection() {
 
     setStatus("loading");
 
-    setTimeout(() => {
-      const result = subscribe(trimmed);
+    const result = subscribe(trimmed);
 
-      if (!result.success) {
-        setStatus(result.error === "already_subscribed" ? "duplicate" : "error");
-        return;
-      }
+    if (!result.success) {
+      setStatus(result.error === "already_subscribed" ? "duplicate" : "error");
+      return;
+    }
 
-      const code = result.couponCode;
+    const code = result.couponCode;
 
-      // Register the coupon in coupon store — expires in 1 month
-      const expiresAt = new Date();
-      expiresAt.setMonth(expiresAt.getMonth() + 1);
-      addCoupon({
-        code,
-        label: `10% off — Welcome gift for ${trimmed}`,
-        type: "percent",
-        value: 10,
-        usageLimit: "once",
-        maxUses: 1,
-        expiresAt: expiresAt.toISOString(),
-        minOrderAmount: null,
-        isActive: true,
-      });
+    // Register coupon — expires in 1 month
+    const expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + 1);
+    addCoupon({
+      code,
+      label: `10% off — Welcome gift for ${trimmed}`,
+      type: "percent",
+      value: 10,
+      usageLimit: "once",
+      maxUses: 1,
+      expiresAt: expiresAt.toISOString(),
+      minOrderAmount: null,
+      isActive: true,
+    });
 
-      setCouponCode(code);
-      setStatus("success");
-      setEmail("");
-    }, 700);
+    // Send welcome email (fire-and-forget — don't block UI on failure)
+    fetch("/api/newsletter/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: trimmed, couponCode: code, expiresAt: expiresAt.toISOString() }),
+    }).catch(() => {});
+
+    setCouponCode(code);
+    setStatus("success");
+    setEmail("");
   };
 
   const handleCopy = () => {
