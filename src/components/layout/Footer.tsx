@@ -1,4 +1,5 @@
 import Link from "next/link";
+import NewsletterSection from "./NewsletterSection";
 
 function InstagramIcon({ size = 18 }: { size?: number }) {
   return (
@@ -21,28 +22,7 @@ function TikTokIcon({ size = 18 }: { size?: number }) {
 export default function Footer() {
   return (
     <footer className="bg-stone-900 text-white mt-24">
-      {/* Newsletter */}
-      <div className="border-b border-stone-700">
-        <div className="max-w-screen-xl mx-auto px-4 md:px-8 py-16 text-center">
-          <p className="text-xs tracking-widest uppercase text-stone-400 mb-3">Join the world of TeBoutique</p>
-          <h3
-            className="text-3xl md:text-4xl mb-8"
-            style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
-          >
-            Subscribe & receive 10% off your first order
-          </h3>
-          <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-            <input
-              type="email"
-              placeholder="Enter your email address"
-              className="flex-1 px-4 py-3 bg-transparent border border-stone-600 text-sm placeholder:text-stone-500 focus:outline-none focus:border-white transition-colors"
-            />
-            <button className="px-8 py-3 bg-white text-stone-900 text-xs tracking-widest uppercase hover:bg-stone-100 transition-colors font-medium">
-              Subscribe
-            </button>
-          </div>
-        </div>
-      </div>
+      <NewsletterSection />
 
       {/* Links */}
       <div className="max-w-screen-xl mx-auto px-4 md:px-8 py-16">

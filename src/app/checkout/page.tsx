@@ -19,6 +19,8 @@ import {
 import { useCartStore } from "@/store/cartStore";
 import { useOrderStore } from "@/store/orderStore";
 import { useAuthStore, type Address } from "@/store/authStore";
+import { useCouponStore } from "@/store/couponStore";
+import { useSubscriberStore } from "@/store/subscriberStore";
 import { formatPrice, cn } from "@/lib/utils";
 
 const StripePaymentForm = dynamic(
@@ -42,13 +44,6 @@ function PaymentLoader() {
 type Step = "information" | "shipping" | "payment";
 type PayMethod = "card" | "paypal" | "bank";
 
-const COUPONS: Record<string, { label: string; type: "percent" | "fixed"; value: number }> = {
-  WELCOME10: { label: "10% off your order", type: "percent", value: 10 },
-  SUMMER20: { label: "20% off summer styles", type: "percent", value: 20 },
-  STYLE15: { label: "15% off everything", type: "percent", value: 15 },
-  FREE50: { label: "$50 off orders over $300", type: "fixed", value: 50 },
-};
-
 const shippingOptions = [
   { id: "standard", label: "Standard Shipping", sub: "5–7 business days", price: 15 },
   { id: "express", label: "Express Shipping", sub: "2–3 business days", price: 25 },
@@ -71,6 +66,8 @@ export default function CheckoutPage() {
   const { items, total, clearCart } = useCartStore();
   const { addOrder } = useOrderStore();
   const { currentUser, addAddress, getAddresses } = useAuthStore();
+  const { validateCoupon, useCoupon } = useCouponStore();
+  const { markCouponUsed } = useSubscriberStore();
   const [saveAddress, setSaveAddress] = useState(false);
 
   const [step, setStep] = useState<Step>("information");
@@ -79,7 +76,7 @@ export default function CheckoutPage() {
 
   const [selectedShipping, setSelectedShipping] = useState("standard");
   const [couponInput, setCouponInput] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState<(typeof COUPONS)[string] & { code: string } | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; label: string; type: "percent" | "fixed"; value: number } | null>(null);
   const [couponError, setCouponError] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
@@ -122,12 +119,13 @@ export default function CheckoutPage() {
     setCouponLoading(true);
     setCouponError("");
     setTimeout(() => {
-      const found = COUPONS[code];
-      if (found) {
-        setAppliedCoupon({ ...found, code });
+      const result = validateCoupon(code, subtotal);
+      if (result.valid) {
+        const c = result.coupon;
+        setAppliedCoupon({ code: c.code, label: c.label, type: c.type, value: c.value });
         setCouponInput("");
       } else {
-        setCouponError("Invalid or expired promo code.");
+        setCouponError(result.error);
       }
       setCouponLoading(false);
     }, 600);
@@ -216,6 +214,10 @@ export default function CheckoutPage() {
       couponCode: appliedCoupon?.code,
       userId: currentUser?.id,
     });
+    if (appliedCoupon) {
+      useCoupon(appliedCoupon.code);
+      markCouponUsed(info.email);
+    }
     setOrderNumber(orderId);
     clearCart();
     setOrderPlaced(true);
