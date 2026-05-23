@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
         last_name: info.lastName,
         address1: info.address,
         city: info.city,
+        province: info.province || undefined,
         zip: info.postal,
         country: info.country,
         phone: info.phone || undefined,

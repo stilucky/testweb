@@ -13,6 +13,7 @@ export interface ShopifyAddress {
   last_name: string;
   address1: string;
   city: string;
+  province?: string;
   zip: string;
   country: string;
   phone?: string;

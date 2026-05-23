@@ -16,6 +16,7 @@ import {
   ShoppingBag,
   User,
   LogIn,
+  Search,
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { useOrderStore } from "@/store/orderStore";
@@ -26,6 +27,123 @@ import { formatPrice, cn } from "@/lib/utils";
 
 type Step = "information" | "shipping" | "payment";
 type CheckoutMode = "guest" | "signin";
+
+// Province/State data per country
+const regionsByCountry: Record<string, string[]> = {
+  Canada: [
+    "Alberta", "British Columbia", "Manitoba", "New Brunswick",
+    "Newfoundland and Labrador", "Northwest Territories", "Nova Scotia",
+    "Nunavut", "Ontario", "Prince Edward Island", "Quebec",
+    "Saskatchewan", "Yukon",
+  ],
+  "United States": [
+    "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
+    "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho",
+    "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana",
+    "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota",
+    "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada",
+    "New Hampshire", "New Jersey", "New Mexico", "New York",
+    "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon",
+    "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota",
+    "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington",
+    "West Virginia", "Wisconsin", "Wyoming",
+  ],
+  Australia: [
+    "Australian Capital Territory", "New South Wales", "Northern Territory",
+    "Queensland", "South Australia", "Tasmania", "Victoria", "Western Australia",
+  ],
+  "United Kingdom": ["England", "Scotland", "Wales", "Northern Ireland"],
+  Germany: [
+    "Baden-Württemberg", "Bavaria", "Berlin", "Brandenburg", "Bremen",
+    "Hamburg", "Hesse", "Lower Saxony", "Mecklenburg-Vorpommern",
+    "North Rhine-Westphalia", "Rhineland-Palatinate", "Saarland",
+    "Saxony", "Saxony-Anhalt", "Schleswig-Holstein", "Thuringia",
+  ],
+  France: [
+    "Auvergne-Rhône-Alpes", "Bourgogne-Franche-Comté", "Bretagne",
+    "Centre-Val de Loire", "Corse", "Grand Est", "Hauts-de-France",
+    "Île-de-France", "Normandie", "Nouvelle-Aquitaine", "Occitanie",
+    "Pays de la Loire", "Provence-Alpes-Côte d'Azur",
+  ],
+};
+
+const regionLabel: Record<string, string> = {
+  Canada: "Province / Territory",
+  "United States": "State",
+  Australia: "State / Territory",
+  "United Kingdom": "Country",
+  Germany: "State",
+  France: "Region",
+};
+
+// ─── Floating label input components ───
+
+function FInput({
+  label, type = "text", value, onChange, error, disabled, placeholder, right,
+}: {
+  label: string; type?: string; value: string;
+  onChange: (v: string) => void; error?: string;
+  disabled?: boolean; placeholder?: string;
+  right?: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className={cn(
+        "relative flex items-center border rounded-xl px-4 pt-2.5 pb-2 transition-colors bg-white",
+        error ? "border-red-400" : disabled ? "border-stone-100 bg-stone-50" : "border-stone-200 focus-within:border-stone-800"
+      )}>
+        <div className="flex-1 min-w-0">
+          <label className="block text-[11px] text-stone-400 mb-0.5 select-none">{label}</label>
+          <input
+            type={type}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            disabled={disabled}
+            placeholder={placeholder}
+            className="w-full text-sm text-stone-900 focus:outline-none bg-transparent disabled:text-stone-400 placeholder:text-stone-300"
+          />
+        </div>
+        {right && <div className="ml-2 shrink-0 text-stone-400">{right}</div>}
+      </div>
+      {error && <p className="text-xs text-red-500 mt-1 ml-1">{error}</p>}
+    </div>
+  );
+}
+
+function FSelect({
+  label, value, onChange, options, error, disabled, placeholder,
+}: {
+  label: string; value: string; onChange: (v: string) => void;
+  options: string[]; error?: string; disabled?: boolean; placeholder?: string;
+}) {
+  return (
+    <div>
+      <div className={cn(
+        "relative border rounded-xl px-4 pt-2.5 pb-2 transition-colors bg-white",
+        error ? "border-red-400" : disabled ? "border-stone-100 bg-stone-50" : "border-stone-200 focus-within:border-stone-800"
+      )}>
+        <label className="block text-[11px] text-stone-400 mb-0.5 select-none">{label}</label>
+        <div className="flex items-center">
+          <select
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            disabled={disabled}
+            className={cn(
+              "flex-1 text-sm focus:outline-none appearance-none bg-transparent pr-4",
+              value ? "text-stone-900" : "text-stone-300",
+              disabled && "text-stone-400"
+            )}
+          >
+            {placeholder && <option value="">{placeholder}</option>}
+            {options.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+          <ChevronDown size={13} className="text-stone-400 shrink-0 absolute right-4 pointer-events-none" />
+        </div>
+      </div>
+      {error && <p className="text-xs text-red-500 mt-1 ml-1">{error}</p>}
+    </div>
+  );
+}
 
 const shippingOptions = [
   { id: "standard", label: "Standard Shipping", sub: "5–7 business days", price: 15 },
@@ -38,10 +156,11 @@ interface InfoForm {
   newsletter: boolean;
   firstName: string;
   lastName: string;
+  country: string;
   address: string;
+  province: string;
   city: string;
   postal: string;
-  country: string;
   phone: string;
 }
 
@@ -73,10 +192,11 @@ export default function CheckoutPage() {
     newsletter: false,
     firstName: currentUser?.firstName ?? "",
     lastName: currentUser?.lastName ?? "",
+    country: "",
     address: "",
+    province: "",
     city: "",
     postal: "",
-    country: "",
     phone: currentUser?.phone ?? "",
   });
   const [infoErrors, setInfoErrors] = useState<Partial<InfoForm>>({});
@@ -114,12 +234,13 @@ export default function CheckoutPage() {
   const validateInfo = () => {
     const e: Partial<InfoForm> = {};
     if (!info.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(info.email)) e.email = "Valid email required";
+    if (!info.country) e.country = "Required";
     if (!info.firstName.trim()) e.firstName = "Required";
     if (!info.lastName.trim()) e.lastName = "Required";
     if (!info.address.trim()) e.address = "Required";
+    if (regionsByCountry[info.country] && !info.province) e.province = "Required";
     if (!info.city.trim()) e.city = "Required";
     if (!info.postal.trim()) e.postal = "Required";
-    if (!info.country) e.country = "Required";
     setInfoErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -169,7 +290,7 @@ export default function CheckoutPage() {
         payment: "pending",
         paymentMethod: "shopify",
         shippingMethod: shippingOption?.label ?? "Standard Shipping",
-        shippingAddress: `${info.address}, ${info.city}, ${info.postal}, ${info.country}`,
+        shippingAddress: [info.address, info.city, info.province, info.postal, info.country].filter(Boolean).join(", "),
         couponCode: appliedCoupon?.code,
         userId: currentUser?.id,
       });
@@ -380,114 +501,108 @@ export default function CheckoutPage() {
                   </div>
 
                   <div>
-                    <h2 className="text-xs tracking-widests uppercase font-medium mb-5">Shipping Address</h2>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <input
-                          type="text"
-                          value={info.firstName}
-                          onChange={(e) => setInfo((f) => ({ ...f, firstName: e.target.value }))}
-                          placeholder="First name"
-                          className={cn(
-                            "w-full px-4 py-3 border text-sm focus:outline-none transition-colors",
-                            infoErrors.firstName ? "border-red-400" : "border-stone-200 focus:border-stone-800"
-                          )}
-                        />
-                        {infoErrors.firstName && <p className="text-xs text-red-500 mt-1">{infoErrors.firstName}</p>}
-                      </div>
-                      <div>
-                        <input
-                          type="text"
-                          value={info.lastName}
-                          onChange={(e) => setInfo((f) => ({ ...f, lastName: e.target.value }))}
-                          placeholder="Last name"
-                          className={cn(
-                            "w-full px-4 py-3 border text-sm focus:outline-none transition-colors",
-                            infoErrors.lastName ? "border-red-400" : "border-stone-200 focus:border-stone-800"
-                          )}
-                        />
-                        {infoErrors.lastName && <p className="text-xs text-red-500 mt-1">{infoErrors.lastName}</p>}
-                      </div>
-                      <div className="col-span-2">
-                        <input
-                          type="text"
-                          value={info.address}
-                          onChange={(e) => setInfo((f) => ({ ...f, address: e.target.value }))}
-                          placeholder="Street address"
-                          className={cn(
-                            "w-full px-4 py-3 border text-sm focus:outline-none transition-colors",
-                            infoErrors.address ? "border-red-400" : "border-stone-200 focus:border-stone-800"
-                          )}
-                        />
-                        {infoErrors.address && <p className="text-xs text-red-500 mt-1">{infoErrors.address}</p>}
-                      </div>
-                      <div>
-                        <input
-                          type="text"
-                          value={info.city}
-                          onChange={(e) => setInfo((f) => ({ ...f, city: e.target.value }))}
-                          placeholder="City"
-                          className={cn(
-                            "w-full px-4 py-3 border text-sm focus:outline-none transition-colors",
-                            infoErrors.city ? "border-red-400" : "border-stone-200 focus:border-stone-800"
-                          )}
-                        />
-                        {infoErrors.city && <p className="text-xs text-red-500 mt-1">{infoErrors.city}</p>}
-                      </div>
-                      <div>
-                        <input
-                          type="text"
-                          value={info.postal}
-                          onChange={(e) => setInfo((f) => ({ ...f, postal: e.target.value }))}
-                          placeholder="Postal code"
-                          className={cn(
-                            "w-full px-4 py-3 border text-sm focus:outline-none transition-colors",
-                            infoErrors.postal ? "border-red-400" : "border-stone-200 focus:border-stone-800"
-                          )}
-                        />
-                        {infoErrors.postal && <p className="text-xs text-red-500 mt-1">{infoErrors.postal}</p>}
-                      </div>
-                      <div className="col-span-2 relative">
-                        <select
-                          value={info.country}
-                          onChange={(e) => setInfo((f) => ({ ...f, country: e.target.value }))}
-                          className={cn(
-                            "w-full px-4 py-3 border text-sm focus:outline-none transition-colors appearance-none bg-white",
-                            infoErrors.country ? "border-red-400" : "border-stone-200 focus:border-stone-800"
-                          )}
-                        >
-                          <option value="">Select country</option>
-                          {["Canada", "United States", "United Kingdom", "Australia", "Vietnam", "France", "Germany", "Japan"].map((c) => (
-                            <option key={c}>{c}</option>
-                          ))}
-                        </select>
-                        <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
-                        {infoErrors.country && <p className="text-xs text-red-500 mt-1">{infoErrors.country}</p>}
-                      </div>
-                      <div className="col-span-2">
-                        <input
-                          type="tel"
-                          value={info.phone}
-                          onChange={(e) => setInfo((f) => ({ ...f, phone: e.target.value }))}
-                          placeholder="Phone number (optional)"
-                          className="w-full px-4 py-3 border border-stone-200 text-sm focus:outline-none focus:border-stone-800 transition-colors"
-                        />
-                      </div>
+                    <h2 className="text-xs tracking-widests uppercase font-medium mb-4">Shipping Address</h2>
+                    <div className="space-y-3">
 
-                      {currentUser && (
-                        <div className="col-span-2">
-                          <label className="flex items-center gap-2.5 cursor-pointer select-none group">
-                            <input
-                              type="checkbox"
-                              checked={saveAddress}
-                              onChange={(e) => setSaveAddress(e.target.checked)}
-                              className="w-4 h-4 accent-stone-900"
+                      {/* Step A: Country first */}
+                      <FSelect
+                        label="Country / Region"
+                        value={info.country}
+                        onChange={(v) => setInfo((f) => ({ ...f, country: v, province: "" }))}
+                        options={["Canada", "United States", "United Kingdom", "Australia", "Vietnam", "France", "Germany", "Japan"]}
+                        placeholder="Select country"
+                        error={infoErrors.country}
+                      />
+
+                      {/* Step B: Name — only after country selected */}
+                      {info.country && (
+                        <>
+                          <div className="grid grid-cols-2 gap-3">
+                            <FInput
+                              label="First name"
+                              value={info.firstName}
+                              onChange={(v) => setInfo((f) => ({ ...f, firstName: v }))}
+                              error={infoErrors.firstName}
                             />
-                            <span className="text-xs text-stone-500 group-hover:text-stone-700 transition-colors">
-                              Save this address to my account
-                            </span>
-                          </label>
-                        </div>
+                            <FInput
+                              label="Last name"
+                              value={info.lastName}
+                              onChange={(v) => setInfo((f) => ({ ...f, lastName: v }))}
+                              error={infoErrors.lastName}
+                            />
+                          </div>
+
+                          {/* Address with search icon */}
+                          <FInput
+                            label="Address"
+                            value={info.address}
+                            onChange={(v) => setInfo((f) => ({ ...f, address: v }))}
+                            placeholder="Street address, apartment, suite…"
+                            error={infoErrors.address}
+                            right={<Search size={15} />}
+                          />
+
+                          {/* Province/State dropdown (countries that have regions) */}
+                          {regionsByCountry[info.country] ? (
+                            <FSelect
+                              label={regionLabel[info.country] ?? "Province / State"}
+                              value={info.province}
+                              onChange={(v) => setInfo((f) => ({ ...f, province: v }))}
+                              options={regionsByCountry[info.country]}
+                              placeholder={`Select ${regionLabel[info.country] ?? "Province"}`}
+                              error={infoErrors.province}
+                            />
+                          ) : (
+                            <FInput
+                              label="Region / State"
+                              value={info.province}
+                              onChange={(v) => setInfo((f) => ({ ...f, province: v }))}
+                              placeholder="Optional"
+                            />
+                          )}
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <FInput
+                              label="City"
+                              value={info.city}
+                              onChange={(v) => setInfo((f) => ({ ...f, city: v }))}
+                              error={infoErrors.city}
+                            />
+                            <FInput
+                              label="Postal / ZIP code"
+                              value={info.postal}
+                              onChange={(v) => setInfo((f) => ({ ...f, postal: v }))}
+                              error={infoErrors.postal}
+                            />
+                          </div>
+
+                          <FInput
+                            label="Phone (optional)"
+                            type="tel"
+                            value={info.phone}
+                            onChange={(v) => setInfo((f) => ({ ...f, phone: v }))}
+                          />
+
+                          {currentUser && (
+                            <label className="flex items-center gap-2.5 cursor-pointer select-none group pt-1">
+                              <input
+                                type="checkbox"
+                                checked={saveAddress}
+                                onChange={(e) => setSaveAddress(e.target.checked)}
+                                className="w-4 h-4 accent-stone-900"
+                              />
+                              <span className="text-xs text-stone-500 group-hover:text-stone-700 transition-colors">
+                                Save this address to my account
+                              </span>
+                            </label>
+                          )}
+                        </>
+                      )}
+
+                      {!info.country && (
+                        <p className="text-xs text-stone-400 text-center py-4 border border-dashed border-stone-200 rounded-xl">
+                          Please select your country to continue
+                        </p>
                       )}
                     </div>
                   </div>
@@ -509,7 +624,7 @@ export default function CheckoutPage() {
               <div className="bg-stone-50 px-5 py-4 flex items-center justify-between text-sm">
                 <div className="space-y-1 text-stone-500">
                   <p><span className="text-stone-400 text-xs mr-2">Contact</span>{info.email}</p>
-                  <p><span className="text-stone-400 text-xs mr-2">Ship to</span>{info.address}, {info.city}</p>
+                  <p><span className="text-stone-400 text-xs mr-2">Ship to</span>{[info.address, info.city, info.province, info.country].filter(Boolean).join(", ")}</p>
                 </div>
                 <button
                   onClick={() => setStep("information")}
@@ -596,7 +711,7 @@ export default function CheckoutPage() {
                   <button onClick={() => setStep("information")} className="text-xs underline underline-offset-2 text-stone-400 hover:text-stone-900">Change</button>
                 </div>
                 <div className="flex justify-between">
-                  <p><span className="text-stone-400 text-xs mr-2">Ship to</span>{info.address}, {info.city}, {info.postal}</p>
+                  <p><span className="text-stone-400 text-xs mr-2">Ship to</span>{[info.address, info.city, info.province, info.postal, info.country].filter(Boolean).join(", ")}</p>
                   <button onClick={() => setStep("information")} className="text-xs underline underline-offset-2 text-stone-400 hover:text-stone-900">Change</button>
                 </div>
                 <div className="flex justify-between">
