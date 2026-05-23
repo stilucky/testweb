@@ -8,6 +8,7 @@ import { products } from "@/lib/data";
 import { useCartStore } from "@/store/cartStore";
 import { formatPrice, cn } from "@/lib/utils";
 import ProductCard from "@/components/product/ProductCard";
+import SizeChart from "@/components/product/SizeChart";
 import { notFound } from "next/navigation";
 
 interface Props {
@@ -35,6 +36,7 @@ export default function ProductDetailPage({ params }: Props) {
   const [wishlisted, setWishlisted] = useState(false);
   const [sizeError, setSizeError] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>("description");
+  const [sizeChartOpen, setSizeChartOpen] = useState(false);
 
   const addItem = useCartStore((s) => s.addItem);
 
@@ -201,9 +203,12 @@ export default function ProductDetailPage({ params }: Props) {
                 </button>
               ))}
             </div>
-            <Link href="/size-guide" className="text-xs text-stone-400 underline hover:text-stone-700 mt-2 inline-block">
-              Size Guide
-            </Link>
+            <button
+              onClick={() => setSizeChartOpen(true)}
+              className="text-xs text-stone-400 underline hover:text-stone-700 mt-2 inline-block"
+            >
+              Size Chart
+            </button>
           </div>
 
           {/* Actions */}
@@ -270,6 +275,12 @@ export default function ProductDetailPage({ params }: Props) {
           </div>
         </div>
       </div>
+
+      <SizeChart
+        open={sizeChartOpen}
+        onClose={() => setSizeChartOpen(false)}
+        gender={product.gender}
+      />
 
       {/* Related products */}
       {related.length > 0 && (
