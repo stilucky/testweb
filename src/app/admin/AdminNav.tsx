@@ -25,7 +25,7 @@ const navLinks = [
   { href: "/admin/settings", label: "Settings", icon: Settings, exact: false },
 ];
 
-export default function AdminNav() {
+export default function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
 
   return (
@@ -36,6 +36,7 @@ export default function AdminNav() {
           <Link
             key={href}
             href={href}
+            onClick={onNavigate}
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 text-xs tracking-widest uppercase transition-colors rounded-sm",
               isActive

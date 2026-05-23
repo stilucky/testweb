@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Loader2, Copy, Mail } from "lucide-react";
+import { Check, Loader2, Mail } from "lucide-react";
 import { useSubscriberStore } from "@/store/subscriberStore";
 import { useCouponStore } from "@/store/couponStore";
 import { cn } from "@/lib/utils";
@@ -12,7 +12,6 @@ export default function NewsletterSection() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [couponCode, setCouponCode] = useState("");
-  const [copied, setCopied] = useState(false);
 
   const { subscribe } = useSubscriberStore();
   const { addCoupon } = useCouponStore();
@@ -63,28 +62,6 @@ export default function NewsletterSection() {
     setEmail("");
   };
 
-  const handleCopy = () => {
-    const copyText = (text: string) => {
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(text).catch(() => legacyCopy(text));
-      } else {
-        legacyCopy(text);
-      }
-    };
-    const legacyCopy = (text: string) => {
-      const el = document.createElement("textarea");
-      el.value = text;
-      el.style.cssText = "position:fixed;opacity:0;pointer-events:none;";
-      document.body.appendChild(el);
-      el.focus();
-      el.select();
-      document.execCommand("copy");
-      document.body.removeChild(el);
-    };
-    copyText(couponCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   return (
     <div className="border-b border-stone-700">
@@ -101,39 +78,18 @@ export default function NewsletterSection() {
 
         {/* ── Success state ── */}
         {status === "success" && (
-          <div className="max-w-md mx-auto space-y-4 animate-in fade-in duration-300">
+          <div className="max-w-md mx-auto space-y-3">
             <div className="flex items-center justify-center gap-2 text-emerald-400">
-              <div className="w-8 h-8 rounded-full border border-emerald-400 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full border border-emerald-400 flex items-center justify-center shrink-0">
                 <Check size={14} />
               </div>
-              <p className="text-sm">You&apos;re in! Here&apos;s your exclusive code:</p>
+              <p className="text-sm">You&apos;re in!</p>
             </div>
-
-            <div className="border border-stone-600 bg-stone-800/60 px-5 py-4 flex items-center justify-between gap-4">
-              <div className="text-left">
-                <p className="font-mono text-xl tracking-[0.25em] text-white font-medium">
-                  {couponCode}
-                </p>
-                <p className="text-xs text-stone-400 mt-1">
-                  10% off your first order · Single use · Valid for 1 month
-                </p>
-              </div>
-              <button
-                onClick={handleCopy}
-                className={cn(
-                  "flex items-center gap-1.5 text-xs px-3 py-2 border transition-colors shrink-0",
-                  copied
-                    ? "border-emerald-400 text-emerald-400"
-                    : "border-stone-500 text-stone-400 hover:border-white hover:text-white"
-                )}
-              >
-                {copied ? <Check size={12} /> : <Copy size={12} />}
-                {copied ? "Copied" : "Copy"}
-              </button>
-            </div>
-
+            <p className="text-sm text-stone-300">
+              Your exclusive 10% off code has been sent to your inbox.
+            </p>
             <p className="text-xs text-stone-500">
-              Apply this code at checkout. Check your inbox for a confirmation email.
+              Valid for 1 month · Single use · Apply at checkout.
             </p>
           </div>
         )}

@@ -15,6 +15,8 @@ import {
   CreditCard,
   Building2,
   AlertCircle,
+  ExternalLink,
+  ShoppingBag,
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { useOrderStore } from "@/store/orderStore";
@@ -42,7 +44,7 @@ function PaymentLoader() {
 }
 
 type Step = "information" | "shipping" | "payment";
-type PayMethod = "card" | "paypal" | "bank";
+type PayMethod = "card" | "paypal" | "bank" | "shopify";
 
 const shippingOptions = [
   { id: "standard", label: "Standard Shipping", sub: "5–7 business days", price: 15 },
@@ -83,6 +85,7 @@ export default function CheckoutPage() {
 
   const [payMethod, setPayMethod] = useState<PayMethod>("card");
   const [placing, setPlacing] = useState(false);
+  const [shopifyRedirecting, setShopifyRedirecting] = useState(false);
 
   // Stripe state
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -243,6 +246,59 @@ export default function CheckoutPage() {
     setOrderNumber(orderId);
     clearCart();
     setOrderPlaced(true);
+  };
+
+  // ─── Shopify checkout ───
+  const handleShopifyCheckout = async () => {
+    setShopifyRedirecting(true);
+    setPaymentSetupError("");
+    try {
+      maybeSaveAddress();
+      const shippingOption = shippingOptions.find((s) => s.id === selectedShipping);
+      const orderItems = items.map((item) => ({
+        name: item.product.name,
+        qty: item.quantity,
+        price: item.product.salePrice ?? item.product.price,
+        size: item.selectedSize,
+        color: item.selectedColor,
+        image: item.product.images[0],
+      }));
+      // Save local order first (pending payment)
+      const orderId = addOrder({
+        customer: `${info.firstName} ${info.lastName}`.trim() || "Guest",
+        email: info.email,
+        phone: info.phone || undefined,
+        items: orderItems,
+        subtotal,
+        shippingCost,
+        discount: discountAmount,
+        total: orderTotal,
+        status: "pending",
+        payment: "pending",
+        paymentMethod: "shopify",
+        shippingMethod: shippingOption?.label ?? "Standard Shipping",
+        shippingAddress: `${info.address}, ${info.city}, ${info.postal}, ${info.country}`,
+        couponCode: appliedCoupon?.code,
+        userId: currentUser?.id,
+      });
+      if (appliedCoupon) {
+        useCoupon(appliedCoupon.code);
+        markCouponUsed(info.email);
+      }
+      const res = await fetch("/api/shopify/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items, info, selectedShipping, discountAmount, appliedCoupon, localOrderId: orderId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Shopify checkout failed");
+      clearCart();
+      window.location.href = data.invoiceUrl;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to redirect to Shopify";
+      setPaymentSetupError(msg);
+      setShopifyRedirecting(false);
+    }
   };
 
   // ─── Bank transfer order ───
@@ -620,6 +676,33 @@ export default function CheckoutPage() {
               {/* Payment method selector */}
               <div>
                 <h2 className="text-xs tracking-widest uppercase font-medium mb-4">Payment Method</h2>
+
+                {/* Shopify — featured option */}
+                <button
+                  onClick={() => setPayMethod("shopify")}
+                  className={cn(
+                    "w-full flex items-center justify-between px-5 py-4 border mb-3 transition-all",
+                    payMethod === "shopify"
+                      ? "border-[#96BF48] bg-[#96BF48]/5"
+                      : "border-stone-200 hover:border-[#96BF48]/60"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0",
+                      payMethod === "shopify" ? "border-[#96BF48]" : "border-stone-300"
+                    )}>
+                      {payMethod === "shopify" && <div className="w-2 h-2 rounded-full bg-[#96BF48]" />}
+                    </div>
+                    <ShoppingBag size={16} className={payMethod === "shopify" ? "text-[#96BF48]" : "text-stone-400"} />
+                    <div className="text-left">
+                      <p className="text-sm font-medium">Checkout with Shopify</p>
+                      <p className="text-xs text-stone-400">Secure payment · Shopify manages shipping &amp; fulfillment</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] tracking-widest uppercase px-2 py-1 bg-[#96BF48]/10 text-[#5a7a23] font-medium">Recommended</span>
+                </button>
+
                 <div className="grid grid-cols-3 gap-3 mb-6">
                   {([
                     { id: "card" as PayMethod, label: "Credit Card", icon: CreditCard },
@@ -641,6 +724,65 @@ export default function CheckoutPage() {
                     </button>
                   ))}
                 </div>
+
+                {/* ── Shopify Checkout ── */}
+                {payMethod === "shopify" && (
+                  <div className="space-y-5">
+                    <div className="border border-[#96BF48]/30 bg-[#96BF48]/5 p-5 space-y-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <ShoppingBag size={15} className="text-[#96BF48]" />
+                        <p className="text-sm font-medium text-stone-800">Shopify Secure Checkout</p>
+                      </div>
+                      <p className="text-xs text-stone-500 leading-relaxed">
+                        You will be redirected to Shopify&apos;s hosted checkout page to complete your payment securely.
+                        Shopify handles all payment processing, order fulfillment, and shipping tracking.
+                      </p>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-stone-400 pt-1">
+                        {["Stripe / PayPal / Apple Pay", "SSL encrypted", "Order tracking via email", "Shopify-managed fulfillment"].map((f) => (
+                          <span key={f} className="flex items-center gap-1">
+                            <Check size={9} className="text-[#96BF48]" /> {f}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {paymentSetupError && (
+                      <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm">
+                        <AlertCircle size={14} className="shrink-0" />
+                        {paymentSetupError}
+                      </div>
+                    )}
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => { setStep("shipping"); setClientSecret(null); }}
+                        className="flex-1 py-4 border border-stone-200 text-xs tracking-widest uppercase hover:bg-stone-50 transition-colors"
+                      >
+                        Back
+                      </button>
+                      <button
+                        onClick={handleShopifyCheckout}
+                        disabled={shopifyRedirecting}
+                        className="flex-1 py-4 bg-[#96BF48] text-white text-xs tracking-widest uppercase hover:bg-[#7aa33a] transition-colors font-medium disabled:opacity-60 flex items-center justify-center gap-2"
+                      >
+                        {shopifyRedirecting ? (
+                          <>
+                            <Loader2 size={14} className="animate-spin" />
+                            Redirecting...
+                          </>
+                        ) : (
+                          <>
+                            <ExternalLink size={13} />
+                            Pay · {formatPrice(orderTotal)}
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-xs text-stone-400 text-center flex items-center justify-center gap-1">
+                      <Lock size={10} /> You&apos;ll be redirected to Shopify&apos;s secure payment page
+                    </p>
+                  </div>
+                )}
 
                 {/* Stripe error / setup error */}
                 {paymentSetupError && payMethod === "card" && (

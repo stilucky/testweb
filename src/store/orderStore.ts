@@ -5,7 +5,7 @@ import { persist } from "zustand/middleware";
 
 export type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled";
 export type PaymentStatus = "paid" | "pending" | "refunded";
-export type PaymentMethod = "card" | "paypal" | "bank";
+export type PaymentMethod = "card" | "paypal" | "bank" | "shopify";
 
 export interface OrderItem {
   name: string;
