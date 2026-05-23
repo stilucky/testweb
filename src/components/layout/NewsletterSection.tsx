@@ -64,7 +64,24 @@ export default function NewsletterSection() {
   };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(couponCode).catch(() => {});
+    const copyText = (text: string) => {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).catch(() => legacyCopy(text));
+      } else {
+        legacyCopy(text);
+      }
+    };
+    const legacyCopy = (text: string) => {
+      const el = document.createElement("textarea");
+      el.value = text;
+      el.style.cssText = "position:fixed;opacity:0;pointer-events:none;";
+      document.body.appendChild(el);
+      el.focus();
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+    };
+    copyText(couponCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

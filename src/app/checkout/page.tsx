@@ -190,18 +190,19 @@ export default function CheckoutPage() {
   const handleOrderSuccess = () => {
     maybeSaveAddress();
     const shippingOption = shippingOptions.find((s) => s.id === selectedShipping);
+    const orderItems = items.map((item) => ({
+      name: item.product.name,
+      qty: item.quantity,
+      price: item.product.salePrice ?? item.product.price,
+      size: item.selectedSize,
+      color: item.selectedColor,
+      image: item.product.images[0],
+    }));
     const orderId = addOrder({
       customer: `${info.firstName} ${info.lastName}`.trim() || "Guest",
       email: info.email,
       phone: info.phone || undefined,
-      items: items.map((item) => ({
-        name: item.product.name,
-        qty: item.quantity,
-        price: item.product.salePrice ?? item.product.price,
-        size: item.selectedSize,
-        color: item.selectedColor,
-        image: item.product.images[0],
-      })),
+      items: orderItems,
       subtotal,
       shippingCost,
       discount: discountAmount,
@@ -218,6 +219,27 @@ export default function CheckoutPage() {
       useCoupon(appliedCoupon.code);
       markCouponUsed(info.email);
     }
+
+    // Send order confirmation email (fire-and-forget)
+    fetch("/api/order/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderId,
+        customer: `${info.firstName} ${info.lastName}`.trim() || "Guest",
+        email: info.email,
+        items: orderItems,
+        subtotal,
+        shippingCost,
+        discount: discountAmount,
+        total: orderTotal,
+        shippingAddress: `${info.address}, ${info.city}, ${info.postal}, ${info.country}`,
+        shippingMethod: shippingOption?.label ?? "Standard Shipping",
+        paymentMethod: payMethod,
+        couponCode: appliedCoupon?.code,
+      }),
+    }).catch(() => {});
+
     setOrderNumber(orderId);
     clearCart();
     setOrderPlaced(true);
@@ -438,7 +460,7 @@ export default function CheckoutPage() {
                       )}
                     >
                       <option value="">Select country</option>
-                      {["United States", "Canada", "United Kingdom", "Australia", "Vietnam", "France", "Germany", "Japan"].map((c) => (
+                      {["Canada", "United States", "United Kingdom", "Australia", "Vietnam", "France", "Germany", "Japan"].map((c) => (
                         <option key={c}>{c}</option>
                       ))}
                     </select>
@@ -814,7 +836,6 @@ export default function CheckoutPage() {
                 </div>
               )}
               {couponError && <p className="text-xs text-red-500 mt-1">{couponError}</p>}
-              <p className="text-[11px] text-stone-400 mt-1">Try: WELCOME10, SUMMER20, STYLE15</p>
             </div>
 
             {/* Totals */}

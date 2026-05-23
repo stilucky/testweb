@@ -107,6 +107,8 @@ export default function Header() {
               >
                 <Search size={18} />
               </button>
+
+              {/* Wishlist — desktop only */}
               <Link
                 href="/wishlist"
                 className="p-2 hover:bg-stone-50 rounded transition-colors hidden md:block relative"
@@ -119,6 +121,8 @@ export default function Header() {
                   </span>
                 )}
               </Link>
+
+              {/* User — desktop dropdown */}
               {currentUser ? (
                 <div className="relative hidden md:block">
                   <button
@@ -169,6 +173,8 @@ export default function Header() {
                   <User size={18} />
                 </Link>
               )}
+
+              {/* Cart */}
               <button
                 onClick={toggleCart}
                 className="p-2 hover:bg-stone-50 rounded transition-colors relative"
@@ -200,9 +206,10 @@ export default function Header() {
           </div>
         )}
 
-        {/* Mobile nav */}
+        {/* Mobile nav drawer */}
         {mobileOpen && (
-          <div className="md:hidden border-t border-stone-100 bg-white">
+          <div className="md:hidden border-t border-stone-100 bg-white max-h-[85vh] overflow-y-auto">
+            {/* Nav links */}
             {navItems.map((item) => (
               <div key={item.label}>
                 <Link
@@ -224,13 +231,72 @@ export default function Header() {
                 ))}
               </div>
             ))}
-            <div className="flex gap-4 px-6 py-4">
-              <Link href="/account" className="flex items-center gap-2 text-xs tracking-wider uppercase">
-                <User size={16} /> Account
-              </Link>
-              <Link href="/wishlist" className="flex items-center gap-2 text-xs tracking-wider uppercase">
-                <Heart size={16} /> Wishlist
-              </Link>
+
+            {/* Account section */}
+            <div className="border-t border-stone-200 mt-1">
+              {currentUser ? (
+                <>
+                  {/* User info */}
+                  <div className="flex items-center gap-3 px-6 py-4 border-b border-stone-100 bg-stone-50">
+                    <div className="w-9 h-9 rounded-full bg-stone-900 text-white flex items-center justify-center text-xs font-medium shrink-0">
+                      {currentUser.firstName[0]}{currentUser.lastName[0]}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-stone-900 truncate">
+                        {currentUser.firstName} {currentUser.lastName}
+                      </p>
+                      <p className="text-xs text-stone-400 truncate">{currentUser.email}</p>
+                    </div>
+                  </div>
+
+                  {/* Account links */}
+                  {[
+                    { label: "My Account", href: "/account", icon: User },
+                    { label: "Orders", href: "/account?tab=orders", icon: ShoppingBag },
+                    { label: "Wishlist", href: "/wishlist", icon: Heart },
+                    ...(currentUser.role === "admin"
+                      ? [{ label: "Admin Dashboard", href: "/admin", icon: User }]
+                      : []),
+                  ].map(({ label, href, icon: Icon }) => (
+                    <Link
+                      key={label}
+                      href={href}
+                      onClick={() => setMobileOpen(false)}
+                      className="flex items-center gap-3 px-6 py-4 text-xs tracking-widest uppercase border-b border-stone-100 text-stone-700 hover:bg-stone-50 transition-colors"
+                    >
+                      <Icon size={15} className="text-stone-400 shrink-0" />
+                      {label}
+                    </Link>
+                  ))}
+
+                  {/* Sign out */}
+                  <button
+                    onClick={() => { logout(); setMobileOpen(false); router.push("/"); }}
+                    className="flex items-center gap-3 w-full px-6 py-4 text-xs tracking-widest uppercase text-red-500 hover:bg-red-50 transition-colors"
+                  >
+                    <X size={15} className="shrink-0" />
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <div className="px-6 py-4 flex flex-col gap-3">
+                  <Link
+                    href="/auth"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center justify-center gap-2 py-3 bg-stone-900 text-white text-xs tracking-widest uppercase"
+                  >
+                    <User size={14} />
+                    Sign In
+                  </Link>
+                  <Link
+                    href="/auth?tab=register"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center justify-center gap-2 py-3 border border-stone-200 text-stone-700 text-xs tracking-widest uppercase"
+                  >
+                    Create Account
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         )}
