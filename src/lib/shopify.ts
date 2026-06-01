@@ -1,4 +1,4 @@
-export interface ShopifyLineItem {
+﻿export interface ShopifyLineItem {
   title: string;
   price: string;
   quantity: number;
@@ -52,7 +52,7 @@ export async function createShopifyDraftOrder(
       line_items: payload.lineItems,
       shipping_address: payload.shippingAddress,
       note: payload.note ?? "",
-      tags: payload.tags ?? "teboutique-web",
+      tags: payload.tags ?? "Lunelle-web",
       use_customer_default_address: false,
       ...(payload.discountAmount && payload.discountAmount > 0
         ? {

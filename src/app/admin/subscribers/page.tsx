@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useMemo } from "react";
 import { Mail, Trash2, Search, Download, Check, X, Users } from "lucide-react";
@@ -38,7 +38,7 @@ export default function AdminSubscribersPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `teboutique-subscribers-${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `Lunelle-subscribers-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };

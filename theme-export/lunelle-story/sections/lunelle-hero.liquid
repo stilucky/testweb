@@ -1,0 +1,205 @@
+
+{% comment %} Lunelle Story — Hero Slideshow {% endcomment %}
+<section class="ls-hero" id="ls-hero">
+  <div class="ls-hero__slides">
+
+    <div class="ls-hero__slide ls-hero__slide--active" style="background-image:url('https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=1920&q=80')">
+      <div class="ls-hero__overlay"></div>
+      <div class="ls-hero__content">
+        <span class="ls-hero__tag">New Collection</span>
+        <h1 class="ls-hero__title">Solstice<br><em>Fever</em></h1>
+        <p class="ls-hero__subtitle">Ethereal pieces for every occasion</p>
+        <a href="/collections/new-in" class="ls-hero__btn">Explore Collection</a>
+      </div>
+    </div>
+
+    <div class="ls-hero__slide" style="background-image:url('https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=1920&q=80')">
+      <div class="ls-hero__overlay"></div>
+      <div class="ls-hero__content">
+        <span class="ls-hero__tag">Occasion Wear</span>
+        <h1 class="ls-hero__title">Dressed<br>For Every<br><em>Moment</em></h1>
+        <p class="ls-hero__subtitle">From pre-wedding to gala nights</p>
+        <a href="/collections/occasions" class="ls-hero__btn">Shop Occasions</a>
+      </div>
+    </div>
+
+    <div class="ls-hero__slide" style="background-image:url('https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=1920&q=80')">
+      <div class="ls-hero__overlay"></div>
+      <div class="ls-hero__content">
+        <span class="ls-hero__tag">Best Sellers</span>
+        <h1 class="ls-hero__title">Timeless<br><em>Elegance</em></h1>
+        <p class="ls-hero__subtitle">Our most-loved pieces, reimagined</p>
+        <a href="/collections/best-sellers" class="ls-hero__btn">Shop Best Sellers</a>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Dots -->
+  <div class="ls-hero__dots">
+    <button class="ls-hero__dot ls-hero__dot--active" data-slide="0"></button>
+    <button class="ls-hero__dot" data-slide="1"></button>
+    <button class="ls-hero__dot" data-slide="2"></button>
+  </div>
+
+  <!-- Arrows -->
+  <button class="ls-hero__arrow ls-hero__arrow--prev" aria-label="Previous">&#8592;</button>
+  <button class="ls-hero__arrow ls-hero__arrow--next" aria-label="Next">&#8594;</button>
+</section>
+
+<style>
+.ls-hero {
+  position: relative;
+  width: 100%;
+  height: 90vh;
+  min-height: 560px;
+  overflow: hidden;
+  background: #1c1917;
+}
+.ls-hero__slides { position: relative; width: 100%; height: 100%; }
+.ls-hero__slide {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 0.9s cubic-bezier(0.25,0.46,0.45,0.94);
+}
+.ls-hero__slide--active { opacity: 1; }
+.ls-hero__overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(28,25,23,0.15) 0%, rgba(28,25,23,0.55) 100%);
+}
+.ls-hero__content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 24px;
+  gap: 20px;
+}
+.ls-hero__tag {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.75);
+}
+.ls-hero__title {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-size: clamp(56px, 9vw, 120px) !important;
+  font-weight: 300 !important;
+  line-height: 0.95 !important;
+  letter-spacing: 0.02em !important;
+  color: #ffffff !important;
+  margin: 0 !important;
+}
+.ls-hero__title em {
+  font-style: italic;
+  font-weight: 300;
+}
+.ls-hero__subtitle {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.75);
+  margin: 0;
+}
+.ls-hero__btn {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 14px 36px;
+  border: 1px solid rgba(255,255,255,0.7);
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.ls-hero__btn:hover {
+  background: rgba(255,255,255,0.15);
+  border-color: #ffffff;
+}
+.ls-hero__dots {
+  position: absolute;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+}
+.ls-hero__dot {
+  width: 24px;
+  height: 2px;
+  background: rgba(255,255,255,0.35);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s, width 0.2s;
+}
+.ls-hero__dot--active {
+  background: #ffffff;
+  width: 40px;
+}
+.ls-hero__arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.4);
+  color: #ffffff;
+  width: 48px;
+  height: 48px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ls-hero__arrow:hover { background: rgba(255,255,255,0.15); }
+.ls-hero__arrow--prev { left: 24px; }
+.ls-hero__arrow--next { right: 24px; }
+@media (max-width: 749px) {
+  .ls-hero { height: 85vh; }
+  .ls-hero__arrow { display: none; }
+}
+</style>
+
+<script>
+(function() {
+  const slides = document.querySelectorAll('.ls-hero__slide');
+  const dots   = document.querySelectorAll('.ls-hero__dot');
+  let current  = 0, timer;
+
+  function go(n) {
+    slides[current].classList.remove('ls-hero__slide--active');
+    dots[current].classList.remove('ls-hero__dot--active');
+    current = (n + slides.length) % slides.length;
+    slides[current].classList.add('ls-hero__slide--active');
+    dots[current].classList.add('ls-hero__dot--active');
+  }
+
+  function next() { go(current + 1); }
+  function reset() { clearInterval(timer); timer = setInterval(next, 5000); }
+
+  dots.forEach((d, i) => d.addEventListener('click', () => { go(i); reset(); }));
+  document.querySelector('.ls-hero__arrow--prev').addEventListener('click', () => { go(current - 1); reset(); });
+  document.querySelector('.ls-hero__arrow--next').addEventListener('click', () => { next(); reset(); });
+
+  reset();
+})();
+</script>
+
+{% schema %}
+{ "name": "Lunelle Hero", "tag": "section", "settings": [] }
+{% endschema %}

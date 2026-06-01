@@ -17,6 +17,9 @@ export interface Product {
   isBestSeller: boolean;
   stock: number;
   tags: string[];
+  videoUrl?: string;
+  priceCAD?: number;
+  salePriceCAD?: number;
 }
 
 export interface Color {
@@ -32,10 +35,21 @@ export interface CartItem {
   selectedColor: string;
 }
 
+export interface NavChild {
+  label: string;
+  href: string;
+}
+
+export interface NavGroup {
+  title?: string;
+  items: NavChild[];
+}
+
 export interface NavItem {
   label: string;
   href: string;
-  children?: NavItem[];
+  children?: NavChild[];
+  groups?: NavGroup[];
 }
 
 export type Category =

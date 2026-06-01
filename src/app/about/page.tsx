@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "About",
-  description: "The story behind TeBoutique — where luxury meets craftsmanship.",
+  description: "The story behind Lunelle — where luxury meets craftsmanship.",
 };
 
 export default function AboutPage() {
@@ -14,16 +14,17 @@ export default function AboutPage() {
       <section className="relative h-[60vh] overflow-hidden">
         <Image
           src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1600&q=80"
-          alt="About TeBoutique"
+          alt="About Lunelle"
           fill
           priority
+          sizes="100vw"
           className="object-cover"
         />
         <div className="absolute inset-0 bg-black/40" />
         <div className="relative z-10 h-full flex flex-col items-center justify-center text-center text-white px-4">
           <p className="text-xs tracking-[0.3em] uppercase mb-4 text-white/70">Est. 2020</p>
           <h1
-            className="text-5xl md:text-7xl"
+            className="text-3xl md:text-4xl"
             style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
           >
             Our Story
@@ -37,14 +38,14 @@ export default function AboutPage() {
           <div>
             <p className="text-xs tracking-[0.3em] uppercase text-stone-400 mb-6">Who We Are</p>
             <h2
-              className="text-4xl md:text-5xl mb-8 leading-tight"
+              className="text-3xl md:text-4xl mb-8 leading-tight"
               style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
             >
               Fashion that tells your story
             </h2>
             <div className="space-y-5 text-stone-500 text-sm leading-relaxed">
               <p>
-                TeBoutique was born from a passion for fashion that transcends trends — pieces that
+                Lunelle was born from a passion for fashion that transcends trends — pieces that
                 carry meaning, crafted with intention. Founded in 2020, we set out to create a
                 curated destination for women who appreciate the artistry behind every stitch.
               </p>
@@ -63,8 +64,9 @@ export default function AboutPage() {
           <div className="relative aspect-[4/5] overflow-hidden">
             <Image
               src="https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=800&q=80"
-              alt="TeBoutique craftsmanship"
+              alt="Lunelle craftsmanship"
               fill
+              sizes="(max-width: 768px) 100vw, 50vw"
               className="object-cover"
             />
           </div>
@@ -76,7 +78,7 @@ export default function AboutPage() {
         <div className="max-w-screen-xl mx-auto px-4 md:px-8">
           <div className="text-center mb-16">
             <h2
-              className="text-4xl md:text-5xl"
+              className="text-3xl md:text-4xl"
               style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
             >
               Our Values
@@ -116,7 +118,7 @@ export default function AboutPage() {
       <section className="py-24 text-center px-4">
         <p className="text-xs tracking-[0.3em] uppercase text-stone-400 mb-4">Discover the Collection</p>
         <h2
-          className="text-4xl md:text-5xl mb-8"
+          className="text-3xl md:text-4xl mb-8"
           style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
         >
           Dress the life you imagine

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -166,7 +166,7 @@ export default function ForgotPasswordPage() {
               className="text-3xl tracking-[0.15em] uppercase"
               style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 400 }}
             >
-              TeBoutique
+              Lunelle
             </span>
           </Link>
         </div>

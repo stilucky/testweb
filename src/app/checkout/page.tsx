@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -358,7 +358,7 @@ export default function CheckoutPage() {
             className="text-2xl tracking-[0.15em] uppercase"
             style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 400 }}
           >
-            TeBoutique
+            Lunelle
           </span>
         </Link>
         <div className="flex items-center gap-1.5 text-xs text-stone-400">

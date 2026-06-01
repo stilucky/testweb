@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -216,7 +216,7 @@ export default function AuthPage() {
                 className="text-3xl tracking-[0.15em] uppercase"
                 style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 400 }}
               >
-                TeBoutique
+                Lunelle
               </span>
             </Link>
           </div>
@@ -313,7 +313,7 @@ export default function AuthPage() {
               className="text-3xl tracking-[0.15em] uppercase"
               style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 400 }}
             >
-              TeBoutique
+              Lunelle
             </span>
           </Link>
           <p className="text-stone-400 text-sm mt-2">
@@ -446,7 +446,7 @@ export default function AuthPage() {
         <div className="mt-6 p-4 bg-stone-50 border border-stone-100 text-xs text-stone-500 space-y-1">
           <p className="font-medium text-stone-600 mb-2">Demo accounts:</p>
           <p>👤 Customer: <span className="font-mono">sophie@example.com</span> / <span className="font-mono">password123</span></p>
-          <p>🔧 Admin: <span className="font-mono">admin@teboutique.com</span> / <span className="font-mono">admin123</span></p>
+          <p>🔧 Admin: <span className="font-mono">admin@Lunelle.com</span> / <span className="font-mono">admin123</span></p>
         </div>
 
         {/* Divider + Google */}

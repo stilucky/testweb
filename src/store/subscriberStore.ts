@@ -1,4 +1,4 @@
-import { create } from "zustand";
+﻿import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 export interface Subscriber {
@@ -67,6 +67,6 @@ export const useSubscriberStore = create<SubscriberState>()(
         set((s) => ({ subscribers: s.subscribers.filter((sub) => sub.id !== id) }));
       },
     }),
-    { name: "teboutique-subscribers", version: 1 }
+    { name: "Lunelle-subscribers", version: 1 }
   )
 );

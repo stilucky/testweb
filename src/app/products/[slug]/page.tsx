@@ -3,10 +3,12 @@
 import { useState, use } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Heart, Truck, RotateCcw, Shield, ChevronDown, ChevronUp } from "lucide-react";
-import { products } from "@/lib/data";
+import { Heart, Truck, RotateCcw, Shield, ChevronDown, ChevronUp, Play } from "lucide-react";
+import { useProductStore } from "@/store/productStore";
 import { useCartStore } from "@/store/cartStore";
-import { formatPrice, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { useLocaleStore, formatLocalPrice } from "@/store/localeStore";
+import { useTranslations } from "@/lib/i18n";
 import ProductCard from "@/components/product/ProductCard";
 import SizeChart from "@/components/product/SizeChart";
 import { notFound } from "next/navigation";
@@ -17,18 +19,36 @@ interface Props {
 
 export default function ProductDetailPage({ params }: Props) {
   const { slug } = use(params);
+  const products = useProductStore((s) => s.products);
   const product = products.find((p) => p.slug === slug);
 
   if (!product) notFound();
 
   const [selectedImage, setSelectedImage] = useState(0);
+  const [showVideo, setShowVideo] = useState(false);
   const [selectedSize, setSelectedSize] = useState("");
   const [selectedColor, setSelectedColor] = useState(product.colors[0]?.name ?? "");
 
   const handleColorChange = (colorName: string) => {
     setSelectedColor(colorName);
     setSelectedImage(0);
+    setShowVideo(false);
   };
+
+  const getYouTubeId = (url: string): string | null => {
+    const patterns = [
+      /youtube\.com\/watch\?v=([^&]+)/,
+      /youtu\.be\/([^?/]+)/,
+      /youtube\.com\/embed\/([^?]+)/,
+    ];
+    for (const p of patterns) {
+      const m = url.match(p);
+      if (m) return m[1];
+    }
+    return null;
+  };
+
+  const videoId = product.videoUrl ? getYouTubeId(product.videoUrl) : null;
 
   const activeColor = product.colors.find((c) => c.name === selectedColor);
   const displayImages =
@@ -39,6 +59,9 @@ export default function ProductDetailPage({ params }: Props) {
   const [sizeChartOpen, setSizeChartOpen] = useState(false);
 
   const addItem = useCartStore((s) => s.addItem);
+  const currency = useLocaleStore((s) => s.currency);
+  const language = useLocaleStore((s) => s.language);
+  const t = useTranslations(language);
 
   const related = products.filter((p) => p.id !== product.id && p.category === product.category).slice(0, 4);
 
@@ -52,23 +75,9 @@ export default function ProductDetailPage({ params }: Props) {
   };
 
   const accordionSections = [
-    {
-      id: "description",
-      label: "Description",
-      content: product.description,
-    },
-    {
-      id: "details",
-      label: "Details & Care",
-      content:
-        "Dry clean recommended. Store in a cool, dry place. Material may vary by color — see individual product labels. Made with care in limited quantities.",
-    },
-    {
-      id: "shipping",
-      label: "Shipping & Returns",
-      content:
-        "Complimentary standard shipping on orders over $200. Express shipping available at checkout. Free returns within 30 days of purchase for unworn items with tags attached.",
-    },
+    { id: "description", label: t("description"),       content: product.description },
+    { id: "details",     label: t("detailsCare"),       content: language === "FR" ? "Nettoyage à sec recommandé. Conserver dans un endroit frais et sec. Les matières peuvent varier selon la couleur." : "Dry clean recommended. Store in a cool, dry place. Material may vary by color." },
+    { id: "shipping",    label: t("shippingReturns"),   content: language === "FR" ? "Livraison standard offerte dès $200. Livraison express disponible. Retours gratuits sous 30 jours pour articles non portés avec étiquettes." : "Complimentary standard shipping on orders over $200. Free returns within 30 days for unworn items with tags attached." },
   ];
 
   return (
@@ -94,31 +103,73 @@ export default function ProductDetailPage({ params }: Props) {
             {displayImages.map((img, i) => (
               <button
                 key={i}
-                onClick={() => setSelectedImage(i)}
+                onClick={() => { setSelectedImage(i); setShowVideo(false); }}
                 className={cn(
                   "relative w-16 h-20 overflow-hidden border-2 transition-all",
-                  i === selectedImage ? "border-stone-900" : "border-transparent opacity-60 hover:opacity-100"
+                  i === selectedImage && !showVideo ? "border-stone-900" : "border-transparent opacity-60 hover:opacity-100"
                 )}
               >
-                <Image src={img} alt={`${product.name} ${i + 1}`} fill className="object-cover" />
+                <Image src={img} alt={`${product.name} ${i + 1}`} fill sizes="64px" className="object-cover" />
               </button>
             ))}
+
+            {/* Video thumbnail */}
+            {videoId && (
+              <button
+                onClick={() => setShowVideo(true)}
+                className={cn(
+                  "relative w-16 h-20 overflow-hidden border-2 transition-all bg-stone-900 flex items-center justify-center",
+                  showVideo ? "border-stone-900" : "border-transparent opacity-60 hover:opacity-100"
+                )}
+                title="Watch video"
+              >
+                <Image
+                  src={`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`}
+                  alt="Video preview"
+                  fill
+                  sizes="64px"
+                  className="object-cover opacity-50"
+                />
+                <Play size={18} className="relative z-10 text-white fill-white" />
+              </button>
+            )}
           </div>
 
-          {/* Main image */}
-          <div className="flex-1 relative aspect-[3/4] bg-stone-50 overflow-hidden">
-            <Image
-              src={displayImages[selectedImage] ?? displayImages[0]}
-              alt={`${product.name} — ${selectedColor}`}
-              fill
-              priority
-              className="object-cover transition-opacity duration-300"
-              sizes="(max-width: 768px) 100vw, 50vw"
-            />
-            {product.isNew && (
-              <span className="absolute top-4 left-4 bg-stone-900 text-white text-[10px] tracking-widest uppercase px-2 py-1">
-                New
-              </span>
+          {/* Main display: image or YouTube embed */}
+          <div className="flex-1 relative aspect-[3/4] bg-stone-900 overflow-hidden">
+            {showVideo && videoId ? (
+              <iframe
+                src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`}
+                title={`${product.name} video`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="absolute inset-0 w-full h-full border-0"
+              />
+            ) : (
+              <>
+                <Image
+                  src={displayImages[selectedImage] ?? displayImages[0]}
+                  alt={`${product.name} — ${selectedColor}`}
+                  fill
+                  priority
+                  className="object-cover transition-opacity duration-300"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                />
+                {product.isNew && (
+                  <span className="absolute top-4 left-4 bg-stone-900 text-white text-[10px] tracking-widest uppercase px-2 py-1">
+                    New
+                  </span>
+                )}
+                {videoId && (
+                  <button
+                    onClick={() => setShowVideo(true)}
+                    className="absolute bottom-4 right-4 flex items-center gap-2 bg-black/60 hover:bg-black/80 text-white text-[10px] tracking-widest uppercase px-3 py-2 transition-colors backdrop-blur-sm"
+                  >
+                    <Play size={11} className="fill-white" />
+                    Watch
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -129,7 +180,7 @@ export default function ProductDetailPage({ params }: Props) {
             {product.category}
           </p>
           <h1
-            className="text-3xl md:text-4xl text-stone-900 mb-3"
+            className="text-2xl md:text-3xl text-stone-900 mb-3"
             style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 400 }}
           >
             {product.name}
@@ -142,18 +193,26 @@ export default function ProductDetailPage({ params }: Props) {
           </p>
 
           {/* Price */}
-          <div className="flex items-center gap-3 mb-8">
+          <div className="flex items-center gap-3 mb-8 flex-wrap">
             <span
               className={cn("text-2xl", product.salePrice && "text-red-600")}
               style={{ fontFamily: "var(--font-cormorant), serif" }}
             >
-              {formatPrice(product.salePrice ?? product.price)}
+              {formatLocalPrice(
+              product.salePrice ?? product.price,
+              currency,
+              product.salePrice ? product.salePriceCAD : product.priceCAD
+            )}
             </span>
             {product.salePrice && (
               <span className="text-stone-400 line-through text-lg" style={{ fontFamily: "var(--font-cormorant), serif" }}>
-                {formatPrice(product.price)}
+                {formatLocalPrice(product.price, currency, product.priceCAD)}
               </span>
             )}
+            <span className="text-[10px] tracking-widest uppercase text-stone-300 ml-1">
+              {currency}
+              {currency === "CAD" && <span className="text-stone-300"> · est.</span>}
+            </span>
           </div>
 
           {/* Color selector */}
@@ -183,7 +242,7 @@ export default function ProductDetailPage({ params }: Props) {
           {/* Size selector */}
           <div className="mb-8">
             <p className={cn("text-xs tracking-widest uppercase mb-3", sizeError && "text-red-600")}>
-              {sizeError ? "Please select a size" : "Size"}
+              {sizeError ? t("selectSize") : t("size")}
             </p>
             <div className="flex gap-2 flex-wrap">
               {product.sizes.map((size) => (
@@ -207,7 +266,7 @@ export default function ProductDetailPage({ params }: Props) {
               onClick={() => setSizeChartOpen(true)}
               className="text-xs text-stone-400 underline hover:text-stone-700 mt-2 inline-block"
             >
-              Size Chart
+              {t("sizeChart")}
             </button>
           </div>
 
@@ -217,7 +276,7 @@ export default function ProductDetailPage({ params }: Props) {
               onClick={handleAddToCart}
               className="flex-1 py-4 bg-stone-900 text-white text-xs tracking-widest uppercase hover:bg-stone-700 transition-colors font-medium"
             >
-              Add to Bag
+              {t("addToBag")}
             </button>
             <button
               onClick={() => setWishlisted(!wishlisted)}
@@ -286,12 +345,12 @@ export default function ProductDetailPage({ params }: Props) {
       {related.length > 0 && (
         <div className="mt-24">
           <div className="text-center mb-10">
-            <p className="text-xs tracking-[0.3em] uppercase text-stone-400 mb-3">You May Also Love</p>
+            <p className="text-xs tracking-[0.3em] uppercase text-stone-400 mb-3">{t("youMayAlsoLove")}</p>
             <h2
               className="text-3xl md:text-4xl"
               style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
             >
-              Related Pieces
+              {t("relatedPieces")}
             </h2>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">

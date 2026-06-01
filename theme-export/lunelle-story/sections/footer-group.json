@@ -1,0 +1,54 @@
+{
+  "name": "t:sections.footer.name",
+  "type": "footer",
+  "sections": {
+    "footer": {
+      "type": "footer",
+      "blocks": {
+        "shop": {
+          "type": "link_list",
+          "settings": {
+            "heading": "Shop",
+            "menu": "shop-menu"
+          }
+        },
+        "occasions": {
+          "type": "link_list",
+          "settings": {
+            "heading": "Occasions",
+            "menu": "main-menu"
+          }
+        },
+        "help": {
+          "type": "link_list",
+          "settings": {
+            "heading": "Help",
+            "menu": "footer-menu"
+          }
+        },
+        "about": {
+          "type": "brand_information",
+          "settings": {
+            "show_social": true
+          }
+        }
+      },
+      "block_order": [
+        "shop",
+        "occasions",
+        "help",
+        "about"
+      ],
+      "settings": {
+        "color_scheme": "scheme-3",
+        "newsletter_enable": false,
+        "payment_enable": true,
+        "padding_top": 60,
+        "padding_bottom": 40
+      }
+    }
+  },
+  "order": [
+    "footer"
+  ]
+}

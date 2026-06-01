@@ -5,8 +5,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { Heart } from "lucide-react";
 import { Product } from "@/types";
-import { formatPrice, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useWishlistStore } from "@/store/wishlistStore";
+import { useLocaleStore, formatLocalPrice } from "@/store/localeStore";
+import { useTranslations } from "@/lib/i18n";
 
 interface ProductCardProps {
   product: Product;
@@ -17,6 +19,9 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
   const [hovered, setHovered] = useState(false);
   const { toggleItem, isWishlisted } = useWishlistStore();
   const wishlisted = isWishlisted(product.id);
+  const currency = useLocaleStore((s) => s.currency);
+  const language = useLocaleStore((s) => s.language);
+  const t = useTranslations(language);
 
   const displayPrice = product.salePrice ?? product.price;
   const hasDiscount = product.salePrice !== undefined;
@@ -57,7 +62,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
         <div className="absolute top-3 left-3 flex flex-col gap-1">
           {product.isNew && (
             <span className="bg-stone-900 text-white text-[10px] tracking-widest uppercase px-2 py-1">
-              New
+              {t("new")}
             </span>
           )}
           {hasDiscount && (
@@ -90,7 +95,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
           hovered ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
         )}>
           <span className="hover:text-stone-500 transition-colors">
-            Select Options
+            {t("addToBag")}
           </span>
         </div>
       </Link>
@@ -108,11 +113,15 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
         </p>
         <div className="flex items-center gap-2 pt-0.5">
           <span className={cn("text-sm", hasDiscount && "text-red-600 font-medium")}>
-            {formatPrice(displayPrice)}
+            {formatLocalPrice(
+              displayPrice,
+              currency,
+              hasDiscount ? product.salePriceCAD : product.priceCAD
+            )}
           </span>
           {hasDiscount && (
             <span className="text-xs text-stone-400 line-through">
-              {formatPrice(product.price)}
+              {formatLocalPrice(product.price, currency, product.priceCAD)}
             </span>
           )}
         </div>

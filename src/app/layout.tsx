@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { Cormorant_Garamond, Inter } from "next/font/google";
 import "./globals.css";
 import StoreShell from "@/components/layout/StoreShell";
@@ -19,19 +19,19 @@ const cormorant = Cormorant_Garamond({
 
 export const metadata: Metadata = {
   title: {
-    default: "TeBoutique — Premium Fashion",
-    template: "%s | TeBoutique",
+    default: "Lunelle — Tailored Section Structure",
+    template: "%s | Lunelle",
   },
   description:
-    "Discover curated luxury fashion at TeBoutique. Elegant dresses, occasion wear, and everyday luxury pieces.",
-  keywords: ["fashion", "boutique", "luxury", "dresses", "occasion wear"],
+    "Lunelle — Tailored Section Structure. Discover made-to-order and customized fashion crafted with intention.",
+  keywords: ["fashion", "boutique", "luxury", "tailored", "made to order", "customized fit"],
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://teboutique.com",
-    siteName: "TeBoutique",
-    title: "TeBoutique — Premium Fashion",
-    description: "Discover curated luxury fashion at TeBoutique.",
+    url: "https://lunelle.com",
+    siteName: "Lunelle",
+    title: "Lunelle — Tailored Section Structure",
+    description: "Lunelle — Tailored Section Structure. Fashion crafted with intention.",
   },
 };
 

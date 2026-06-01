@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -57,8 +57,8 @@ const defaultUsers: StoredUser[] = [
   {
     id: "admin1",
     firstName: "Admin",
-    lastName: "TeBoutique",
-    email: "admin@teboutique.com",
+    lastName: "Lunelle",
+    email: "admin@Lunelle.com",
     password: "admin123",
     role: "admin",
     createdAt: "2024-01-01",
@@ -67,7 +67,7 @@ const defaultUsers: StoredUser[] = [
     id: "test1",
     firstName: "Test",
     lastName: "User",
-    email: "test@teboutique.com",
+    email: "test@Lunelle.com",
     password: "test123",
     role: "customer",
     createdAt: "2026-01-01",
@@ -215,7 +215,7 @@ export const useAuthStore = create<AuthStore>()(
       },
     }),
     {
-      name: "teboutique-auth",
+      name: "Lunelle-auth",
       version: 3,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as { users?: StoredUser[]; currentUser?: unknown; userAddresses?: unknown };

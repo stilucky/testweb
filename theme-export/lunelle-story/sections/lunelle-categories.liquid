@@ -1,0 +1,97 @@
+
+{% comment %} Lunelle Story — Shop by Category {% endcomment %}
+<section class="ls-cats page-width section">
+  <div class="ls-cats__header">
+    <span class="ls-cats__label">Collections</span>
+    <h2 class="ls-cats__title">Shop by Category</h2>
+  </div>
+  <div class="ls-cats__grid">
+    <a href="/collections/new-in" class="ls-cats__card">
+      <div class="ls-cats__img-wrap">
+        <img src="https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?w=800&q=80" alt="New In" loading="lazy">
+      </div>
+      <span class="ls-cats__name">New In</span>
+    </a>
+    <a href="/collections/dresses" class="ls-cats__card">
+      <div class="ls-cats__img-wrap">
+        <img src="https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=800&q=80" alt="Dresses" loading="lazy">
+      </div>
+      <span class="ls-cats__name">Dresses</span>
+    </a>
+    <a href="/collections/occasions" class="ls-cats__card">
+      <div class="ls-cats__img-wrap">
+        <img src="https://images.unsplash.com/photo-1519657337289-077653f724ed?w=800&q=80" alt="Occasions" loading="lazy">
+      </div>
+      <span class="ls-cats__name">Occasions</span>
+    </a>
+    <a href="/collections/resort" class="ls-cats__card">
+      <div class="ls-cats__img-wrap">
+        <img src="https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&q=80" alt="Resort" loading="lazy">
+      </div>
+      <span class="ls-cats__name">Resort</span>
+    </a>
+  </div>
+</section>
+
+<style>
+.ls-cats { padding-block: 80px; }
+.ls-cats__header { text-align: center; margin-bottom: 48px; }
+.ls-cats__label {
+  display: block;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #a8a29e;
+  margin-bottom: 12px;
+}
+.ls-cats__title {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-size: clamp(28px, 3.5vw, 48px) !important;
+  font-weight: 300 !important;
+  letter-spacing: 0.06em !important;
+  color: #1c1917 !important;
+  margin: 0 !important;
+}
+.ls-cats__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+@media (max-width: 749px) {
+  .ls-cats__grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+}
+.ls-cats__card {
+  display: block;
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+}
+.ls-cats__img-wrap {
+  aspect-ratio: 3/4;
+  overflow: hidden;
+  background: #f5f5f4;
+}
+.ls-cats__img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.7s cubic-bezier(0.25,0.46,0.45,0.94);
+}
+.ls-cats__card:hover .ls-cats__img-wrap img { transform: scale(1.05); }
+.ls-cats__name {
+  display: block;
+  margin-top: 12px;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: #1c1917;
+  text-align: center;
+}
+</style>
+
+{% schema %}
+{ "name": "Lunelle Categories", "tag": "section", "settings": [] }
+{% endschema %}

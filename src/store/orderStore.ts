@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -78,7 +78,7 @@ export const useOrderStore = create<OrderStore>()(
         })),
     }),
     {
-      name: "teboutique-orders",
+      name: "Lunelle-orders",
       version: 2,
       migrate: (persisted: unknown, version: number) => {
         if (version < 2) {

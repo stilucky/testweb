@@ -367,39 +367,45 @@ export const categories = [
 
 export const navItems = [
   {
-    label: "New In",
+    label: "New",
     href: "/products?filter=new",
-    children: [],
-  },
-  {
-    label: "Occasions",
-    href: "/products?filter=occasion",
-    children: [
-      { label: "Pre-Wedding", href: "/products?occasion=pre-wedding" },
-      { label: "Cocktail", href: "/products?occasion=cocktail" },
-      { label: "Event & Gala", href: "/products?occasion=gala" },
-      { label: "Resort", href: "/products?occasion=resort" },
-    ],
   },
   {
     label: "Shop",
     href: "/products",
-    children: [
-      { label: "All", href: "/products" },
-      { label: "Dresses", href: "/products?category=dresses" },
-      { label: "Tops", href: "/products?category=tops" },
-      { label: "Bottoms", href: "/products?category=bottoms" },
-      { label: "Outerwear", href: "/products?category=outerwear" },
+    groups: [
+      {
+        items: [
+          { label: "Pre-Fall 2026", href: "/products?collection=pre-fall-2026" },
+        ],
+      },
+      {
+        title: "Ready to Wear",
+        items: [
+          { label: "Dresses", href: "/products?category=dresses" },
+          { label: "Tops", href: "/products?category=tops" },
+          { label: "Bottoms", href: "/products?category=bottoms" },
+          { label: "Sets", href: "/products?category=sets" },
+        ],
+      },
+      {
+        title: "Collection",
+        items: [
+          { label: "Claire de lune", href: "/products?collection=claire-de-lune" },
+        ],
+      },
     ],
   },
   {
-    label: "Best Sellers",
-    href: "/products?filter=bestseller",
-    children: [],
+    label: "Tailored",
+    href: "/tailored",
+    children: [
+      { label: "Made to Order", href: "/tailored/made-to-order" },
+      { label: "Customized Fit", href: "/tailored/customized-fit" },
+    ],
   },
   {
     label: "About",
     href: "/about",
-    children: [],
   },
 ];

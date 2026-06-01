@@ -3,6 +3,7 @@
 import { X, Ruler } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import BodyMeasureDiagram from "./BodyMeasureDiagram";
 
 const womenSizes = [
   { size: "XS", us: "0–2",   bust: '32" / 81cm',  waist: '24" / 61cm',  hip: '34" / 86cm',  height: "5'2\"–5'5\"" },
@@ -219,8 +220,16 @@ export default function SizeChart({ open, onClose, gender = "women" }: Props) {
 
           {tab === "how" && (
             <div className="p-6 space-y-6">
-              <p className="text-sm text-stone-500 leading-relaxed">
-                Use a soft measuring tape for the most accurate results. Have a friend help you for measurements like shoulder width and back length.
+              {/* Diagram */}
+              <div className="bg-stone-50 rounded p-4">
+                <p className="text-[10px] tracking-[0.2em] uppercase text-stone-400 text-center mb-4">
+                  Measurement Guide
+                </p>
+                <BodyMeasureDiagram gender={gender} />
+              </div>
+
+              <p className="text-xs text-stone-400 leading-relaxed">
+                Dùng thước dây mềm để đo chính xác nhất. Nên nhờ người khác hỗ trợ khi đo vai và chiều cao.
               </p>
 
               {howToMeasure.map(({ label, desc }) => (
@@ -234,17 +243,6 @@ export default function SizeChart({ open, onClose, gender = "women" }: Props) {
                   </div>
                 </div>
               ))}
-
-              {/* Visual diagram placeholder */}
-              <div className="border border-dashed border-stone-200 rounded p-6 text-center">
-                <p className="text-xs text-stone-400 tracking-wide uppercase mb-1">Body Measurement Diagram</p>
-                <p className="text-[11px] text-stone-300">Bust · Waist · Hip · Shoulder</p>
-                <div className="mt-3 flex justify-center gap-6 text-[10px] text-stone-400">
-                  <span>A — Bust</span>
-                  <span>B — Waist</span>
-                  <span>C — Hip</span>
-                </div>
-              </div>
             </div>
           )}
         </div>

@@ -1,4 +1,4 @@
-import { create } from "zustand";
+﻿import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 export type DiscountType = "percent" | "fixed";
@@ -141,6 +141,6 @@ export const useCouponStore = create<CouponState>()(
         }));
       },
     }),
-    { name: "teboutique-coupons", version: 1 }
+    { name: "Lunelle-coupons", version: 1 }
   )
 );

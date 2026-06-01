@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import type { OrderItem, PaymentMethod } from "@/store/orderStore";
 
@@ -97,7 +97,7 @@ function buildOrderEmail(p: ConfirmPayload): string {
         <tr>
           <td style="background:#1c1917;padding:36px 48px;text-align:center;">
             <p style="margin:0 0 6px;font-size:10px;letter-spacing:4px;text-transform:uppercase;color:#78716c;">
-              TeBoutique
+              Lunelle
             </p>
             <h1 style="margin:0;font-size:26px;font-weight:300;letter-spacing:4px;text-transform:uppercase;color:#ffffff;">
               Order Confirmed
@@ -215,10 +215,10 @@ function buildOrderEmail(p: ConfirmPayload): string {
         <tr>
           <td style="background:#1c1917;padding:28px 48px;text-align:center;">
             <p style="margin:0 0 6px;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#57534e;">
-              TeBoutique
+              Lunelle
             </p>
             <p style="margin:0;font-size:11px;color:#44403c;line-height:1.6;">
-              © ${new Date().getFullYear()} TeBoutique. All rights reserved.
+              © ${new Date().getFullYear()} Lunelle. All rights reserved.
             </p>
           </td>
         </tr>
@@ -249,7 +249,7 @@ export async function POST(req: NextRequest) {
     });
 
     await transporter.sendMail({
-      from: `"TeBoutique" <${SMTP_USER}>`,
+      from: `"Lunelle" <${SMTP_USER}>`,
       to: payload.email,
       subject: `Order confirmed — ${payload.orderId}`,
       html: buildOrderEmail(payload),

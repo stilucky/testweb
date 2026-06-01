@@ -1,9 +1,9 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import AdminGuard from "./AdminGuard";
 import AdminSidebar from "./AdminSidebar";
 
 export const metadata: Metadata = {
-  title: { default: "Admin", template: "%s | Admin — TeBoutique" },
+  title: { default: "Admin", template: "%s | Admin — Lunelle" },
 };
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

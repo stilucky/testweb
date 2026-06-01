@@ -1,0 +1,59 @@
+{
+  "name": "t:sections.header.name",
+  "type": "header",
+  "sections": {
+    "announcement-bar": {
+      "type": "announcement-bar",
+      "blocks": {
+        "ann-1": {
+          "type": "announcement",
+          "settings": {
+            "text": "Complimentary shipping on orders over $200",
+            "link": ""
+          }
+        },
+        "ann-2": {
+          "type": "announcement",
+          "settings": {
+            "text": "New arrivals — Resort 2025 collection now live",
+            "link": "\/collections\/new-in"
+          }
+        }
+      },
+      "block_order": [
+        "ann-1",
+        "ann-2"
+      ],
+      "settings": {
+        "auto_rotate": true,
+        "change_slides_speed": 5,
+        "color_scheme": "scheme-3",
+        "show_line_separator": false,
+        "show_social": false
+      }
+    },
+    "header": {
+      "type": "header",
+      "settings": {
+        "logo_position": "middle-left",
+        "mobile_logo_position": "center",
+        "menu": "main-menu",
+        "menu_type_desktop": "dropdown",
+        "sticky_header_type": "on-scroll-up",
+        "show_line_separator": true,
+        "color_scheme": "scheme-1",
+        "menu_color_scheme": "scheme-1",
+        "enable_country_selector": false,
+        "enable_language_selector": false,
+        "enable_customer_avatar": true,
+        "padding_top": 20,
+        "padding_bottom": 20,
+        "margin_bottom": 0
+      }
+    }
+  },
+  "order": [
+    "announcement-bar",
+    "header"
+  ]
+}

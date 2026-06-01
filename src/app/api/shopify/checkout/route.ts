@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { createShopifyDraftOrder } from "@/lib/shopify";
 
 export async function POST(req: NextRequest) {
@@ -38,8 +38,8 @@ export async function POST(req: NextRequest) {
         country: info.country,
         phone: info.phone || undefined,
       },
-      note: `TeBoutique order #${localOrderId} — ${shippingLabels[selectedShipping] ?? "Standard Shipping"}`,
-      tags: `teboutique-web,local-order-${localOrderId}`,
+      note: `Lunelle order #${localOrderId} — ${shippingLabels[selectedShipping] ?? "Standard Shipping"}`,
+      tags: `Lunelle-web,local-order-${localOrderId}`,
       discountCode: appliedCoupon?.code,
       discountAmount: discountAmount > 0 ? discountAmount : undefined,
     });

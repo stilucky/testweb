@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { Save, Eye, EyeOff, CheckCircle2, Store, Mail, Palette, Shield } from "lucide-react";
@@ -19,9 +19,9 @@ export default function SettingsPage() {
   const [showPass, setShowPass] = useState(false);
 
   const [store, setStore] = useState({
-    name: "TeBoutique",
+    name: "Lunelle",
     tagline: "Premium Fashion · Vancouver",
-    email: "hello@teboutique.com",
+    email: "hello@Lunelle.com",
     phone: "+1 604 555 0100",
     address: "789 Robson Street, Vancouver, BC V6Z 1C3",
     currency: "CAD",
@@ -33,13 +33,13 @@ export default function SettingsPage() {
     port: "587",
     user: "",
     pass: "",
-    fromName: "TeBoutique",
+    fromName: "Lunelle",
   });
 
   const [appearance, setAppearance] = useState({
     primaryColor: "#1c1917",
     accentColor: "#a8a29e",
-    logoText: "TeBoutique",
+    logoText: "Lunelle",
     bannerText: "Free shipping on orders over $200",
     showBanner: true,
     maintenanceMode: false,
@@ -197,7 +197,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-[10px] tracking-widests uppercase text-stone-400 mb-2">From Name</label>
-                  <input type="text" value={smtp.fromName} onChange={(e) => setSmtp((s) => ({ ...s, fromName: e.target.value }))} placeholder="TeBoutique" className={inputCls} />
+                  <input type="text" value={smtp.fromName} onChange={(e) => setSmtp((s) => ({ ...s, fromName: e.target.value }))} placeholder="Lunelle" className={inputCls} />
                 </div>
               </div>
               <div className="p-3 md:p-4 bg-stone-50 border border-stone-100 text-xs text-stone-500 space-y-1">

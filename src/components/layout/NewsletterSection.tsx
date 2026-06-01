@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { Check, Loader2, Mail } from "lucide-react";
@@ -65,20 +65,36 @@ export default function NewsletterSection() {
 
   return (
     <div className="border-b border-stone-700">
-      <div className="max-w-screen-xl mx-auto px-4 md:px-8 py-16 text-center">
-        <p className="text-xs tracking-widest uppercase text-stone-400 mb-3">
-          Join the world of TeBoutique
+      <div className="max-w-2xl mx-auto px-4 md:px-8 py-20 text-center">
+
+        {/* Label */}
+        <p className="text-[10px] tracking-[0.3em] uppercase text-stone-500 mb-4">
+          Stay in touch
         </p>
+
+        {/* Heading */}
         <h3
-          className="text-3xl md:text-4xl mb-8"
+          className="text-3xl md:text-5xl mb-4 leading-tight"
           style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
         >
-          Subscribe &amp; receive 10% off your first order
+          Get 10% off your first order
         </h3>
 
-        {/* ── Success state ── */}
+        {/* Sub-description */}
+        <p className="text-sm text-stone-400 leading-relaxed mb-2">
+          Enter your email address below to join the Lunelle community.
+        </p>
+        <p className="text-sm text-white/80 mb-10">
+          You&apos;ll instantly receive a{" "}
+          <span className="border-b border-white/40 pb-px">
+            personal discount code
+          </span>{" "}
+          valid on your first purchase.
+        </p>
+
+        {/* ── Success ── */}
         {status === "success" && (
-          <div className="max-w-md mx-auto space-y-3">
+          <div className="space-y-3">
             <div className="flex items-center justify-center gap-2 text-emerald-400">
               <div className="w-8 h-8 rounded-full border border-emerald-400 flex items-center justify-center shrink-0">
                 <Check size={14} />
@@ -96,7 +112,7 @@ export default function NewsletterSection() {
 
         {/* ── Already subscribed ── */}
         {status === "duplicate" && (
-          <div className="max-w-md mx-auto">
+          <div>
             <div className="border border-stone-600 px-5 py-4 flex items-start gap-3 text-left">
               <Mail size={16} className="text-stone-400 mt-0.5 shrink-0" />
               <div>
@@ -115,39 +131,45 @@ export default function NewsletterSection() {
           </div>
         )}
 
-        {/* ── Form (idle / loading / error) ── */}
+        {/* ── Form ── */}
         {(status === "idle" || status === "loading" || status === "error") && (
-          <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-            <div className="flex-1">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => { setEmail(e.target.value); if (status === "error") setStatus("idle"); }}
-                placeholder="Enter your email address"
-                className={cn(
-                  "w-full px-4 py-3 bg-transparent border text-sm placeholder:text-stone-500 focus:outline-none transition-colors",
-                  status === "error" ? "border-red-500 placeholder:text-red-400" : "border-stone-600 focus:border-white"
+          <div className="space-y-3">
+            <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-0 border border-stone-600 focus-within:border-stone-400 transition-colors">
+              <div className="flex-1 relative">
+                <Mail size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); if (status === "error") setStatus("idle"); }}
+                  placeholder="Your email address — get your discount code"
+                  className={cn(
+                    "w-full pl-11 pr-4 py-4 bg-transparent text-sm text-white placeholder:text-stone-500 focus:outline-none transition-colors",
+                    status === "error" && "placeholder:text-red-400"
+                  )}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={status === "loading"}
+                className="px-10 py-4 bg-white text-stone-900 text-xs tracking-widest uppercase hover:bg-stone-100 transition-colors font-medium disabled:opacity-60 flex items-center justify-center gap-2 shrink-0 border-t sm:border-t-0 sm:border-l border-stone-600"
+              >
+                {status === "loading" ? (
+                  <><Loader2 size={12} className="animate-spin" /> Sending...</>
+                ) : (
+                  "Get My Code"
                 )}
-              />
-              {status === "error" && (
-                <p className="text-xs text-red-400 mt-1 text-left">Please enter a valid email address.</p>
-              )}
-            </div>
-            <button
-              type="submit"
-              disabled={status === "loading"}
-              className="px-8 py-3 bg-white text-stone-900 text-xs tracking-widest uppercase hover:bg-stone-100 transition-colors font-medium disabled:opacity-60 flex items-center justify-center gap-2 shrink-0"
-            >
-              {status === "loading" ? (
-                <>
-                  <Loader2 size={12} className="animate-spin" />
-                  Subscribing...
-                </>
-              ) : (
-                "Subscribe"
-              )}
-            </button>
-          </form>
+              </button>
+            </form>
+
+            {status === "error" && (
+              <p className="text-xs text-red-400 text-left">Please enter a valid email address.</p>
+            )}
+
+            {/* Reassurance line */}
+            <p className="text-[10px] text-stone-600 tracking-wide">
+              No spam, ever. Unsubscribe anytime. Code delivered instantly to your inbox.
+            </p>
+          </div>
         )}
       </div>
     </div>

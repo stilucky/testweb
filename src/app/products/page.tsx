@@ -1,31 +1,20 @@
 "use client";
 
-import { useState, useMemo, Suspense } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { SlidersHorizontal, X, ChevronDown } from "lucide-react";
-import { products } from "@/lib/data";
+import { useProductStore } from "@/store/productStore";
 import ProductCard from "@/components/product/ProductCard";
 import { cn } from "@/lib/utils";
+import { useLocaleStore } from "@/store/localeStore";
+import { useTranslations } from "@/lib/i18n";
 
 const sizes = ["XS", "S", "M", "L", "XL"];
 const priceRanges = [
-  { label: "Under $150", min: 0, max: 150 },
-  { label: "$150 – $250", min: 150, max: 250 },
-  { label: "$250 – $350", min: 250, max: 350 },
-  { label: "Over $350", min: 350, max: Infinity },
-];
-const sortOptions = [
-  { label: "Newest", value: "newest" },
-  { label: "Price: Low to High", value: "price-asc" },
-  { label: "Price: High to Low", value: "price-desc" },
-  { label: "Best Sellers", value: "bestseller" },
-];
-const categoryOptions = [
-  { label: "All", value: "all" },
-  { label: "Dresses", value: "dresses" },
-  { label: "Tops", value: "tops" },
-  { label: "Bottoms", value: "bottoms" },
-  { label: "Outerwear", value: "outerwear" },
+  { labelEN: "Under $150",   labelFR: "Moins de 150$",  min: 0,   max: 150 },
+  { labelEN: "$150 – $250",  labelFR: "150$ – 250$",    min: 150, max: 250 },
+  { labelEN: "$250 – $350",  labelFR: "250$ – 350$",    min: 250, max: 350 },
+  { labelEN: "Over $350",    labelFR: "Plus de 350$",   min: 350, max: Infinity },
 ];
 
 function ProductsContent() {
@@ -33,8 +22,31 @@ function ProductsContent() {
   const filterParam = searchParams.get("filter");
   const categoryParam = searchParams.get("category") ?? "all";
 
+  const products = useProductStore((s) => s.products);
+  const language = useLocaleStore((s) => s.language);
+  const t = useTranslations(language);
+
+  const sortOptions = [
+    { label: t("newest"),      value: "newest" },
+    { label: t("priceLowHigh"),value: "price-asc" },
+    { label: t("priceHighLow"),value: "price-desc" },
+    { label: t("bestSellersHeading"), value: "bestseller" },
+  ];
+  const categoryOptions = [
+    { label: t("allCategories"), value: "all" },
+    { label: t("dresses"),       value: "dresses" },
+    { label: t("tops"),          value: "tops" },
+    { label: t("bottoms"),       value: "bottoms" },
+    { label: t("outerwear"),     value: "outerwear" },
+  ];
+
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(categoryParam);
+
+  // Sync category khi URL thay đổi
+  useEffect(() => {
+    setSelectedCategory(categoryParam);
+  }, [categoryParam]);
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [selectedPrice, setSelectedPrice] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState("newest");
@@ -78,18 +90,15 @@ function ProductsContent() {
       list.sort((a, b) => (b.isBestSeller ? 1 : 0) - (a.isBestSeller ? 1 : 0));
 
     return list;
-  }, [filterParam, selectedCategory, selectedSizes, selectedPrice, sortBy]);
+  }, [products, filterParam, selectedCategory, selectedSizes, selectedPrice, sortBy]);
 
   const pageTitle =
-    filterParam === "new"
-      ? "New In"
-      : filterParam === "bestseller"
-      ? "Best Sellers"
-      : filterParam === "occasion"
-      ? "Occasion Wear"
-      : selectedCategory !== "all"
-      ? categoryOptions.find((c) => c.value === selectedCategory)?.label ?? "All"
-      : "Shop All";
+    filterParam === "new"       ? t("newInHeading")
+    : filterParam === "bestseller" ? t("bestSellersHeading")
+    : filterParam === "occasion"   ? t("occasionWear")
+    : selectedCategory !== "all"
+      ? categoryOptions.find((c) => c.value === selectedCategory)?.label ?? t("allCategories")
+    : t("shopAll");
 
   const hasFilters =
     selectedCategory !== "all" || selectedSizes.length > 0 || selectedPrice !== null;
@@ -99,12 +108,12 @@ function ProductsContent() {
       {/* Page header */}
       <div className="text-center mb-10">
         <h1
-          className="text-4xl md:text-5xl text-stone-900"
+          className="text-2xl md:text-3xl text-stone-900"
           style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
         >
           {pageTitle}
         </h1>
-        <p className="text-sm text-stone-400 mt-2">{filtered.length} pieces</p>
+        <p className="text-sm text-stone-400 mt-2">{filtered.length} {t("pieces")}</p>
       </div>
 
       {/* Toolbar */}
@@ -114,7 +123,7 @@ function ProductsContent() {
           className="flex items-center gap-2 text-xs tracking-widest uppercase hover:text-stone-600 transition-colors"
         >
           <SlidersHorizontal size={14} />
-          Filter
+          {t("filters")}
           {hasFilters && (
             <span className="bg-stone-900 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">
               {[selectedCategory !== "all", selectedSizes.length > 0, selectedPrice !== null].filter(Boolean).length}
@@ -127,7 +136,7 @@ function ProductsContent() {
             onClick={() => setSortOpen(!sortOpen)}
             className="flex items-center gap-2 text-xs tracking-widest uppercase hover:text-stone-600 transition-colors"
           >
-            Sort: {sortOptions.find((s) => s.value === sortBy)?.label}
+            {t("sortBy")}: {sortOptions.find((s) => s.value === sortBy)?.label}
             <ChevronDown size={14} className={cn("transition-transform", sortOpen && "rotate-180")} />
           </button>
           {sortOpen && (
@@ -155,7 +164,7 @@ function ProductsContent() {
           <div className="w-56 shrink-0 space-y-8">
             {/* Category */}
             <div>
-              <p className="text-xs tracking-widest uppercase mb-4 font-medium">Category</p>
+              <p className="text-xs tracking-widest uppercase mb-4 font-medium">{t("categoryLabel")}</p>
               <div className="space-y-2">
                 {categoryOptions.map((cat) => (
                   <button
@@ -174,7 +183,7 @@ function ProductsContent() {
 
             {/* Sizes */}
             <div>
-              <p className="text-xs tracking-widest uppercase mb-4 font-medium">Size</p>
+              <p className="text-xs tracking-widest uppercase mb-4 font-medium">{t("sizeLabel")}</p>
               <div className="flex flex-wrap gap-2">
                 {sizes.map((size) => (
                   <button
@@ -195,7 +204,7 @@ function ProductsContent() {
 
             {/* Price */}
             <div>
-              <p className="text-xs tracking-widest uppercase mb-4 font-medium">Price</p>
+              <p className="text-xs tracking-widest uppercase mb-4 font-medium">{t("priceLabel")}</p>
               <div className="space-y-2">
                 {priceRanges.map((range, i) => (
                   <button
@@ -206,7 +215,7 @@ function ProductsContent() {
                       selectedPrice === i ? "text-stone-900 font-medium" : "text-stone-400"
                     )}
                   >
-                    {range.label}
+                    {language === "FR" ? range.labelFR : range.labelEN}
                   </button>
                 ))}
               </div>
@@ -222,7 +231,7 @@ function ProductsContent() {
                 }}
                 className="flex items-center gap-1.5 text-xs text-stone-400 hover:text-stone-900 transition-colors"
               >
-                <X size={12} /> Clear filters
+                <X size={12} /> {t("clearFilters")}
               </button>
             )}
           </div>
@@ -236,9 +245,9 @@ function ProductsContent() {
                 className="text-2xl text-stone-300 mb-4"
                 style={{ fontFamily: "var(--font-cormorant), serif" }}
               >
-                No pieces found
+                {t("noResults")}
               </p>
-              <p className="text-sm text-stone-400">Try adjusting your filters</p>
+              <p className="text-sm text-stone-400">{t("noResultsSub")}</p>
             </div>
           ) : (
             <div

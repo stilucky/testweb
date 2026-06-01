@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import { AlertCircle } from "lucide-react";
@@ -80,7 +80,7 @@ export default function PayPalCheckout({
                       currency_code: "USD",
                       value: amount.toFixed(2),
                     },
-                    description: "TeBoutique Order",
+                    description: "Lunelle Order",
                   },
                 ],
               });

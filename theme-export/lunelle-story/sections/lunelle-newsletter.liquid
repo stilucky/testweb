@@ -1,0 +1,91 @@
+
+{% comment %} Lunelle Story — Newsletter {% endcomment %}
+<section class="ls-nl">
+  <div class="ls-nl__inner">
+    <span class="ls-nl__label">Join the world of Lunelle Story</span>
+    <h2 class="ls-nl__title">Subscribe &amp; receive<br><em>10% off</em> your first order</h2>
+    <p class="ls-nl__sub">Valid for 1 month &middot; Single use &middot; Apply at checkout</p>
+    {% form 'customer' %}
+      <div class="ls-nl__form">
+        <input type="email" name="contact[email]" class="ls-nl__input" placeholder="Enter your email address" required>
+        <button type="submit" class="ls-nl__btn">Subscribe</button>
+      </div>
+    {% endform %}
+  </div>
+</section>
+<style>
+.ls-nl {
+  background: #1c1917;
+  padding: 100px 24px;
+  text-align: center;
+}
+.ls-nl__inner { max-width: 560px; margin: 0 auto; }
+.ls-nl__label {
+  display: block;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #a8a29e;
+  margin-bottom: 20px;
+}
+.ls-nl__title {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-size: clamp(32px, 4vw, 56px) !important;
+  font-weight: 300 !important;
+  letter-spacing: 0.04em !important;
+  line-height: 1.15 !important;
+  color: #ffffff !important;
+  margin: 0 0 16px !important;
+}
+.ls-nl__title em { font-style: italic; }
+.ls-nl__sub {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: #78716c;
+  letter-spacing: 0.08em;
+  margin-bottom: 36px;
+}
+.ls-nl__form {
+  display: flex;
+  gap: 0;
+  max-width: 480px;
+  margin: 0 auto;
+}
+.ls-nl__input {
+  flex: 1;
+  padding: 16px 20px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  background: #ffffff !important;
+  border: 1px solid rgba(255,255,255,0.15) !important;
+  border-right: none !important;
+  color: #1c1917 !important;
+  border-radius: 0 !important;
+  outline: none;
+}
+.ls-nl__input::placeholder { color: #a8a29e; }
+.ls-nl__input:focus { border-color: #1c1917 !important; outline: none; }
+.ls-nl__btn {
+  padding: 16px 28px;
+  background: #ffffff;
+  color: #1c1917;
+  border: 1px solid #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: 0 !important;
+  transition: background 0.2s, color 0.2s;
+  white-space: nowrap;
+}
+.ls-nl__btn:hover { background: #e7e5e4; }
+@media (max-width: 480px) {
+  .ls-nl__form { flex-direction: column; }
+  .ls-nl__input { border-right: 1px solid rgba(255,255,255,0.15) !important; border-bottom: none !important; }
+}
+</style>
+{% schema %}{ "name": "Lunelle Newsletter", "tag": "section", "settings": [] }{% endschema %}

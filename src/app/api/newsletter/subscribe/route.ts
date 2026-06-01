@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 
 function buildEmailHtml(couponCode: string, expiresAt: string): string {
@@ -14,7 +14,7 @@ function buildEmailHtml(couponCode: string, expiresAt: string): string {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Welcome to TeBoutique</title>
+  <title>Welcome to Lunelle</title>
 </head>
 <body style="margin:0;padding:0;background:#f5f5f0;font-family:Georgia,serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f0;padding:40px 0;">
@@ -29,7 +29,7 @@ function buildEmailHtml(couponCode: string, expiresAt: string): string {
                 Welcome to
               </p>
               <h1 style="margin:0;font-size:28px;font-weight:300;letter-spacing:6px;text-transform:uppercase;color:#ffffff;">
-                TeBoutique
+                Lunelle
               </h1>
             </td>
           </tr>
@@ -109,11 +109,11 @@ function buildEmailHtml(couponCode: string, expiresAt: string): string {
           <tr>
             <td style="background:#1c1917;padding:28px 48px;text-align:center;">
               <p style="margin:0 0 8px;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#57534e;">
-                TeBoutique
+                Lunelle
               </p>
               <p style="margin:0;font-size:11px;color:#44403c;line-height:1.6;">
                 You are receiving this email because you subscribed to our newsletter.<br/>
-                © ${new Date().getFullYear()} TeBoutique. All rights reserved.
+                © ${new Date().getFullYear()} Lunelle. All rights reserved.
               </p>
             </td>
           </tr>
@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
     });
 
     await transporter.sendMail({
-      from: `"TeBoutique" <${SMTP_USER}>`,
+      from: `"Lunelle" <${SMTP_USER}>`,
       to: email,
       subject: `Your welcome gift: ${couponCode} — 10% off your first order`,
       html: buildEmailHtml(couponCode, expiresAt),

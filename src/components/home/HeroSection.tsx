@@ -93,7 +93,7 @@ export default function HeroSection() {
           </p>
           <h1
             key={`title-${current}`}
-            className="text-white text-5xl md:text-7xl lg:text-8xl leading-none mb-6 animate-[fadeInUp_0.7s_ease_0.1s_forwards] opacity-0 whitespace-pre-line"
+            className="text-white text-4xl md:text-5xl lg:text-6xl leading-none mb-6 animate-[fadeInUp_0.7s_ease_0.1s_forwards] opacity-0 whitespace-pre-line"
             style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
           >
             {slide.title}

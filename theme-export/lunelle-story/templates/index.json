@@ -1,0 +1,59 @@
+{
+  "sections": {
+    "lunelle-hero": {
+      "type": "lunelle-hero",
+      "settings": {}
+    },
+    "lunelle-categories": {
+      "type": "lunelle-categories",
+      "settings": {}
+    },
+    "new-in": {
+      "type": "featured-collection",
+      "settings": {
+        "title": "New In",
+        "collection": "new-in",
+        "products_to_show": 4,
+        "columns_desktop": 4,
+        "image_ratio": "portrait",
+        "show_secondary_image": true,
+        "show_vendor": false,
+        "show_rating": false
+      }
+    },
+    "lunelle-editorial": {
+      "type": "lunelle-editorial",
+      "settings": {}
+    },
+    "best-sellers": {
+      "type": "featured-collection",
+      "settings": {
+        "title": "Best Sellers",
+        "collection": "best-sellers",
+        "products_to_show": 4,
+        "columns_desktop": 4,
+        "image_ratio": "portrait",
+        "show_secondary_image": true,
+        "show_vendor": false,
+        "show_rating": false
+      }
+    },
+    "lunelle-testimonials": {
+      "type": "lunelle-testimonials",
+      "settings": {}
+    },
+    "lunelle-newsletter": {
+      "type": "lunelle-newsletter",
+      "settings": {}
+    }
+  },
+  "order": [
+    "lunelle-hero",
+    "lunelle-categories",
+    "new-in",
+    "lunelle-editorial",
+    "best-sellers",
+    "lunelle-testimonials",
+    "lunelle-newsletter"
+  ]
+}

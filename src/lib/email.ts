@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+﻿import nodemailer from "nodemailer";
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST ?? "smtp.gmail.com",
@@ -19,7 +19,7 @@ function emailTemplate(title: string, bodyHtml: string): string {
     <!-- Header -->
     <div style="padding:32px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
       <h1 style="margin:0;font-size:22px;font-weight:300;letter-spacing:0.2em;text-transform:uppercase;color:#1c1917;">
-        TeBoutique
+        Lunelle
       </h1>
     </div>
     <!-- Body -->
@@ -30,7 +30,7 @@ function emailTemplate(title: string, bodyHtml: string): string {
     <!-- Footer -->
     <div style="padding:20px 40px;border-top:1px solid #e7e5e4;text-align:center;background:#fafaf9;">
       <p style="margin:0;font-size:11px;color:#a8a29e;letter-spacing:0.1em;text-transform:uppercase;">
-        © ${new Date().getFullYear()} TeBoutique · All rights reserved
+        © ${new Date().getFullYear()} Lunelle · All rights reserved
       </p>
     </div>
   </div>
@@ -52,8 +52,8 @@ export async function sendOTPEmail({
   const isVerify = purpose === "verify";
 
   const subject = isVerify
-    ? "Verify your TeBoutique account"
-    : "Reset your TeBoutique password";
+    ? "Verify your Lunelle account"
+    : "Reset your Lunelle password";
 
   const greeting = name ? `Hi ${name},` : "Hello,";
 
@@ -62,8 +62,8 @@ export async function sendOTPEmail({
       ${greeting}<br><br>
       ${
         isVerify
-          ? "Thank you for creating an account with TeBoutique. Please use the verification code below to activate your account."
-          : "We received a request to reset the password for your TeBoutique account. Use the code below to proceed."
+          ? "Thank you for creating an account with Lunelle. Please use the verification code below to activate your account."
+          : "We received a request to reset the password for your Lunelle account. Use the code below to proceed."
       }
     </p>
     <!-- OTP Box -->
@@ -85,7 +85,7 @@ export async function sendOTPEmail({
   `;
 
   await transporter.sendMail({
-    from: `"TeBoutique" <${process.env.SMTP_USER}>`,
+    from: `"Lunelle" <${process.env.SMTP_USER}>`,
     to,
     subject,
     html: emailTemplate(subject, bodyHtml),

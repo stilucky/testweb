@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -20,7 +20,7 @@ export default function AdminSidebar() {
             className="text-xl tracking-[0.15em] uppercase"
             style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 400 }}
           >
-            TeBoutique
+            Lunelle
           </span>
         </Link>
         <Link href="/" className="p-2 -mr-2 text-stone-400" aria-label="Back to store">
@@ -40,7 +40,7 @@ export default function AdminSidebar() {
                   className="text-lg tracking-[0.15em] uppercase"
                   style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 400 }}
                 >
-                  TeBoutique
+                  Lunelle
                 </span>
                 <p className="text-[10px] tracking-widest uppercase text-stone-400 mt-0.5">Admin Console</p>
               </div>
@@ -75,7 +75,7 @@ export default function AdminSidebar() {
               className="text-xl tracking-[0.15em] uppercase"
               style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 400 }}
             >
-              TeBoutique
+              Lunelle
             </span>
           </Link>
           <p className="text-[10px] tracking-widest uppercase text-stone-400 mt-0.5">Admin Console</p>
