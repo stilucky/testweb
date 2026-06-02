@@ -109,7 +109,7 @@ export default function AccountPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-10">
         <div>
-          <p className="text-xs tracking-[0.3em] uppercase text-stone-400 mb-1">My Account</p>
+          <p className="type-label text-stone-400 mb-1">My Account</p>
           <h1
             className="text-4xl md:text-5xl"
             style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}

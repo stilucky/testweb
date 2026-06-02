@@ -98,7 +98,7 @@ export default function AdminProductsPage() {
       if (!res.ok) throw new Error(data.error ?? "Failed to load");
       const list = data.products ?? [];
       setProductList(list);
-      setProducts(list); // sync vào store để shop page hiển thị
+      setProducts(list); // sync to store so shop page reflects changes
     } catch (err) {
       addToast("error", `Failed to load products: ${err}`);
     } finally {
@@ -170,7 +170,7 @@ export default function AdminProductsPage() {
 
     const parseUrls = (raw: string) => raw.split("\n").map((u) => u.trim()).filter(Boolean);
     const imageList = parseUrls(form.images);
-    // Màu chính lên đầu danh sách
+    // Sort primary color to front
     const sortedColors = [...form.colors].sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0));
     const builtColors = sortedColors.map((c) => ({
       name: c.name, hex: c.hex, images: [],
@@ -282,13 +282,13 @@ export default function AdminProductsPage() {
     const exists = f.colors.some((c) => c.name === color.name);
     if (exists) {
       const remaining = f.colors.filter((c) => c.name !== color.name);
-      // Nếu màu bị xóa là primary, đặt màu đầu tiên còn lại làm primary
+      // If removed color was primary, make first remaining color primary
       if (f.colors.find((c) => c.name === color.name)?.isPrimary && remaining.length > 0) {
         remaining[0] = { ...remaining[0], isPrimary: true };
       }
       return { ...f, colors: remaining };
     }
-    const isPrimary = f.colors.length === 0; // Màu đầu tiên tự động là primary
+    const isPrimary = f.colors.length === 0; // First color is automatically primary
     return { ...f, colors: [...f.colors, { ...color, isPrimary }] };
   });
 
@@ -348,7 +348,7 @@ export default function AdminProductsPage() {
       <div className="flex items-start justify-between mb-8">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <p className="text-xs tracking-[0.3em] uppercase text-stone-400">Catalog</p>
+            <p className="type-label text-stone-400">Catalog</p>
             {syncing
               ? <span className="flex items-center gap-1 text-[10px] text-amber-500 tracking-widest uppercase"><Loader2 size={10} className="animate-spin" /> Syncing</span>
               : <span className="flex items-center gap-1 text-[10px] text-emerald-500 tracking-widest uppercase"><Cloud size={10} /> Shopify Live</span>
@@ -685,7 +685,7 @@ export default function AdminProductsPage() {
 
                 {/* Note */}
                 <p className="text-[10px] text-stone-400 leading-relaxed">
-                  Nếu để trống CAD, hệ thống sẽ tự quy đổi từ USD × 1.38.
+                  If CAD is left empty, price will be auto-converted from USD × 1.38.
                 </p>
 
                 {/* Stock */}
@@ -731,7 +731,7 @@ export default function AdminProductsPage() {
 
               {/* Colors */}
               <Field label="Colors">
-                {/* Bảng màu — click để chọn/bỏ */}
+                {/* Color palette — click to select/deselect */}
                 <div className="flex gap-2 flex-wrap mb-4">
                   {allColors.map((color) => {
                     const selected = form.colors.some((c) => c.name === color.name);
@@ -757,7 +757,7 @@ export default function AdminProductsPage() {
                   <div className="border border-stone-100 rounded overflow-hidden">
                     <div className="px-3 py-2 bg-stone-50 border-b border-stone-100">
                       <p className="text-[10px] tracking-widest uppercase text-stone-400">
-                        Chọn màu hiển thị chính
+                        Select primary display color
                       </p>
                     </div>
                     {form.colors.map((c) => (
@@ -779,7 +779,7 @@ export default function AdminProductsPage() {
                         </span>
                         {c.isPrimary && (
                           <span className="text-[10px] tracking-widest uppercase text-white/70">
-                            Chính
+                            Primary
                           </span>
                         )}
                       </button>

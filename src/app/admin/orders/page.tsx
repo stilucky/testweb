@@ -43,7 +43,7 @@ export default function AdminOrdersPage() {
     <div className="p-4 md:p-8">
       {/* Header */}
       <div className="mb-6 md:mb-8">
-        <p className="text-xs tracking-[0.3em] uppercase text-stone-400 mb-1">Management</p>
+        <p className="type-label text-stone-400 mb-1">Management</p>
         <h1 className="text-3xl md:text-4xl text-stone-900" style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}>
           Orders
         </h1>

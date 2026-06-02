@@ -79,7 +79,7 @@ export default function BodyMeasureDiagram({ gender = "women" }: Props) {
 
         {/* "Vai" label */}
         <text x="180" y="22" textAnchor="middle" fontSize="9" fill="#78716c"
-          fontFamily="system-ui,sans-serif" letterSpacing="0.08em">VAI · SHOULDER</text>
+          fontFamily="system-ui,sans-serif" letterSpacing="0.08em">SHOULDER WIDTH</text>
 
 
         {/* ════════════════════════════════
@@ -109,9 +109,9 @@ export default function BodyMeasureDiagram({ gender = "women" }: Props) {
 
         {/* "Dài tay" label */}
         <text x="42" y="116" textAnchor="middle" fontSize="8.5" fill="#78716c"
-          fontFamily="system-ui,sans-serif" letterSpacing="0.05em">DÀI TAY</text>
+          fontFamily="system-ui,sans-serif" letterSpacing="0.05em">SLEEVE</text>
         <text x="42" y="128" textAnchor="middle" fontSize="8.5" fill="#b5a99e"
-          fontFamily="system-ui,sans-serif">SLEEVE</text>
+          fontFamily="system-ui,sans-serif">LENGTH</text>
 
 
         {/* ════════════════════════════════
@@ -139,7 +139,7 @@ export default function BodyMeasureDiagram({ gender = "women" }: Props) {
           x="347" y="190" textAnchor="middle" fontSize="8.5" fill="#78716c"
           fontFamily="system-ui,sans-serif" letterSpacing="0.05em"
           transform="rotate(90,347,190)"
-        >DÀI ÁO · LENGTH</text>
+        >BODY LENGTH</text>
 
       </svg>
 
@@ -148,32 +148,29 @@ export default function BodyMeasureDiagram({ gender = "women" }: Props) {
         {[
           {
             letter: "A",
-            vi: "Vai",
-            en: "Shoulder Width",
-            desc: "Đo ngang từ đường may vai trái sang vai phải.",
+            label: "Shoulder Width",
+            desc: "Measure straight across the back from shoulder seam to shoulder seam.",
           },
           {
             letter: "B",
-            vi: "Dài tay",
-            en: "Sleeve Length",
-            desc: "Đo từ điểm vai theo mép trên tay xuống đến cổ tay.",
+            label: "Sleeve Length",
+            desc: "Measure from the shoulder point down along the outer sleeve to the cuff.",
           },
           {
             letter: "C",
-            vi: "Dài áo",
-            en: "Body Length",
-            desc: "Đo từ điểm vai sau thẳng xuống đến gấu áo.",
+            label: "Body Length",
+            desc: isMen
+              ? "Measure from the back shoulder point straight down to the hem."
+              : "Measure from the shoulder point straight down to the hem.",
           },
-        ].map(({ letter, vi, en, desc }) => (
+        ].map(({ letter, label, desc }) => (
           <div key={letter} className="flex items-start gap-3 px-4 py-3">
             <span className="w-6 h-6 shrink-0 rounded-full bg-stone-800 text-white flex items-center justify-center text-[11px] mt-0.5"
               style={{ fontFamily: "Georgia, serif", fontStyle: "italic" }}>
               {letter}
             </span>
             <div>
-              <p className="text-[11px] font-semibold text-stone-700">
-                {vi} <span className="font-normal text-stone-400">· {en}</span>
-              </p>
+              <p className="text-[11px] font-semibold text-stone-700">{label}</p>
               <p className="text-[10px] text-stone-400 mt-0.5 leading-relaxed">{desc}</p>
             </div>
           </div>

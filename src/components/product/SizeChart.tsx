@@ -229,7 +229,7 @@ export default function SizeChart({ open, onClose, gender = "women" }: Props) {
               </div>
 
               <p className="text-xs text-stone-400 leading-relaxed">
-                Dùng thước dây mềm để đo chính xác nhất. Nên nhờ người khác hỗ trợ khi đo vai và chiều cao.
+                Use a soft measuring tape for the most accurate results. Have a friend help you for shoulder width and height measurements.
               </p>
 
               {howToMeasure.map(({ label, desc }) => (

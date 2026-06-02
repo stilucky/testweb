@@ -70,7 +70,7 @@ export default function Footer() {
 
             {/* Left — heading */}
             <div>
-              <p className="text-[10px] tracking-[0.3em] uppercase text-stone-500 mb-4">
+              <p className="type-label text-stone-500 mb-4">
                 Stay in Touch
               </p>
               <h4
@@ -98,10 +98,7 @@ export default function Footer() {
 
           {/* Brand column */}
           <div className="col-span-2 md:col-span-1">
-            <p
-              className="text-lg tracking-[0.2em] uppercase mb-4"
-              style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 400 }}
-            >
+            <p className="type-logo text-lg mb-4">
               Lunelle
             </p>
             <p className="text-sm text-stone-400 leading-relaxed mb-6">

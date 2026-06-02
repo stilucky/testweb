@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { Check, Loader2, Mail } from "lucide-react";
@@ -68,7 +68,7 @@ export default function NewsletterSection() {
       <div className="max-w-2xl mx-auto px-4 md:px-8 py-20 text-center">
 
         {/* Label */}
-        <p className="text-[10px] tracking-[0.3em] uppercase text-stone-500 mb-4">
+        <p className="type-label text-stone-500 mb-4">
           Stay in touch
         </p>
 

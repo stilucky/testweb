@@ -124,7 +124,7 @@ export default function CustomizedFitPage() {
       {/* ── 2. HOW IT WORKS ── */}
       <section className="py-20 border-t border-stone-100">
         <div className="max-w-screen-xl mx-auto px-4 md:px-10">
-          <p className="text-[11px] tracking-[0.3em] uppercase text-stone-500 text-center mb-16">
+          <p className="type-label text-stone-500 text-center mb-16">
             How It Works
           </p>
           <div className="grid md:grid-cols-3 gap-10 text-center">
@@ -147,7 +147,7 @@ export default function CustomizedFitPage() {
 
             {/* Form */}
             <div className="py-16 md:pr-16">
-              <p className="text-[11px] tracking-[0.3em] uppercase text-stone-500 mb-10">
+              <p className="type-label text-stone-500 mb-10">
                 Submit Your Measurements
               </p>
 
@@ -283,7 +283,7 @@ export default function CustomizedFitPage() {
       {/* ── 4. TIMELINE & INFORMATION ── */}
       <section className="py-20 bg-stone-50 border-t border-stone-100">
         <div className="max-w-screen-xl mx-auto px-4 md:px-10">
-          <p className="text-[11px] tracking-[0.3em] uppercase text-stone-500 text-center mb-16">
+          <p className="type-label text-stone-500 text-center mb-16">
             Timeline &amp; Information
           </p>
           <div className="grid md:grid-cols-3 gap-10 text-center">

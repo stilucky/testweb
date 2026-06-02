@@ -176,7 +176,7 @@ export default function ProductDetailPage({ params }: Props) {
 
         {/* Details */}
         <div className="flex flex-col">
-          <p className="text-xs tracking-[0.3em] uppercase text-stone-400 mb-2 capitalize">
+          <p className="type-label text-stone-400 mb-2 capitalize">
             {product.category}
           </p>
           <h1
@@ -185,10 +185,7 @@ export default function ProductDetailPage({ params }: Props) {
           >
             {product.name}
           </h1>
-          <p
-            className="text-stone-500 italic mb-6"
-            style={{ fontFamily: "var(--font-cormorant), serif" }}
-          >
+          <p className="type-quote text-stone-400 mb-6">
             {product.shortDescription}
           </p>
 
@@ -270,6 +267,13 @@ export default function ProductDetailPage({ params }: Props) {
             </button>
           </div>
 
+          {/* Scarcity — Jost 11px wt400 italic ls0.02em */}
+          {product.stock > 0 && product.stock <= 5 && (
+            <p className="type-scarcity text-stone-400 mb-4">
+              Only {product.stock} {product.stock === 1 ? "piece" : "pieces"} remaining
+            </p>
+          )}
+
           {/* Actions */}
           <div className="flex gap-3 mb-8">
             <button
@@ -345,7 +349,7 @@ export default function ProductDetailPage({ params }: Props) {
       {related.length > 0 && (
         <div className="mt-24">
           <div className="text-center mb-10">
-            <p className="text-xs tracking-[0.3em] uppercase text-stone-400 mb-3">{t("youMayAlsoLove")}</p>
+            <p className="type-label text-stone-400 mb-3">{t("youMayAlsoLove")}</p>
             <h2
               className="text-3xl md:text-4xl"
               style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}

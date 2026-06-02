@@ -19,7 +19,7 @@ export default function EditorialBanner() {
 
         {/* Text side */}
         <div className="flex flex-col justify-center md:px-10 lg:px-16 py-8">
-          <p className="text-xs tracking-[0.3em] uppercase text-stone-400 mb-6">
+          <p className="type-label text-stone-400 mb-6">
             L&apos;ÉCHO | Resort 2025
           </p>
           <h2

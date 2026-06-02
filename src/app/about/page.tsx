@@ -36,7 +36,7 @@ export default function AboutPage() {
       <section className="py-24 px-4 md:px-8 max-w-screen-xl mx-auto">
         <div className="grid md:grid-cols-2 gap-16 items-center">
           <div>
-            <p className="text-xs tracking-[0.3em] uppercase text-stone-400 mb-6">Who We Are</p>
+            <p className="type-label text-stone-400 mb-6">Who We Are</p>
             <h2
               className="text-3xl md:text-4xl mb-8 leading-tight"
               style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
@@ -116,7 +116,7 @@ export default function AboutPage() {
 
       {/* CTA */}
       <section className="py-24 text-center px-4">
-        <p className="text-xs tracking-[0.3em] uppercase text-stone-400 mb-4">Discover the Collection</p>
+        <p className="type-label text-stone-400 mb-4">Discover the Collection</p>
         <h2
           className="text-3xl md:text-4xl mb-8"
           style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}

@@ -12,7 +12,7 @@ export default function CategorySection() {
   return (
     <section className="py-20 px-4 md:px-8 max-w-screen-xl mx-auto">
       <div className="text-center mb-12">
-        <p className="text-xs tracking-[0.3em] uppercase text-stone-400 mb-3">
+        <p className="type-label text-stone-400 mb-3">
           {t("collections")}
         </p>
         <h2

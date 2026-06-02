@@ -22,7 +22,7 @@ export default function TestimonialsSection() {
   return (
     <section className="py-20 px-4 md:px-8 max-w-screen-xl mx-auto">
       <div className="text-center mb-14">
-        <p className="text-xs tracking-[0.3em] uppercase text-stone-400 mb-3">
+        <p className="type-label text-stone-400 mb-3">
           {t("clientStories")}
         </p>
         <h2
@@ -41,8 +41,7 @@ export default function TestimonialsSection() {
               ))}
             </div>
             <p
-              className="text-stone-600 leading-relaxed mb-8 text-lg italic"
-              style={{ fontFamily: "var(--font-cormorant), serif" }}
+              className="type-quote text-stone-600 leading-relaxed mb-8"
             >
               &ldquo;{item.text}&rdquo;
             </p>

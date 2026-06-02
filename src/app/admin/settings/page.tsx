@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { Save, Eye, EyeOff, CheckCircle2, Store, Mail, Palette, Shield } from "lucide-react";
@@ -64,7 +64,7 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-5 md:mb-8">
         <div>
-          <p className="text-xs tracking-[0.3em] uppercase text-stone-400 mb-1">Configuration</p>
+          <p className="type-label text-stone-400 mb-1">Configuration</p>
           <h1 className="text-3xl md:text-4xl text-stone-900" style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}>
             Settings
           </h1>

@@ -15,7 +15,7 @@ export default function FeaturedSection() {
     <section className="py-20 px-4 md:px-8 max-w-screen-xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
         <div>
-          <p className="text-xs tracking-[0.3em] uppercase text-stone-400 mb-3">
+          <p className="type-label text-stone-400 mb-3">
             {t("justArrived")}
           </p>
           <h2

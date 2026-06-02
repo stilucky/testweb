@@ -111,7 +111,7 @@ export default function MadeToOrderPage() {
 
       {/* ── 2. COLLECTION SHOWCASE ── */}
       <section id="collection" className="py-20 px-4 md:px-10 max-w-screen-xl mx-auto">
-        <p className="text-[11px] tracking-[0.3em] uppercase text-stone-500 text-center mb-12">
+        <p className="type-label text-stone-500 text-center mb-12">
           The Made to Order Collection
         </p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
@@ -134,7 +134,7 @@ export default function MadeToOrderPage() {
       {/* ── 3. HOW IT WORKS ── */}
       <section className="py-20 border-t border-stone-100">
         <div className="max-w-screen-xl mx-auto px-4 md:px-10">
-          <p className="text-[11px] tracking-[0.3em] uppercase text-stone-500 text-center mb-16">
+          <p className="type-label text-stone-500 text-center mb-16">
             How It Works
           </p>
           <div className="grid md:grid-cols-3 gap-10 text-center">
@@ -164,7 +164,7 @@ export default function MadeToOrderPage() {
         </div>
         {/* text right */}
         <div className="flex flex-col justify-center px-10 md:px-16 py-16 bg-stone-50">
-          <p className="text-[10px] tracking-[0.3em] uppercase text-stone-400 mb-5">Craftsmanship</p>
+          <p className="type-label text-stone-400 mb-5">Craftsmanship</p>
           <h2
             className="text-3xl md:text-4xl mb-6 leading-snug"
             style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}

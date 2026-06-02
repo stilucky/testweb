@@ -22,7 +22,7 @@ export const useLocaleStore = create<LocaleState>()(
   persist(
     (set, get) => ({
       language: "EN",
-      currency: "USD",
+      currency: "CAD",
       geoDetected: false,
 
       setLanguage: (language) => set({ language }),
@@ -33,10 +33,10 @@ export const useLocaleStore = create<LocaleState>()(
         try {
           const res = await fetch("https://ipapi.co/json/", { signal: AbortSignal.timeout(4000) });
           const data = await res.json();
-          if (data?.country_code === "CA") {
-            set({ language: "EN", currency: "CAD", geoDetected: true });
+          if (data?.country_code === "FR" || data?.country === "France") {
+            set({ language: "FR", currency: "CAD", geoDetected: true });
           } else {
-            set({ geoDetected: true });
+            set({ language: "EN", currency: "CAD", geoDetected: true });
           }
         } catch {
           set({ geoDetected: true });
@@ -48,7 +48,7 @@ export const useLocaleStore = create<LocaleState>()(
         return currency === "CAD" ? Math.round(usdPrice * CAD_RATE) : usdPrice;
       },
     }),
-    { name: "lunelle-locale" }
+    { name: "lunelle-locale-v2" }
   )
 );
 

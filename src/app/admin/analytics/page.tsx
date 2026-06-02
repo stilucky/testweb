@@ -181,7 +181,7 @@ export default function AnalyticsPage() {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <p className="text-xs tracking-[0.3em] uppercase text-stone-400 mb-1">Reporting</p>
+        <p className="type-label text-stone-400 mb-1">Reporting</p>
         <h1
           className="text-4xl text-stone-900"
           style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}

@@ -102,17 +102,19 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
 
       {/* Info */}
       <div className="mt-3 space-y-1 px-0.5">
+        {/* H4 Product name: Jost 14px wt 400 ls 0.04em */}
         <Link
           href={`/products/${product.slug}`}
-          className="block text-sm font-medium leading-tight hover:text-stone-600 transition-colors line-clamp-1"
+          className="block leading-tight hover:text-stone-600 transition-colors line-clamp-1 type-product-name"
         >
           {product.name}
         </Link>
-        <p className="text-xs text-stone-400 tracking-wide line-clamp-1">
+        <p className="text-xs text-stone-400 line-clamp-1" style={{ letterSpacing: "0.01em", fontWeight: 300 }}>
           {product.shortDescription}
         </p>
         <div className="flex items-center gap-2 pt-0.5">
-          <span className={cn("text-sm", hasDiscount && "text-red-600 font-medium")}>
+          {/* Price: Jost 13px wt 400 ls 0.04em */}
+          <span className={cn("type-price", hasDiscount && "text-red-600")}>
             {formatLocalPrice(
               displayPrice,
               currency,
