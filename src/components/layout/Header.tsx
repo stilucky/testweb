@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, ShoppingBag, User, Menu, X, Heart } from "lucide-react";
-import { navItems } from "@/lib/data";
 import { useCartStore } from "@/store/cartStore";
 import { useWishlistStore } from "@/store/wishlistStore";
 import { useAuthStore } from "@/store/authStore";
@@ -28,6 +27,51 @@ export default function Header() {
   const router   = useRouter();
   const language = useLocaleStore((s) => s.language);
   const t        = useTranslations(language);
+
+  const navItems = [
+    {
+      label: t("newIn"),
+      href: "/products?filter=new",
+    },
+    {
+      label: t("shop"),
+      href: "/products",
+      groups: [
+        {
+          items: [
+            { label: "Pre-Fall 2026", href: "/products?collection=pre-fall-2026" },
+          ],
+        },
+        {
+          title: t("readyToWear"),
+          items: [
+            { label: t("dresses"),  href: "/products?category=dresses" },
+            { label: t("tops"),     href: "/products?category=tops" },
+            { label: t("bottoms"),  href: "/products?category=bottoms" },
+            { label: t("sets"),     href: "/products?category=sets" },
+          ],
+        },
+        {
+          title: t("collections"),
+          items: [
+            { label: "Clair de Lune", href: "/products?collection=claire-de-lune" },
+          ],
+        },
+      ],
+    },
+    {
+      label: t("tailored"),
+      href: "/tailored",
+      children: [
+        { label: t("madeToOrder"),   href: "/tailored/made-to-order" },
+        { label: t("customizedFit"), href: "/tailored/customized-fit" },
+      ],
+    },
+    {
+      label: t("about"),
+      href: "/about",
+    },
+  ];
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
