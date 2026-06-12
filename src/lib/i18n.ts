@@ -19,7 +19,6 @@ const t = {
     wishlist:     "Wishlist",
     adminDash:    "Admin Dashboard",
     /* announcement */
-    shipping200:  "Complimentary shipping on orders over",
     freeReturns:  "Free returns within 30 days",
     newCollection:"New collection now available",
     /* product */
@@ -31,7 +30,7 @@ const t = {
     selectSize:   "Please select a size",
     description:  "Description",
     detailsCare:  "Details & Care",
-    shippingReturns: "Shipping & Returns",
+    shippingReturns: "Returns",
     relatedPieces:"Related Pieces",
     youMayAlsoLove:"You May Also Love",
     new:          "New",
@@ -118,6 +117,21 @@ const t = {
     subscribeCta:    "Get My Code",
     /* footer */
     stayInTouch:     "Stay in Touch",
+    footerDiscount:  "Get 10% off your first order",
+    footerDesc:      "A modern luxury for women who value substance, elegance, and quiet confidence in every moment.",
+    footerSubscribeDesc: "Subscribe to receive a personal discount code delivered straight to your inbox — plus new arrivals, exclusive stories, and early access to collections.",
+    readyToWear:     "Ready to Wear",
+    sets:            "Sets",
+    customerCare:    "Customer Care",
+    craftsmanship:   "Craftsmanship",
+    sustainability:  "Sustainability",
+    press:           "Press",
+    contact:         "Contact",
+    returns:         "Returns",
+    sizeGuide:       "Size Guide",
+    allRightsReserved: "All rights reserved.",
+    privacyPolicy:   "Privacy Policy",
+    termsOfService:  "Terms of Service",
   },
   FR: {
     /* nav */
@@ -137,7 +151,6 @@ const t = {
     wishlist:     "Favoris",
     adminDash:    "Tableau de bord admin",
     /* announcement */
-    shipping200:  "Livraison offerte dès",
     freeReturns:  "Retours gratuits sous 30 jours",
     newCollection:"Nouvelle collection disponible",
     /* product */
@@ -149,7 +162,7 @@ const t = {
     selectSize:   "Veuillez sélectionner une taille",
     description:  "Description",
     detailsCare:  "Détails & Entretien",
-    shippingReturns:"Livraison & Retours",
+    shippingReturns:"Retours",
     relatedPieces:"Pièces similaires",
     youMayAlsoLove:"Vous aimerez aussi",
     new:          "Nouveau",
@@ -236,6 +249,21 @@ const t = {
     subscribeCta:    "Obtenir mon code",
     /* footer */
     stayInTouch:     "Restez en contact",
+    footerDiscount:  "Bénéficiez de 10% sur votre première commande",
+    footerDesc:      "Un luxe moderne pour les femmes qui valorisent la substance, l'élégance et la confiance tranquille à chaque instant.",
+    footerSubscribeDesc: "Abonnez-vous pour recevoir un code de réduction personnel directement dans votre boîte mail — plus les nouveautés, les histoires exclusives et l'accès anticipé aux collections.",
+    readyToWear:     "Prêt-à-porter",
+    sets:            "Ensembles",
+    customerCare:    "Service client",
+    craftsmanship:   "Savoir-faire",
+    sustainability:  "Durabilité",
+    press:           "Presse",
+    contact:         "Contact",
+    returns:         "Retours",
+    sizeGuide:       "Guide des tailles",
+    allRightsReserved: "Tous droits réservés.",
+    privacyPolicy:   "Politique de confidentialité",
+    termsOfService:  "Conditions d'utilisation",
   },
 } as const;
 

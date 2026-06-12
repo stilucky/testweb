@@ -3,7 +3,7 @@
 import { useState, use } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Heart, Truck, RotateCcw, Shield, ChevronDown, ChevronUp, Play } from "lucide-react";
+import { Heart, RotateCcw, Shield, ChevronDown, ChevronUp, Play } from "lucide-react";
 import { useProductStore } from "@/store/productStore";
 import { useCartStore } from "@/store/cartStore";
 import { cn } from "@/lib/utils";
@@ -75,9 +75,25 @@ export default function ProductDetailPage({ params }: Props) {
   };
 
   const accordionSections = [
-    { id: "description", label: t("description"),       content: product.description },
-    { id: "details",     label: t("detailsCare"),       content: language === "FR" ? "Nettoyage à sec recommandé. Conserver dans un endroit frais et sec. Les matières peuvent varier selon la couleur." : "Dry clean recommended. Store in a cool, dry place. Material may vary by color." },
-    { id: "shipping",    label: t("shippingReturns"),   content: language === "FR" ? "Livraison standard offerte dès $200. Livraison express disponible. Retours gratuits sous 30 jours pour articles non portés avec étiquettes." : "Complimentary standard shipping on orders over $200. Free returns within 30 days for unworn items with tags attached." },
+    {
+      id: "description",
+      label: t("description"),
+      content: (language === "FR" && product.descriptionFR) ? product.descriptionFR : product.description,
+    },
+    {
+      id: "details",
+      label: t("detailsCare"),
+      content: language === "FR"
+        ? "Nettoyage à sec recommandé. Conserver dans un endroit frais et sec. Les matières peuvent varier selon la couleur."
+        : "Dry clean recommended. Store in a cool, dry place. Material may vary by color.",
+    },
+    {
+      id: "returns",
+      label: t("shippingReturns"),
+      content: language === "FR"
+        ? "Retours gratuits sous 30 jours pour articles non portés avec étiquettes d'origine."
+        : "Free returns within 30 days for unworn items with original tags attached.",
+    },
   ];
 
   return (
@@ -186,7 +202,7 @@ export default function ProductDetailPage({ params }: Props) {
             {product.name}
           </h1>
           <p className="type-quote text-stone-400 mb-6">
-            {product.shortDescription}
+            {(language === "FR" && product.shortDescriptionFR) ? product.shortDescriptionFR : product.shortDescription}
           </p>
 
           {/* Price */}
@@ -297,9 +313,8 @@ export default function ProductDetailPage({ params }: Props) {
           </div>
 
           {/* Trust badges */}
-          <div className="grid grid-cols-3 gap-3 mb-8 py-6 border-y border-stone-100">
+          <div className="grid grid-cols-2 gap-3 mb-8 py-6 border-y border-stone-100">
             {[
-              { icon: Truck, label: "Free Shipping", sub: "Orders $200+" },
               { icon: RotateCcw, label: "Free Returns", sub: "Within 30 days" },
               { icon: Shield, label: "Authenticity", sub: "Guaranteed" },
             ].map(({ icon: Icon, label, sub }) => (

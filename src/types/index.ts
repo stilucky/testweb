@@ -11,7 +11,9 @@ export interface Product {
   sizes: string[];
   colors: Color[];
   description: string;
+  descriptionFR?: string;
   shortDescription: string;
+  shortDescriptionFR?: string;
   featured: boolean;
   isNew: boolean;
   isBestSeller: boolean;

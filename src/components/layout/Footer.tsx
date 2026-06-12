@@ -1,5 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import FooterSubscribe from "./FooterSubscribe";
+import { useLocaleStore } from "@/store/localeStore";
+import { useTranslations } from "@/lib/i18n";
 
 /* ── Social icons ── */
 function IconInstagram() {
@@ -27,37 +31,40 @@ function IconMail() {
   );
 }
 
-const shopLinks = [
-  { label: "Pre-Fall 2026",   href: "/products?collection=pre-fall-2026" },
-  { label: "Ready to Wear",   href: "/products" },
-  { label: "Dresses",         href: "/products?category=dresses" },
-  { label: "Tops",            href: "/products?category=tops" },
-  { label: "Bottoms",         href: "/products?category=bottoms" },
-  { label: "Sets",            href: "/products?category=sets" },
-  { label: "Collection: Clair de Lune", href: "/products?collection=claire-de-lune" },
-];
-
-const tailoredLinks = [
-  { label: "Made to Order",  href: "/tailored/made-to-order" },
-  { label: "Customized Fit", href: "/tailored/customized-fit" },
-];
-
-const aboutLinks = [
-  { label: "Our Story",      href: "/about" },
-  { label: "Craftsmanship",  href: "/about" },
-  { label: "Sustainability", href: "/about" },
-  { label: "Press",          href: "/about" },
-  { label: "Contact",        href: "/contact" },
-];
-
-const careLinks = [
-  { label: "Shipping & Returns", href: "/shipping" },
-  { label: "Size Guide",         href: "/size-guide" },
-  { label: "FAQ",                href: "/faq" },
-  { label: "Contact",            href: "/contact" },
-];
-
 export default function Footer() {
+  const language = useLocaleStore((s) => s.language);
+  const t = useTranslations(language);
+
+  const shopLinks = [
+    { label: "Pre-Fall 2026",          href: "/products?collection=pre-fall-2026" },
+    { label: t("readyToWear"),         href: "/products" },
+    { label: t("dresses"),             href: "/products?category=dresses" },
+    { label: t("tops"),                href: "/products?category=tops" },
+    { label: t("bottoms"),             href: "/products?category=bottoms" },
+    { label: t("sets"),                href: "/products?category=sets" },
+    { label: "Clair de Lune",          href: "/products?collection=claire-de-lune" },
+  ];
+
+  const tailoredLinks = [
+    { label: t("madeToOrder"),    href: "/tailored/made-to-order" },
+    { label: t("customizedFit"),  href: "/tailored/customized-fit" },
+  ];
+
+  const aboutLinks = [
+    { label: t("ourStory"),       href: "/about" },
+    { label: t("craftsmanship"),  href: "/about" },
+    { label: t("sustainability"), href: "/about" },
+    { label: t("press"),          href: "/about" },
+    { label: t("contact"),        href: "/contact" },
+  ];
+
+  const careLinks = [
+    { label: t("returns"),    href: "/returns" },
+    { label: t("sizeGuide"),  href: "/size-guide" },
+    { label: "FAQ",           href: "/faq" },
+    { label: t("contact"),    href: "/contact" },
+  ];
+
   return (
     <footer className="bg-stone-900 text-white mt-24">
 
@@ -71,16 +78,16 @@ export default function Footer() {
             {/* Left — heading */}
             <div>
               <p className="type-label text-stone-500 mb-4">
-                Stay in Touch
+                {t("stayInTouch")}
               </p>
               <h4
                 className="text-3xl md:text-4xl text-white leading-snug mb-3"
                 style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
               >
-                Get 10% off your first order
+                {t("footerDiscount")}
               </h4>
               <p className="text-sm text-stone-400 leading-relaxed">
-                Subscribe to receive a personal discount code delivered straight to your inbox — plus new arrivals, exclusive stories, and early access to collections.
+                {t("footerSubscribeDesc")}
               </p>
             </div>
 
@@ -98,12 +105,9 @@ export default function Footer() {
 
           {/* Brand column */}
           <div className="col-span-2 md:col-span-1">
-            <p className="type-logo text-lg mb-4">
-              Lunelle
-            </p>
+            <p className="type-logo text-lg mb-4">Lunelle</p>
             <p className="text-sm text-stone-400 leading-relaxed mb-6">
-              A modern luxury for women who value substance, elegance, and quiet
-              confidence in every moment.
+              {t("footerDesc")}
             </p>
             <div className="flex items-center gap-4">
               <a href="#" aria-label="Instagram" className="text-stone-400 hover:text-white transition-colors">
@@ -120,10 +124,10 @@ export default function Footer() {
 
           {/* Shop */}
           <div>
-            <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-5">Shop</p>
+            <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-5">{t("shop")}</p>
             <ul className="space-y-2.5">
               {shopLinks.map((l) => (
-                <li key={l.label}>
+                <li key={l.href}>
                   <Link href={l.href} className="text-sm text-stone-300 hover:text-white transition-colors">
                     {l.label}
                   </Link>
@@ -134,10 +138,10 @@ export default function Footer() {
 
           {/* Tailored */}
           <div>
-            <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-5">Tailored</p>
+            <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-5">{t("tailored")}</p>
             <ul className="space-y-2.5">
               {tailoredLinks.map((l) => (
-                <li key={l.label}>
+                <li key={l.href}>
                   <Link href={l.href} className="text-sm text-stone-300 hover:text-white transition-colors">
                     {l.label}
                   </Link>
@@ -148,7 +152,7 @@ export default function Footer() {
 
           {/* About */}
           <div>
-            <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-5">About</p>
+            <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-5">{t("about")}</p>
             <ul className="space-y-2.5">
               {aboutLinks.map((l) => (
                 <li key={l.label}>
@@ -162,7 +166,7 @@ export default function Footer() {
 
           {/* Customer Care */}
           <div>
-            <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-5">Customer Care</p>
+            <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-5">{t("customerCare")}</p>
             <ul className="space-y-2.5">
               {careLinks.map((l) => (
                 <li key={l.label}>
@@ -181,12 +185,18 @@ export default function Footer() {
       <div className="border-t border-stone-800">
         <div className="max-w-screen-xl mx-auto px-6 md:px-10 py-5 flex flex-col md:flex-row items-center justify-between gap-3">
           <p className="text-[11px] text-stone-600">
-            © {new Date().getFullYear()} Lunelle. All rights reserved.
+            &copy; {new Date().getFullYear()} Lunelle. {t("allRightsReserved")}
           </p>
           <div className="flex items-center gap-6">
-            <Link href="/privacy" className="text-[11px] text-stone-600 hover:text-stone-300 transition-colors">Privacy Policy</Link>
-            <Link href="/terms"   className="text-[11px] text-stone-600 hover:text-stone-300 transition-colors">Terms of Service</Link>
-            <Link href="/admin"   className="text-[11px] text-stone-700 hover:text-stone-500 transition-colors">Admin</Link>
+            <Link href="/privacy" className="text-[11px] text-stone-600 hover:text-stone-300 transition-colors">
+              {t("privacyPolicy")}
+            </Link>
+            <Link href="/terms" className="text-[11px] text-stone-600 hover:text-stone-300 transition-colors">
+              {t("termsOfService")}
+            </Link>
+            <Link href="/admin" className="text-[11px] text-stone-700 hover:text-stone-500 transition-colors">
+              Admin
+            </Link>
           </div>
         </div>
       </div>

@@ -112,7 +112,7 @@ export default function CartDrawer() {
               </span>
             </div>
             <p className="text-xs text-stone-400">
-              {language === "FR" ? "Livraison & taxes calculées lors du paiement" : "Shipping & taxes calculated at checkout"}
+              {language === "FR" ? "Taxes calculées lors du paiement" : "Taxes calculated at checkout"}
             </p>
             <Link href="/checkout" onClick={closeCart}
               className="block w-full py-4 bg-stone-900 text-white text-xs tracking-widest uppercase text-center hover:bg-stone-700 transition-colors font-medium">

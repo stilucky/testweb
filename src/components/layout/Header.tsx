@@ -44,13 +44,13 @@ export default function Header() {
       {/* ── Announcement bar ── */}
       <div className="bg-stone-900 text-white text-xs py-2.5 tracking-widest uppercase overflow-hidden">
         <div className="flex whitespace-nowrap" style={{ animation: "marquee 28s linear infinite" }}>
-          {Array.from({ length: 6 }).map((_, i) => (
+          {Array.from({ length: 8 }).map((_, i) => (
             <span key={i} className="flex-shrink-0 px-16">
-              {t("shipping200")} $200
-              <span className="mx-8 opacity-40">·</span>
               {t("freeReturns")}
               <span className="mx-8 opacity-40">·</span>
               {t("newCollection")}
+              <span className="mx-8 opacity-40">·</span>
+              {language === "FR" ? "Retours gratuits sous 30 jours" : "Free returns within 30 days"}
             </span>
           ))}
         </div>

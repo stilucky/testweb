@@ -152,7 +152,6 @@ const steps = [
 const faqs = [
   { title: "Production Timeline",  body: "Made-to-order pieces require 3–5 weeks for production depending on the style. We'll send you a confirmation and tracking update." },
   { title: "Tailoring Fee",        body: "A $10 tailoring fee (USD) applies to all made-to-order pieces to cover the bespoke measurement and fitting process." },
-  { title: "Shipping",             body: "Complimentary shipping on all made-to-order orders. Shipped via tracked courier." },
   { title: "Returns & Exchanges",  body: "As each piece is made especially for you, made-to-order items are final sale unless there is a quality defect." },
   { title: "Care Instructions",    body: "Dry clean recommended. Specific care instructions will be included with every order." },
 ];

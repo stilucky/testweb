@@ -33,7 +33,9 @@ const allColors = [
 
 type FormColor = { name: string; hex: string; isPrimary: boolean };
 type FormData = {
-  name: string; slug: string; shortDescription: string; description: string;
+  name: string; slug: string;
+  shortDescription: string; shortDescriptionFR: string;
+  description: string; descriptionFR: string;
   price: string; salePrice: string;
   priceCAD: string; salePriceCAD: string;
   stock: string; category: string;
@@ -42,7 +44,9 @@ type FormData = {
 };
 
 const emptyForm: FormData = {
-  name: "", slug: "", shortDescription: "", description: "",
+  name: "", slug: "",
+  shortDescription: "", shortDescriptionFR: "",
+  description: "", descriptionFR: "",
   price: "", salePrice: "",
   priceCAD: "", salePriceCAD: "",
   stock: "", category: "dresses",
@@ -122,7 +126,9 @@ export default function AdminProductsPage() {
       name: product.name,
       slug: product.slug,
       shortDescription: product.shortDescription,
+      shortDescriptionFR: product.shortDescriptionFR ?? "",
       description: product.description,
+      descriptionFR: product.descriptionFR ?? "",
       price: String(product.price),
       salePrice: product.salePrice ? String(product.salePrice) : "",
       stock: String(product.stock),
@@ -180,7 +186,9 @@ export default function AdminProductsPage() {
       name: form.name,
       slug: form.slug || toSlug(form.name),
       shortDescription: form.shortDescription,
+      shortDescriptionFR: form.shortDescriptionFR.trim() || undefined,
       description: form.description,
+      descriptionFR: form.descriptionFR.trim() || undefined,
       price: Number(form.price),
       salePrice: form.salePrice ? Number(form.salePrice) : undefined,
       stock: Number(form.stock),
@@ -623,17 +631,43 @@ export default function AdminProductsPage() {
                   placeholder="auto-generated" className={inputCls(false) + " text-stone-500"} />
               </Field>
 
-              <Field label="Short Description" required error={errors.shortDescription}>
-                <input type="text" value={form.shortDescription}
-                  onChange={(e) => setForm((f) => ({ ...f, shortDescription: e.target.value }))}
-                  placeholder="One-line product summary" className={inputCls(!!errors.shortDescription)} />
-              </Field>
+              {/* Short Description EN / FR */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="h-px flex-1 bg-stone-100" />
+                  <span className="text-[10px] tracking-widest uppercase text-stone-400">Short Description</span>
+                  <div className="h-px flex-1 bg-stone-100" />
+                </div>
+                <Field label="Short Description — EN" required error={errors.shortDescription}>
+                  <input type="text" value={form.shortDescription}
+                    onChange={(e) => setForm((f) => ({ ...f, shortDescription: e.target.value }))}
+                    placeholder="One-line product summary (English)" className={inputCls(!!errors.shortDescription)} />
+                </Field>
+                <Field label="Short Description — FR">
+                  <input type="text" value={form.shortDescriptionFR}
+                    onChange={(e) => setForm((f) => ({ ...f, shortDescriptionFR: e.target.value }))}
+                    placeholder="Résumé en une ligne (Français)" className={inputCls(false)} />
+                </Field>
+              </div>
 
-              <Field label="Full Description">
-                <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  placeholder="Detailed product description..." rows={4}
-                  className="w-full px-4 py-3 border border-stone-200 text-sm focus:outline-none focus:border-stone-800 transition-colors resize-none" />
-              </Field>
+              {/* Full Description EN / FR */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="h-px flex-1 bg-stone-100" />
+                  <span className="text-[10px] tracking-widest uppercase text-stone-400">Full Description</span>
+                  <div className="h-px flex-1 bg-stone-100" />
+                </div>
+                <Field label="Full Description — EN">
+                  <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                    placeholder="Detailed product description (English)..." rows={4}
+                    className="w-full px-4 py-3 border border-stone-200 text-sm focus:outline-none focus:border-stone-800 transition-colors resize-none" />
+                </Field>
+                <Field label="Full Description — FR">
+                  <textarea value={form.descriptionFR} onChange={(e) => setForm((f) => ({ ...f, descriptionFR: e.target.value }))}
+                    placeholder="Description détaillée du produit (Français)..." rows={4}
+                    className="w-full px-4 py-3 border border-stone-200 text-sm focus:outline-none focus:border-stone-800 transition-colors resize-none" />
+                </Field>
+              </div>
 
               {/* Pricing */}
               <div className="space-y-3">
