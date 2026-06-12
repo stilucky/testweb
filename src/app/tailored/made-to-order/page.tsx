@@ -2,61 +2,159 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { X, ChevronRight, Ruler, Info } from "lucide-react";
+import { useCartStore } from "@/store/cartStore";
+import { useLocaleStore, formatLocalPrice } from "@/store/localeStore";
+import { useTailoredOrderStore } from "@/store/tailoredOrderStore";
+import { useAuthStore } from "@/store/authStore";
+import { cn } from "@/lib/utils";
 
 /* ─── Collection ─── */
-const collection = [
-  { name: "Linen Blend Blazer",    price: "$219.00", image: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=600&q=80" },
-  { name: "Draped Midi Dress",     price: "$189.00", image: "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=600&q=80" },
-  { name: "Tailored Wide Leg Pant",price: "$169.00", image: "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=600&q=80" },
-  { name: "Soft Wrap Set",         price: "$179.00", image: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=600&q=80" },
+const TAILORING_FEE = 10;
+const TAILORING_FEE_CAD = 14;
+
+interface MadeToOrderItem {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+  priceCAD: number;
+  image: string;
+  colors: { name: string; hex: string }[];
+  description: string;
+  leadTime: string;
+}
+
+const collection: MadeToOrderItem[] = [
+  {
+    id: "mto-1",
+    name: "Linen Blend Blazer",
+    category: "Blazer",
+    price: 219,
+    priceCAD: 299,
+    image: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&q=80",
+    colors: [
+      { name: "Ivory", hex: "#F5F0E8" },
+      { name: "Sage", hex: "#8A9E89" },
+      { name: "Black", hex: "#1C1C1C" },
+    ],
+    description: "A relaxed, fluid blazer in our signature linen blend. Effortlessly elevated for any occasion.",
+    leadTime: "3–4 weeks",
+  },
+  {
+    id: "mto-2",
+    name: "Draped Midi Dress",
+    category: "Dress",
+    price: 189,
+    priceCAD: 259,
+    image: "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=800&q=80",
+    colors: [
+      { name: "Cream", hex: "#F2EDE4" },
+      { name: "Blush", hex: "#D4A5A0" },
+      { name: "Midnight", hex: "#2B2D42" },
+    ],
+    description: "A graceful midi silhouette with fluid drape. Made to fall beautifully on every body.",
+    leadTime: "3–4 weeks",
+  },
+  {
+    id: "mto-3",
+    name: "Tailored Wide Leg Pant",
+    category: "Trousers",
+    price: 169,
+    priceCAD: 229,
+    image: "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=800&q=80",
+    colors: [
+      { name: "Sand", hex: "#C8B89A" },
+      { name: "Charcoal", hex: "#4A4A4A" },
+      { name: "White", hex: "#FAFAF8" },
+    ],
+    description: "Wide-leg trousers with a structured waistband. Polished, comfortable, and entirely yours.",
+    leadTime: "2–3 weeks",
+  },
+  {
+    id: "mto-4",
+    name: "Soft Wrap Set",
+    category: "Set",
+    price: 179,
+    priceCAD: 245,
+    image: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&q=80",
+    colors: [
+      { name: "Ecru", hex: "#EDE8DF" },
+      { name: "Terracotta", hex: "#C27858" },
+      { name: "Slate", hex: "#6E7D8A" },
+    ],
+    description: "A coordinated wrap top and skirt set. Individually fitted for a seamless, intentional look.",
+    leadTime: "4–5 weeks",
+  },
+  {
+    id: "mto-5",
+    name: "Structured Column Dress",
+    category: "Dress",
+    price: 239,
+    priceCAD: 325,
+    image: "https://images.unsplash.com/photo-1539008835657-9e8e9680c956?w=800&q=80",
+    colors: [
+      { name: "Black", hex: "#1C1C1C" },
+      { name: "Champagne", hex: "#E8D5B0" },
+      { name: "Forest", hex: "#3D5C4A" },
+    ],
+    description: "A sleek column silhouette with architectural precision. Tailored to your exact measurements.",
+    leadTime: "4–5 weeks",
+  },
+  {
+    id: "mto-6",
+    name: "Satin Slip Skirt",
+    category: "Skirt",
+    price: 149,
+    priceCAD: 199,
+    image: "https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?w=800&q=80",
+    colors: [
+      { name: "Pearl", hex: "#F0EBE3" },
+      { name: "Dusty Rose", hex: "#C4A0A0" },
+      { name: "Black", hex: "#1C1C1C" },
+    ],
+    description: "A bias-cut satin skirt that moves with you. Effortlessly elegant in any setting.",
+    leadTime: "2–3 weeks",
+  },
 ];
 
-/* ─── How It Works icons ─── */
-function IconOrder() {
-  return (
-    <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.2" className="w-12 h-12 text-stone-500">
-      <circle cx="24" cy="24" r="23" />
-      <path d="M24 16 C20 16 16 19 16 23 L16 32 L32 32 L32 23 C32 19 28 16 24 16Z" />
-      <line x1="20" y1="32" x2="20" y2="35" />
-      <line x1="28" y1="32" x2="28" y2="35" />
-      <path d="M21 16 L21 13 Q24 11 27 13 L27 16" />
-    </svg>
-  );
-}
-function IconCraft() {
-  return (
-    <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.2" className="w-12 h-12 text-stone-500">
-      <circle cx="24" cy="24" r="23" />
-      <path d="M16 32 L24 16 L32 32" />
-      <line x1="18" y1="27" x2="30" y2="27" />
-      <circle cx="24" cy="24" r="2" />
-    </svg>
-  );
-}
-function IconDeliver() {
-  return (
-    <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.2" className="w-12 h-12 text-stone-500">
-      <circle cx="24" cy="24" r="23" />
-      <rect x="13" y="18" width="22" height="15" rx="1" />
-      <path d="M13 24 L35 24" />
-      <path d="M19 18 L19 14 L29 14 L29 18" />
-    </svg>
-  );
+/* ─── Measurement fields ─── */
+interface MeasureField {
+  key: string;
+  label: string;
+  placeholder: string;
+  hint: string;
 }
 
+const measureFields: MeasureField[] = [
+  { key: "bust",     label: "Bust / Chest",    placeholder: "e.g. 88",  hint: "Measure around the fullest part of your chest" },
+  { key: "waist",    label: "Waist",            placeholder: "e.g. 68",  hint: "Measure around your natural waistline" },
+  { key: "hips",     label: "Hips",             placeholder: "e.g. 95",  hint: "Measure around the fullest part of your hips" },
+  { key: "shoulder", label: "Shoulder Width",   placeholder: "e.g. 38",  hint: "Measure across the back from shoulder seam to seam" },
+  { key: "sleeve",   label: "Sleeve Length",    placeholder: "e.g. 60",  hint: "Measure from shoulder point to wrist" },
+  { key: "length",   label: "Body Length",      placeholder: "e.g. 110", hint: "Measure from highest shoulder point to desired hem" },
+  { key: "height",   label: "Total Height",     placeholder: "e.g. 165", hint: "Your full standing height" },
+];
+
+type Measurements = Record<string, string>;
+
+/* ─── How It Works ─── */
 const steps = [
-  { Icon: IconOrder,   num: "01", title: "PLACE YOUR ORDER",       desc: "Choose your piece and preferred size." },
-  { Icon: IconCraft,   num: "02", title: "CRAFTED FOR YOU",        desc: "Your garment is produced after you place it through expertise." },
-  { Icon: IconDeliver, num: "03", title: "DELIVERED THOUGHTFULLY", desc: "Once complete, your piece is carefully packaged and shipped to you." },
+  { num: "01", title: "Choose Your Design",    desc: "Browse our curated made-to-order styles and select your piece." },
+  { num: "02", title: "Enter Your Measurements", desc: "Provide your exact measurements for a fit crafted to you." },
+  { num: "03", title: "We Craft Your Piece",   desc: "Your garment is handcrafted by our ateliers over 3–5 weeks." },
+  { num: "04", title: "Delivered to You",      desc: "Thoughtfully packaged and shipped directly to your door." },
 ];
 
-/* ─── FAQ Accordion ─── */
+/* ─── FAQ ─── */
 const faqs = [
-  { title: "Production Timeline",   body: "Made-to-order pieces require 3–4 weeks for production. Each garment is crafted with care and attention to quality." },
-  { title: "Shipping",              body: "Complimentary shipping on all made-to-order pieces. Orders are shipped via tracked courier." },
-  { title: "Returns & Exchanges",   body: "As each piece is made especially for you, made-to-order items are final sale unless there is a quality defect." },
-  { title: "Care Instructions",     body: "Dry clean recommended. Specific care instructions will be included with every order." },
+  { title: "Production Timeline",  body: "Made-to-order pieces require 3–5 weeks for production depending on the style. We'll send you a confirmation and tracking update." },
+  { title: "Tailoring Fee",        body: "A $10 tailoring fee (USD) applies to all made-to-order pieces to cover the bespoke measurement and fitting process." },
+  { title: "Shipping",             body: "Complimentary shipping on all made-to-order orders. Shipped via tracked courier." },
+  { title: "Returns & Exchanges",  body: "As each piece is made especially for you, made-to-order items are final sale unless there is a quality defect." },
+  { title: "Care Instructions",    body: "Dry clean recommended. Specific care instructions will be included with every order." },
 ];
 
 function AccordionItem({ title, body }: { title: string; body: string }) {
@@ -77,6 +175,125 @@ function AccordionItem({ title, body }: { title: string; body: string }) {
 
 /* ══════════════════════════════════════════ */
 export default function MadeToOrderPage() {
+  const [selected, setSelected] = useState<MadeToOrderItem | null>(null);
+  const [selectedColor, setSelectedColor] = useState("");
+  const [measurements, setMeasurements] = useState<Measurements>({});
+  const [notes, setNotes] = useState("");
+  const [activeHint, setActiveHint] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+  const [errors, setErrors] = useState<Record<string, boolean>>({});
+
+  const panelRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const addItem = useCartStore((s) => s.addItem);
+  const openCart = useCartStore((s) => s.openCart);
+  const currency = useLocaleStore((s) => s.currency);
+  const addTailoredOrder = useTailoredOrderStore((s) => s.addOrder);
+  const currentUser = useAuthStore((s) => s.currentUser);
+
+  /* Open panel */
+  const openPanel = (item: MadeToOrderItem) => {
+    setSelected(item);
+    setSelectedColor(item.colors[0].name);
+    setMeasurements({});
+    setNotes("");
+    setSubmitted(false);
+    setErrors({});
+    document.body.style.overflow = "hidden";
+  };
+
+  /* Close panel */
+  const closePanel = () => {
+    setSelected(null);
+    document.body.style.overflow = "";
+  };
+
+  /* Close on Escape */
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") closePanel(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  const handleMeasureChange = (key: string, value: string) => {
+    setMeasurements((prev) => ({ ...prev, [key]: value }));
+    if (errors[key]) setErrors((prev) => ({ ...prev, [key]: false }));
+  };
+
+  const buildSizeLabel = () => {
+    const parts = measureFields
+      .filter((f) => measurements[f.key])
+      .map((f) => `${f.label.split(" ")[0]} ${measurements[f.key]}cm`);
+    return parts.length > 0 ? `Custom · ${parts.slice(0, 3).join(" / ")}` : "Custom Fit";
+  };
+
+  const handleAddToBag = () => {
+    if (!selected) return;
+
+    /* Validate — require at least bust, waist, length */
+    const required = ["bust", "waist", "length"];
+    const newErrors: Record<string, boolean> = {};
+    required.forEach((k) => {
+      if (!measurements[k]) newErrors[k] = true;
+    });
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    /* Save to tailored order store (visible in admin) */
+    addTailoredOrder({
+      designId: selected.id,
+      designName: selected.name,
+      designImage: selected.image,
+      designCategory: selected.category,
+      color: selectedColor,
+      basePrice: selected.price,
+      basePriceCAD: selected.priceCAD,
+      tailoringFee: TAILORING_FEE,
+      totalPrice: selected.price + TAILORING_FEE,
+      totalPriceCAD: selected.priceCAD + TAILORING_FEE_CAD,
+      currency,
+      measurements,
+      notes,
+      customerName: currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : "",
+      customerEmail: currentUser?.email ?? "",
+    });
+
+    /* Build a virtual product with custom pricing for cart */
+    const customProduct = {
+      id: `${selected.id}-custom-${Date.now()}`,
+      name: `${selected.name} · Made to Order`,
+      slug: selected.id,
+      price: selected.price + TAILORING_FEE,
+      priceCAD: selected.priceCAD + TAILORING_FEE_CAD,
+      images: [selected.image],
+      category: selected.category.toLowerCase(),
+      gender: "women" as const,
+      sizes: [buildSizeLabel()],
+      colors: selected.colors.map((c) => ({ ...c, images: [] })),
+      description: notes ? `${selected.description}\n\nCustomer notes: ${notes}` : selected.description,
+      shortDescription: selected.description,
+      featured: false,
+      isNew: false,
+      isBestSeller: false,
+      stock: 1,
+      tags: ["made-to-order"],
+    };
+
+    addItem(customProduct, buildSizeLabel(), selectedColor);
+    setSubmitted(true);
+
+    /* Redirect to checkout after brief confirmation */
+    setTimeout(() => {
+      closePanel();
+      router.push("/checkout");
+    }, 1200);
+  };
+
+  const totalPrice = selected ? selected.price + TAILORING_FEE : 0;
+  const totalPriceCAD = selected ? selected.priceCAD + TAILORING_FEE_CAD : 0;
+
   return (
     <>
       {/* ── 1. HERO ── */}
@@ -88,71 +305,111 @@ export default function MadeToOrderPage() {
           sizes="100vw"
           className="object-cover object-top"
         />
-        <div className="absolute inset-0 bg-black/30" />
+        <div className="absolute inset-0 bg-black/35" />
         <div className="relative z-10 h-full flex flex-col justify-end pb-16 px-10 md:px-20">
+          <p className="type-label text-white/60 mb-4">Lunelle Atelier</p>
           <h1
-            className="text-3xl md:text-4xl text-white mb-5 leading-none"
+            className="text-4xl md:text-6xl text-white mb-5 leading-none"
             style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
           >
             Made to Order
           </h1>
-          <p className="text-white/75 text-sm leading-relaxed max-w-sm mb-8">
-            Thoughtfully produced after purchase in limited quantities.
-            Each piece is crafted with intention and care.
+          <p className="text-white/70 text-sm leading-relaxed max-w-sm mb-8">
+            Each piece is crafted after purchase, precisely to your measurements.
+            No excess, no compromise.
           </p>
           <Link
             href="#collection"
-            className="inline-block bg-stone-900 text-white text-[10px] tracking-[0.2em] uppercase px-8 py-4 hover:bg-stone-700 transition-colors w-fit"
+            className="inline-flex items-center gap-2 bg-white text-stone-900 text-[10px] tracking-[0.2em] uppercase px-8 py-4 hover:bg-stone-100 transition-colors w-fit"
           >
-            View the Collection
+            View the Collection <ChevronRight size={12} />
           </Link>
         </div>
       </section>
 
       {/* ── 2. COLLECTION SHOWCASE ── */}
       <section id="collection" className="py-20 px-4 md:px-10 max-w-screen-xl mx-auto">
-        <p className="type-label text-stone-500 text-center mb-12">
-          The Made to Order Collection
-        </p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+        <div className="text-center mb-4">
+          <p className="type-label text-stone-400 mb-3">The Made to Order Collection</p>
+          <p className="text-sm text-stone-400 max-w-md mx-auto">
+            Click any design to begin your custom order
+          </p>
+        </div>
+
+        <div className="flex justify-center mb-12">
+          <span className="inline-flex items-center gap-2 bg-stone-50 border border-stone-200 text-stone-500 text-xs px-4 py-2">
+            <Ruler size={12} />
+            All styles include a $10 tailoring fee for custom measurements
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-10">
           {collection.map((item) => (
-            <div key={item.name} className="group cursor-pointer">
-              <div className="relative aspect-[3/4] overflow-hidden bg-stone-100 mb-3">
+            <div
+              key={item.id}
+              className="group cursor-pointer"
+              onClick={() => openPanel(item)}
+            >
+              <div className="relative aspect-[3/4] overflow-hidden bg-stone-100 mb-4">
                 <Image
-                  src={item.image} alt={item.name} fill
-                  sizes="(max-width: 640px) 50vw, 25vw"
+                  src={item.image}
+                  alt={item.name}
+                  fill
+                  sizes="(max-width: 640px) 50vw, 33vw"
                   className="object-cover group-hover:scale-105 transition-transform duration-700"
                 />
+                {/* Hover overlay */}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 flex items-end justify-center pb-6 opacity-0 group-hover:opacity-100">
+                  <span className="bg-white text-stone-900 text-[10px] tracking-[0.2em] uppercase px-6 py-3 translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
+                    Order This Piece
+                  </span>
+                </div>
               </div>
-              <p className="text-xs text-stone-700 mb-1">{item.name}</p>
-              <p className="text-xs text-stone-400">{item.price}</p>
+
+              <p className="type-label text-stone-400 mb-1">{item.category}</p>
+              <p className="text-sm text-stone-800 mb-1">{item.name}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-stone-500">
+                  {formatLocalPrice(item.price + TAILORING_FEE, currency, item.priceCAD + TAILORING_FEE_CAD)}
+                </p>
+                <span className="text-[10px] text-stone-300 uppercase tracking-wider">{currency}</span>
+              </div>
+              <p className="text-[11px] text-stone-400 mt-1">Lead time: {item.leadTime}</p>
+
+              {/* Color dots */}
+              <div className="flex gap-1.5 mt-2">
+                {item.colors.map((c) => (
+                  <span
+                    key={c.name}
+                    title={c.name}
+                    className="w-3 h-3 rounded-full border border-stone-200"
+                    style={{ backgroundColor: c.hex }}
+                  />
+                ))}
+              </div>
             </div>
           ))}
         </div>
       </section>
 
       {/* ── 3. HOW IT WORKS ── */}
-      <section className="py-20 border-t border-stone-100">
+      <section className="py-20 border-t border-stone-100 bg-stone-50">
         <div className="max-w-screen-xl mx-auto px-4 md:px-10">
-          <p className="type-label text-stone-500 text-center mb-16">
-            How It Works
-          </p>
-          <div className="grid md:grid-cols-3 gap-10 text-center">
-            {steps.map(({ Icon, num, title, desc }) => (
-              <div key={num} className="flex flex-col items-center gap-4">
-                <Icon />
-                <p className="text-[10px] tracking-[0.15em] text-stone-400">{num}</p>
+          <p className="type-label text-stone-400 text-center mb-16">How It Works</p>
+          <div className="grid md:grid-cols-4 gap-8 text-center">
+            {steps.map(({ num, title, desc }) => (
+              <div key={num} className="flex flex-col items-center gap-3">
+                <p className="text-[10px] tracking-[0.15em] text-stone-300 font-light">{num}</p>
                 <p className="text-[11px] tracking-[0.15em] uppercase font-medium text-stone-800">{title}</p>
-                <p className="text-xs text-stone-500 leading-relaxed max-w-[200px]">{desc}</p>
+                <p className="text-xs text-stone-500 leading-relaxed max-w-[180px]">{desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── 4. CRAFTSMANSHIP ── */}
+      {/* ── 4. CRAFTSMANSHIP EDITORIAL ── */}
       <section className="grid md:grid-cols-2 border-t border-stone-100">
-        {/* image left */}
         <div className="relative aspect-[4/3] md:aspect-auto min-h-[380px] overflow-hidden">
           <Image
             src="https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=900&q=80"
@@ -162,7 +419,6 @@ export default function MadeToOrderPage() {
             className="object-cover"
           />
         </div>
-        {/* text right */}
         <div className="flex flex-col justify-center px-10 md:px-16 py-16 bg-stone-50">
           <p className="type-label text-stone-400 mb-5">Craftsmanship</p>
           <h2
@@ -179,19 +435,244 @@ export default function MadeToOrderPage() {
             href="/about"
             className="text-[10px] tracking-[0.2em] uppercase border-b border-stone-700 pb-0.5 w-fit text-stone-700 hover:text-stone-400 hover:border-stone-400 transition-colors"
           >
-            Learn More
+            Our Atelier
           </Link>
         </div>
       </section>
 
-      {/* ── 6. IMPORTANT INFO ── */}
+      {/* ── 5. FAQ ── */}
       <section className="py-20 border-t border-stone-100">
         <div className="max-w-2xl mx-auto px-4 md:px-10">
+          <p className="type-label text-stone-400 text-center mb-12">Important Information</p>
           {faqs.map((f) => (
             <AccordionItem key={f.title} title={f.title} body={f.body} />
           ))}
         </div>
       </section>
+
+      {/* ══════════════════════════════════════════
+          ORDER PANEL (slide-in from right)
+      ══════════════════════════════════════════ */}
+      {/* Backdrop */}
+      {selected && (
+        <div
+          className="fixed inset-0 bg-black/40 z-50 backdrop-blur-sm"
+          onClick={closePanel}
+        />
+      )}
+
+      {/* Panel */}
+      <div
+        ref={panelRef}
+        className={cn(
+          "fixed top-0 right-0 h-full w-full max-w-[540px] bg-white z-50 shadow-2xl flex flex-col",
+          "transition-transform duration-500 ease-[cubic-bezier(0.32,0,0.15,1)]",
+          selected ? "translate-x-0" : "translate-x-full"
+        )}
+      >
+        {selected && (
+          <>
+            {/* Panel Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-stone-100 shrink-0">
+              <div>
+                <p className="type-label text-stone-400">Made to Order</p>
+                <h3
+                  className="text-xl mt-1 text-stone-900"
+                  style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
+                >
+                  {selected.name}
+                </h3>
+              </div>
+              <button
+                onClick={closePanel}
+                className="w-9 h-9 flex items-center justify-center text-stone-400 hover:text-stone-900 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto">
+              {/* Product preview strip */}
+              <div className="flex gap-4 px-6 py-5 bg-stone-50 border-b border-stone-100">
+                <div className="relative w-20 h-24 shrink-0 overflow-hidden bg-stone-200">
+                  <Image src={selected.image} alt={selected.name} fill sizes="80px" className="object-cover" />
+                </div>
+                <div className="flex flex-col justify-center">
+                  <p className="type-label text-stone-400 mb-1">{selected.category}</p>
+                  <p className="text-sm text-stone-700 mb-2">{selected.description}</p>
+                  <p className="text-[11px] text-stone-400">Lead time: {selected.leadTime}</p>
+                </div>
+              </div>
+
+              <div className="px-6 py-6 space-y-7">
+
+                {/* Pricing breakdown */}
+                <div className="bg-stone-50 border border-stone-100 p-4 space-y-2">
+                  <div className="flex justify-between text-sm text-stone-500">
+                    <span>Base price</span>
+                    <span>{formatLocalPrice(selected.price, currency, selected.priceCAD)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-stone-500">
+                    <span className="flex items-center gap-1">
+                      Tailoring fee
+                      <Info size={11} className="text-stone-300" />
+                    </span>
+                    <span>
+                      {formatLocalPrice(TAILORING_FEE, currency, TAILORING_FEE_CAD)}
+                    </span>
+                  </div>
+                  <div className="border-t border-stone-200 pt-2 flex justify-between text-stone-900 font-medium">
+                    <span className="text-sm uppercase tracking-wider">Total</span>
+                    <div className="text-right">
+                      <span
+                        className="text-xl"
+                        style={{ fontFamily: "var(--font-cormorant), serif" }}
+                      >
+                        {formatLocalPrice(totalPrice, currency, totalPriceCAD)}
+                      </span>
+                      <span className="text-xs text-stone-400 ml-1">{currency}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Color selector */}
+                <div>
+                  <p className="text-xs tracking-widest uppercase mb-3 flex justify-between">
+                    <span>Color</span>
+                    <span className="text-stone-400 normal-case tracking-normal font-light">{selectedColor}</span>
+                  </p>
+                  <div className="flex gap-2.5 flex-wrap">
+                    {selected.colors.map((c) => (
+                      <button
+                        key={c.name}
+                        onClick={() => setSelectedColor(c.name)}
+                        title={c.name}
+                        className={cn(
+                          "w-9 h-9 rounded-full border-2 transition-all",
+                          selectedColor === c.name
+                            ? "border-stone-900 scale-110 shadow-sm"
+                            : "border-stone-200 hover:border-stone-400"
+                        )}
+                        style={{ backgroundColor: c.hex }}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Measurement form */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-xs tracking-widest uppercase">Your Measurements</p>
+                    <span className="text-[10px] text-stone-400">in centimeters (cm)</span>
+                  </div>
+
+                  <p className="text-xs text-stone-400 mb-4 leading-relaxed">
+                    Enter your measurements below for a perfect custom fit.
+                    Fields marked with <span className="text-stone-700">*</span> are required.
+                  </p>
+
+                  <div className="space-y-3">
+                    {measureFields.map((field) => {
+                      const required = ["bust", "waist", "length"].includes(field.key);
+                      return (
+                        <div key={field.key}>
+                          <label className="flex items-center justify-between mb-1.5">
+                            <span className="text-xs text-stone-700">
+                              {field.label}
+                              {required && <span className="text-stone-900 ml-0.5">*</span>}
+                            </span>
+                            <button
+                              type="button"
+                              onMouseEnter={() => setActiveHint(field.key)}
+                              onMouseLeave={() => setActiveHint(null)}
+                              className="text-stone-300 hover:text-stone-500 transition-colors"
+                            >
+                              <Info size={12} />
+                            </button>
+                          </label>
+
+                          {activeHint === field.key && (
+                            <p className="text-[11px] text-stone-400 italic mb-1.5 pl-1">
+                              {field.hint}
+                            </p>
+                          )}
+
+                          <div className="relative">
+                            <input
+                              type="number"
+                              min="0"
+                              max="300"
+                              value={measurements[field.key] ?? ""}
+                              onChange={(e) => handleMeasureChange(field.key, e.target.value)}
+                              placeholder={field.placeholder}
+                              className={cn(
+                                "w-full border py-2.5 pl-3 pr-10 text-sm focus:outline-none transition-colors",
+                                errors[field.key]
+                                  ? "border-red-400 focus:border-red-600"
+                                  : "border-stone-200 focus:border-stone-800"
+                              )}
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-stone-400">
+                              cm
+                            </span>
+                          </div>
+                          {errors[field.key] && (
+                            <p className="text-[11px] text-red-500 mt-1">This measurement is required</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Special requests */}
+                <div>
+                  <p className="text-xs tracking-widest uppercase mb-3">Special Requests</p>
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Any special requests, adjustments, or notes for our atelier..."
+                    rows={3}
+                    className="w-full border border-stone-200 py-3 px-4 text-sm font-light text-stone-700 placeholder:text-stone-300 focus:outline-none focus:border-stone-800 transition-colors resize-none"
+                  />
+                </div>
+
+                {/* Final note */}
+                <p className="text-[11px] text-stone-400 leading-relaxed">
+                  By placing this order, you acknowledge that made-to-order pieces are final sale.
+                  Your piece will be crafted after payment is received.
+                </p>
+
+              </div>
+            </div>
+
+            {/* Panel Footer — CTA */}
+            <div className="px-6 py-5 border-t border-stone-100 bg-white shrink-0">
+              {submitted ? (
+                <div className="flex items-center justify-center gap-2 py-4 bg-stone-900 text-white">
+                  <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span className="text-xs tracking-widest uppercase">Redirecting to Payment…</span>
+                </div>
+              ) : (
+                <button
+                  onClick={handleAddToBag}
+                  className="w-full py-4 bg-stone-900 text-white text-xs tracking-widest uppercase hover:bg-stone-700 transition-colors"
+                >
+                  Place Order & Pay
+                </button>
+              )}
+              <p className="text-center text-[10px] text-stone-400 mt-3">
+                Total:{" "}
+                <strong className="text-stone-700">
+                  {formatLocalPrice(totalPrice, currency, totalPriceCAD)} {currency}
+                </strong>
+                {" · "}Includes {formatLocalPrice(TAILORING_FEE, currency, TAILORING_FEE_CAD)} tailoring fee
+              </p>
+            </div>
+          </>
+        )}
+      </div>
     </>
   );
 }

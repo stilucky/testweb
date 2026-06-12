@@ -11,18 +11,22 @@ import {
   Tag,
   Mail,
   Settings,
+  Layers,
+  Scissors,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/admin/products", label: "Products", icon: Package, exact: false },
-  { href: "/admin/orders", label: "Orders", icon: ShoppingCart, exact: false },
-  { href: "/admin/customers", label: "Customers", icon: Users, exact: false },
-  { href: "/admin/analytics", label: "Analytics", icon: BarChart2, exact: false },
-  { href: "/admin/coupons", label: "Coupons", icon: Tag, exact: false },
-  { href: "/admin/subscribers", label: "Subscribers", icon: Mail, exact: false },
-  { href: "/admin/settings", label: "Settings", icon: Settings, exact: false },
+  { href: "/admin",               label: "Dashboard",       icon: LayoutDashboard, exact: true },
+  { href: "/admin/products",      label: "Products",        icon: Package,         exact: false },
+  { href: "/admin/collections",   label: "Collections",     icon: Layers,          exact: false },
+  { href: "/admin/tailored-orders", label: "Tailored Orders", icon: Scissors,      exact: false },
+  { href: "/admin/orders",        label: "Orders",          icon: ShoppingCart,    exact: false },
+  { href: "/admin/customers",     label: "Customers",       icon: Users,           exact: false },
+  { href: "/admin/analytics",     label: "Analytics",       icon: BarChart2,       exact: false },
+  { href: "/admin/coupons",       label: "Coupons",         icon: Tag,             exact: false },
+  { href: "/admin/subscribers",   label: "Subscribers",     icon: Mail,            exact: false },
+  { href: "/admin/settings",      label: "Settings",        icon: Settings,        exact: false },
 ];
 
 export default function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
