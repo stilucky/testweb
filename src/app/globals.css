@@ -33,9 +33,10 @@ body {
    Footer:         Jost      · 11px   · wt 400 · ls 0.08em
 ──────────────────────────────────────────────────────── */
 
-/* Headings use Cormorant */
-h1, h2, h3, h4 {
-  font-family: var(--font-serif);
+/* Headings use Jost (Cormorant reserved for logo only) */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-sans);
+  font-weight: 300;
 }
 
 /* ── Utility classes matching the scale ── */
@@ -47,21 +48,21 @@ h1, h2, h3, h4 {
 }
 
 .type-h1 {
-  font-family: var(--font-cormorant), serif;
+  font-family: var(--font-sans);
   font-weight: 300;
   font-size: 40px;
   letter-spacing: 0.01em;
 }
 
 .type-h2 {
-  font-family: var(--font-cormorant), serif;
+  font-family: var(--font-sans);
   font-weight: 300;
   font-size: 26px;
   letter-spacing: 0.01em;
 }
 
 .type-quote {
-  font-family: var(--font-cormorant), serif;
+  font-family: var(--font-sans);
   font-weight: 300;
   font-size: 18px;
   font-style: italic;

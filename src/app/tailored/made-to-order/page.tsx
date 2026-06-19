@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { X, ChevronRight, Ruler, Info } from "lucide-react";
+import { X, ChevronRight, Ruler } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { useLocaleStore, formatLocalPrice } from "@/store/localeStore";
 import { useTailoredOrderStore } from "@/store/tailoredOrderStore";
@@ -120,32 +120,14 @@ const collection: MadeToOrderItem[] = [
   },
 ];
 
-/* ─── Measurement fields ─── */
-interface MeasureField {
-  key: string;
-  label: string;
-  placeholder: string;
-  hint: string;
-}
-
-const measureFields: MeasureField[] = [
-  { key: "bust",     label: "Bust / Chest",    placeholder: "e.g. 88",  hint: "Measure around the fullest part of your chest" },
-  { key: "waist",    label: "Waist",            placeholder: "e.g. 68",  hint: "Measure around your natural waistline" },
-  { key: "hips",     label: "Hips",             placeholder: "e.g. 95",  hint: "Measure around the fullest part of your hips" },
-  { key: "shoulder", label: "Shoulder Width",   placeholder: "e.g. 38",  hint: "Measure across the back from shoulder seam to seam" },
-  { key: "sleeve",   label: "Sleeve Length",    placeholder: "e.g. 60",  hint: "Measure from shoulder point to wrist" },
-  { key: "length",   label: "Body Length",      placeholder: "e.g. 110", hint: "Measure from highest shoulder point to desired hem" },
-  { key: "height",   label: "Total Height",     placeholder: "e.g. 165", hint: "Your full standing height" },
-];
-
-type Measurements = Record<string, string>;
+const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 
 /* ─── How It Works ─── */
 const steps = [
-  { num: "01", title: "Choose Your Design",    desc: "Browse our curated made-to-order styles and select your piece." },
-  { num: "02", title: "Enter Your Measurements", desc: "Provide your exact measurements for a fit crafted to you." },
-  { num: "03", title: "We Craft Your Piece",   desc: "Your garment is handcrafted by our ateliers over 3–5 weeks." },
-  { num: "04", title: "Delivered to You",      desc: "Thoughtfully packaged and shipped directly to your door." },
+  { num: "01", title: "Choose Your Design",  desc: "Browse our curated made-to-order styles and select your piece." },
+  { num: "02", title: "Select Your Size",    desc: "Choose your standard size — XS through XXL — and your color." },
+  { num: "03", title: "We Craft Your Piece", desc: "Your garment is handcrafted by our ateliers over 3–5 weeks." },
+  { num: "04", title: "Delivered to You",    desc: "Thoughtfully packaged and shipped directly to your door." },
 ];
 
 /* ─── FAQ ─── */
@@ -176,11 +158,10 @@ function AccordionItem({ title, body }: { title: string; body: string }) {
 export default function MadeToOrderPage() {
   const [selected, setSelected] = useState<MadeToOrderItem | null>(null);
   const [selectedColor, setSelectedColor] = useState("");
-  const [measurements, setMeasurements] = useState<Measurements>({});
+  const [selectedSize, setSelectedSize] = useState("");
   const [notes, setNotes] = useState("");
-  const [activeHint, setActiveHint] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
-  const [errors, setErrors] = useState<Record<string, boolean>>({});
+  const [sizeError, setSizeError] = useState(false);
 
   const panelRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -194,10 +175,10 @@ export default function MadeToOrderPage() {
   const openPanel = (item: MadeToOrderItem) => {
     setSelected(item);
     setSelectedColor(item.colors[0].name);
-    setMeasurements({});
+    setSelectedSize("");
     setNotes("");
     setSubmitted(false);
-    setErrors({});
+    setSizeError(false);
     document.body.style.overflow = "hidden";
   };
 
@@ -214,54 +195,38 @@ export default function MadeToOrderPage() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  const handleMeasureChange = (key: string, value: string) => {
-    setMeasurements((prev) => ({ ...prev, [key]: value }));
-    if (errors[key]) setErrors((prev) => ({ ...prev, [key]: false }));
-  };
-
-  const buildSizeLabel = () => {
-    const parts = measureFields
-      .filter((f) => measurements[f.key])
-      .map((f) => `${f.label.split(" ")[0]} ${measurements[f.key]}cm`);
-    return parts.length > 0 ? `Custom · ${parts.slice(0, 3).join(" / ")}` : "Custom Fit";
-  };
-
   const handleAddToBag = () => {
     if (!selected) return;
 
-    /* Validate — require at least bust, waist, length */
-    const required = ["bust", "waist", "length"];
-    const newErrors: Record<string, boolean> = {};
-    required.forEach((k) => {
-      if (!measurements[k]) newErrors[k] = true;
-    });
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
+    if (!selectedSize) {
+      setSizeError(true);
       return;
     }
 
     /* Save to tailored order store (visible in admin) */
     addTailoredOrder({
+      type: "made-to-order",
       designId: selected.id,
       designName: selected.name,
       designImage: selected.image,
       designCategory: selected.category,
       color: selectedColor,
+      selectedSize,
       basePrice: selected.price,
       basePriceCAD: selected.priceCAD,
       tailoringFee: TAILORING_FEE,
       totalPrice: selected.price + TAILORING_FEE,
       totalPriceCAD: selected.priceCAD + TAILORING_FEE_CAD,
       currency,
-      measurements,
+      measurements: {},
       notes,
       customerName: currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : "",
       customerEmail: currentUser?.email ?? "",
     });
 
-    /* Build a virtual product with custom pricing for cart */
+    /* Build a virtual product for cart */
     const customProduct = {
-      id: `${selected.id}-custom-${Date.now()}`,
+      id: `${selected.id}-mto-${Date.now()}`,
       name: `${selected.name} · Made to Order`,
       slug: selected.id,
       price: selected.price + TAILORING_FEE,
@@ -269,7 +234,7 @@ export default function MadeToOrderPage() {
       images: [selected.image],
       category: selected.category.toLowerCase(),
       gender: "women" as const,
-      sizes: [buildSizeLabel()],
+      sizes: [selectedSize],
       colors: selected.colors.map((c) => ({ ...c, images: [] })),
       description: notes ? `${selected.description}\n\nCustomer notes: ${notes}` : selected.description,
       shortDescription: selected.description,
@@ -280,7 +245,7 @@ export default function MadeToOrderPage() {
       tags: ["made-to-order"],
     };
 
-    addItem(customProduct, buildSizeLabel(), selectedColor);
+    addItem(customProduct, selectedSize, selectedColor);
     setSubmitted(true);
 
     /* Redirect to checkout after brief confirmation */
@@ -513,10 +478,7 @@ export default function MadeToOrderPage() {
                     <span>{formatLocalPrice(selected.price, currency, selected.priceCAD)}</span>
                   </div>
                   <div className="flex justify-between text-sm text-stone-500">
-                    <span className="flex items-center gap-1">
-                      Tailoring fee
-                      <Info size={11} className="text-stone-300" />
-                    </span>
+                    <span>Tailoring fee</span>
                     <span>
                       {formatLocalPrice(TAILORING_FEE, currency, TAILORING_FEE_CAD)}
                     </span>
@@ -559,70 +521,36 @@ export default function MadeToOrderPage() {
                   </div>
                 </div>
 
-                {/* Measurement form */}
+                {/* Size selector */}
                 <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <p className="text-xs tracking-widest uppercase">Your Measurements</p>
-                    <span className="text-[10px] text-stone-400">in centimeters (cm)</span>
-                  </div>
-
-                  <p className="text-xs text-stone-400 mb-4 leading-relaxed">
-                    Enter your measurements below for a perfect custom fit.
-                    Fields marked with <span className="text-stone-700">*</span> are required.
+                  <p className="text-xs tracking-widest uppercase mb-4 flex items-center justify-between">
+                    <span>Select Size</span>
+                    {selectedSize && (
+                      <span className="text-stone-400 normal-case tracking-normal font-light">{selectedSize}</span>
+                    )}
                   </p>
-
-                  <div className="space-y-3">
-                    {measureFields.map((field) => {
-                      const required = ["bust", "waist", "length"].includes(field.key);
-                      return (
-                        <div key={field.key}>
-                          <label className="flex items-center justify-between mb-1.5">
-                            <span className="text-xs text-stone-700">
-                              {field.label}
-                              {required && <span className="text-stone-900 ml-0.5">*</span>}
-                            </span>
-                            <button
-                              type="button"
-                              onMouseEnter={() => setActiveHint(field.key)}
-                              onMouseLeave={() => setActiveHint(null)}
-                              className="text-stone-300 hover:text-stone-500 transition-colors"
-                            >
-                              <Info size={12} />
-                            </button>
-                          </label>
-
-                          {activeHint === field.key && (
-                            <p className="text-[11px] text-stone-400 italic mb-1.5 pl-1">
-                              {field.hint}
-                            </p>
-                          )}
-
-                          <div className="relative">
-                            <input
-                              type="number"
-                              min="0"
-                              max="300"
-                              value={measurements[field.key] ?? ""}
-                              onChange={(e) => handleMeasureChange(field.key, e.target.value)}
-                              placeholder={field.placeholder}
-                              className={cn(
-                                "w-full border py-2.5 pl-3 pr-10 text-sm focus:outline-none transition-colors",
-                                errors[field.key]
-                                  ? "border-red-400 focus:border-red-600"
-                                  : "border-stone-200 focus:border-stone-800"
-                              )}
-                            />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-stone-400">
-                              cm
-                            </span>
-                          </div>
-                          {errors[field.key] && (
-                            <p className="text-[11px] text-red-500 mt-1">This measurement is required</p>
-                          )}
-                        </div>
-                      );
-                    })}
+                  <div className="flex flex-wrap gap-2">
+                    {SIZES.map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => { setSelectedSize(size); setSizeError(false); }}
+                        className={cn(
+                          "min-w-[48px] h-11 px-3 border text-sm transition-all",
+                          selectedSize === size
+                            ? "border-stone-900 bg-stone-900 text-white"
+                            : "border-stone-200 text-stone-600 hover:border-stone-800"
+                        )}
+                      >
+                        {size}
+                      </button>
+                    ))}
                   </div>
+                  {sizeError && (
+                    <p className="text-[11px] text-red-500 mt-2">Please select a size to continue</p>
+                  )}
+                  <p className="text-[11px] text-stone-400 mt-3 leading-relaxed">
+                    Each piece is hand-tailored. If you need a different fit, add a note below.
+                  </p>
                 </div>
 
                 {/* Special requests */}
@@ -640,7 +568,7 @@ export default function MadeToOrderPage() {
                 {/* Final note */}
                 <p className="text-[11px] text-stone-400 leading-relaxed">
                   By placing this order, you acknowledge that made-to-order pieces are final sale.
-                  Your piece will be crafted after payment is received.
+                  If sizing is a concern, add a note for our atelier — adjustments are included.
                 </p>
 
               </div>

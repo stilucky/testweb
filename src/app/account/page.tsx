@@ -17,10 +17,13 @@ import {
   XCircle,
   Plus,
   LogOut,
+  Tag,
+  Copy,
 } from "lucide-react";
 import { useWishlistStore } from "@/store/wishlistStore";
 import { useAuthStore } from "@/store/authStore";
 import { useOrderStore } from "@/store/orderStore";
+import { useCouponStore } from "@/store/couponStore";
 import { formatPrice, cn } from "@/lib/utils";
 
 function timeAgo(isoString?: string): string {
@@ -58,7 +61,9 @@ const payStatusConfig = {
 export default function AccountPage() {
   const router = useRouter();
   const { currentUser, logout, updateProfile } = useAuthStore();
+  const { coupons } = useCouponStore();
   const [activeTab, setActiveTab] = useState<Tab>("profile");
+  const [codeCopied, setCodeCopied] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [profile, setProfile] = useState({
     firstName: currentUser?.firstName ?? "",
@@ -283,6 +288,73 @@ export default function AccountPage() {
                   </Link>
                 </div>
               </div>
+
+              {/* ── My Discount ── */}
+              {currentUser.personalCode && (() => {
+                const coupon = coupons.find((c) => c.code === currentUser.personalCode);
+                const isUsed = (coupon?.usedCount ?? 0) >= 1;
+                return (
+                  <div className="mt-10">
+                    <div className="flex items-center gap-2 mb-6">
+                      <Tag size={13} className="text-stone-500" />
+                      <h2 className="text-xs tracking-widest uppercase font-medium">My Discount</h2>
+                    </div>
+
+                    <div className={cn(
+                      "border p-5",
+                      isUsed ? "border-stone-100 bg-stone-50" : "border-stone-200 bg-white"
+                    )}>
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-[9px] tracking-[0.2em] uppercase text-stone-400 mb-1">
+                            {isUsed ? "Used" : "Available"}
+                          </p>
+                          <p className={cn(
+                            "font-mono text-xl tracking-widest font-medium mb-1",
+                            isUsed ? "text-stone-300 line-through" : "text-stone-900"
+                          )}>
+                            {currentUser.personalCode}
+                          </p>
+                          <p className={cn("text-xs", isUsed ? "text-stone-300" : "text-stone-500")}>
+                            10% off your order — one-time use, no expiry
+                          </p>
+                          <p className="text-[10px] text-stone-400 mt-2">
+                            Cannot be combined with other discount codes.
+                          </p>
+                        </div>
+
+                        {!isUsed && (
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(currentUser.personalCode!);
+                              setCodeCopied(true);
+                              setTimeout(() => setCodeCopied(false), 2000);
+                            }}
+                            className="shrink-0 flex items-center gap-1.5 px-3 py-2 border border-stone-200 text-stone-600 text-[10px] tracking-widest uppercase hover:border-stone-900 hover:text-stone-900 transition-colors"
+                          >
+                            {codeCopied
+                              ? <><Check size={11} className="text-emerald-600" /> Copied</>
+                              : <><Copy size={11} /> Copy</>
+                            }
+                          </button>
+                        )}
+                      </div>
+
+                      {isUsed && (
+                        <p className="text-[10px] text-stone-400 mt-3 pt-3 border-t border-stone-100">
+                          This code has been used. Contact us if you have any questions.
+                        </p>
+                      )}
+                    </div>
+
+                    {!isUsed && (
+                      <p className="text-[11px] text-stone-400 mt-3">
+                        Apply this code at checkout to save 10% on your order.
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
 

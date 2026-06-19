@@ -13,13 +13,17 @@ import {
   Settings,
   Layers,
   Scissors,
+  ImagePlay,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
-  { href: "/admin",               label: "Dashboard",       icon: LayoutDashboard, exact: true },
+  { href: "/admin",               label: "Dashboard",       icon: LayoutDashboard, exact: true  },
   { href: "/admin/products",      label: "Products",        icon: Package,         exact: false },
   { href: "/admin/collections",   label: "Collections",     icon: Layers,          exact: false },
+  { href: "/admin/hero",          label: "Hero Slides",     icon: ImagePlay,       exact: false },
+  { href: "/admin/about",         label: "About Content",   icon: BookOpen,        exact: false },
   { href: "/admin/tailored-orders", label: "Tailored Orders", icon: Scissors,      exact: false },
   { href: "/admin/orders",        label: "Orders",          icon: ShoppingCart,    exact: false },
   { href: "/admin/customers",     label: "Customers",       icon: Users,           exact: false },

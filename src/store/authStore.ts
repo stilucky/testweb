@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useCouponStore } from "./couponStore";
 
 export interface Address {
   id: string;
@@ -25,6 +26,7 @@ export interface User {
   role: "customer" | "admin";
   createdAt: string;
   passwordChangedAt?: string;
+  personalCode?: string; // 10% welcome discount, generated on registration
 }
 
 interface StoredUser extends User {
@@ -102,6 +104,27 @@ export const useAuthStore = create<AuthStore>()(
         if (exists) {
           return { success: false, error: "An account with this email already exists" };
         }
+
+        /* Generate unique personal 10% discount code */
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        const suffix = Array.from({ length: 6 }, () =>
+          chars[Math.floor(Math.random() * chars.length)]
+        ).join("");
+        const personalCode = `LNL${suffix}`;
+
+        /* Register the coupon in the coupon store (once-use, 10% off) */
+        useCouponStore.getState().addCoupon({
+          code: personalCode,
+          label: "10% welcome discount",
+          type: "percent",
+          value: 10,
+          usageLimit: "once",
+          maxUses: 1,
+          expiresAt: null,
+          minOrderAmount: null,
+          isActive: true,
+        });
+
         const newUser: StoredUser = {
           id: `u${Date.now()}`,
           firstName,
@@ -110,6 +133,7 @@ export const useAuthStore = create<AuthStore>()(
           password,
           role: "customer",
           createdAt: new Date().toISOString().split("T")[0],
+          personalCode,
         };
         const { password: _pw, ...user } = newUser;
         set((s) => ({ users: [...s.users, newUser], currentUser: user }));

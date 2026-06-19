@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Image from "next/image";
 import {
-  Scissors, ChevronDown, X, Ruler, CheckCircle, AlertCircle,
-  Clock, Package, Truck, XCircle, Search, Trash2,
+  Scissors, X, Ruler, CheckCircle,
+  Clock, Truck, XCircle, Search, Trash2, Tag,
 } from "lucide-react";
 import { useTailoredOrderStore, TailoredOrder } from "@/store/tailoredOrderStore";
 import { cn } from "@/lib/utils";
@@ -169,14 +169,28 @@ export default function AdminTailoredOrdersPage() {
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <div>
+                        <div className="min-w-0">
                           <p className="text-sm font-medium text-stone-800 truncate">{order.designName}</p>
-                          <p className="text-xs text-stone-400 mt-0.5">{order.designCategory} · {order.color}</p>
+                          <p className="text-xs text-stone-400 mt-0.5">
+                            {order.designCategory}
+                            {order.selectedSize && ` · Size ${order.selectedSize}`}
+                            {order.color && ` · ${order.color}`}
+                          </p>
                         </div>
-                        <span className={cn("inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full shrink-0 font-medium", meta.color)}>
-                          <StatusIcon size={9} />
-                          {meta.label}
-                        </span>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span className={cn("inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full font-medium", meta.color)}>
+                            <StatusIcon size={9} />
+                            {meta.label}
+                          </span>
+                          <span className={cn(
+                            "text-[9px] tracking-wider uppercase px-2 py-0.5",
+                            order.type === "made-to-order"
+                              ? "bg-stone-100 text-stone-500"
+                              : "bg-violet-50 text-violet-500"
+                          )}>
+                            {order.type === "made-to-order" ? "Made to Order" : "Custom Fit"}
+                          </span>
+                        </div>
                       </div>
 
                       <div className="flex items-center justify-between mt-2">
@@ -290,22 +304,47 @@ export default function AdminTailoredOrdersPage() {
                 </div>
               </div>
 
-              {/* Measurements */}
-              <div>
-                <p className="text-xs tracking-widest uppercase text-stone-500 mb-3 flex items-center gap-1.5">
-                  <Ruler size={11} /> Measurements (cm)
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {Object.entries(selected.measurements).map(([key, val]) =>
-                    val ? (
-                      <div key={key} className="bg-stone-50 px-3 py-2.5 border border-stone-100">
-                        <p className="text-[10px] text-stone-400 mb-0.5">{MEASURE_LABELS[key] ?? key}</p>
-                        <p className="text-sm font-medium text-stone-800">{val} cm</p>
-                      </div>
-                    ) : null
-                  )}
-                </div>
+              {/* Type badge */}
+              <div className="flex items-center gap-2">
+                <Tag size={12} className="text-stone-400" />
+                <span className={cn(
+                  "text-[10px] tracking-wider uppercase px-2.5 py-1",
+                  selected.type === "made-to-order"
+                    ? "bg-stone-100 text-stone-600"
+                    : "bg-violet-50 text-violet-600"
+                )}>
+                  {selected.type === "made-to-order" ? "Made to Order" : "Customized Fit"}
+                </span>
               </div>
+
+              {/* Size (made-to-order only) */}
+              {selected.type === "made-to-order" && selected.selectedSize && (
+                <div>
+                  <p className="text-xs tracking-widest uppercase text-stone-500 mb-3">Selected Size</p>
+                  <div className="inline-flex items-center justify-center border-2 border-stone-900 w-16 h-16">
+                    <span className="text-xl font-light text-stone-900">{selected.selectedSize}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Measurements (customized-fit only) */}
+              {selected.type === "customized-fit" && Object.values(selected.measurements).some(Boolean) && (
+                <div>
+                  <p className="text-xs tracking-widest uppercase text-stone-500 mb-3 flex items-center gap-1.5">
+                    <Ruler size={11} /> Measurements (cm)
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {Object.entries(selected.measurements).map(([key, val]) =>
+                      val ? (
+                        <div key={key} className="bg-stone-50 px-3 py-2.5 border border-stone-100">
+                          <p className="text-[10px] text-stone-400 mb-0.5">{MEASURE_LABELS[key] ?? key}</p>
+                          <p className="text-sm font-medium text-stone-800">{val} cm</p>
+                        </div>
+                      ) : null
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Notes */}
               {selected.notes && (

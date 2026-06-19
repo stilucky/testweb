@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Search, ShoppingBag, User, Menu, X, Heart } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Search, ShoppingBag, User, Menu, X, Heart, ChevronRight } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { useWishlistStore } from "@/store/wishlistStore";
 import { useAuthStore } from "@/store/authStore";
 import { useLocaleStore } from "@/store/localeStore";
+import { useCollectionStore } from "@/store/collectionStore";
 import { useTranslations } from "@/lib/i18n";
 import LocaleSelector from "./LocaleSelector";
 import { cn } from "@/lib/utils";
@@ -18,15 +19,26 @@ export default function Header() {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [searchOpen,     setSearchOpen]     = useState(false);
   const [userMenuOpen,   setUserMenuOpen]   = useState(false);
+  const [hoveredGroup,   setHoveredGroup]   = useState<number | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const itemCount     = useCartStore((s) => s.itemCount);
   const toggleCart    = useCartStore((s) => s.toggleCart);
   const wishlistCount = useWishlistStore((s) => s.itemCount);
   const { currentUser, logout } = useAuthStore();
+  const { collections } = useCollectionStore();
   const router   = useRouter();
+  const pathname = usePathname();
   const language = useLocaleStore((s) => s.language);
   const t        = useTranslations(language);
+
+  const activeCollections  = collections.filter((c) => c.status === "active");
+  const featuredCollections = activeCollections.filter((c) => c.featured);
+  const otherCollections    = activeCollections.filter((c) => !c.featured);
+
+  /* transparent only on homepage when not scrolled */
+  const isHome        = pathname === "/";
+  const isTransparent = isHome && !scrolled && !searchOpen && !mobileOpen;
 
   const navItems = [
     {
@@ -37,13 +49,19 @@ export default function Header() {
       label: t("shop"),
       href: "/products",
       groups: [
-        {
-          items: [
-            { label: "Pre-Fall 2026", href: "/products?collection=pre-fall-2026" },
-          ],
-        },
+        // Featured collections — shown at top without a section label
+        ...(featuredCollections.length > 0
+          ? [{
+              flyout: false,
+              items: featuredCollections.map((c) => ({
+                label: c.name,
+                href: `/products?collection=${c.slug}`,
+              })),
+            }]
+          : []),
         {
           title: t("readyToWear"),
+          flyout: true,
           items: [
             { label: t("dresses"),  href: "/products?category=dresses" },
             { label: t("tops"),     href: "/products?category=tops" },
@@ -51,12 +69,17 @@ export default function Header() {
             { label: t("sets"),     href: "/products?category=sets" },
           ],
         },
-        {
-          title: t("collections"),
-          items: [
-            { label: "Clair de Lune", href: "/products?collection=claire-de-lune" },
-          ],
-        },
+        // Non-featured active collections (or fall back to all if none are non-featured)
+        ...(otherCollections.length > 0
+          ? [{
+              title: t("collections"),
+              flyout: false,
+              items: otherCollections.map((c) => ({
+                label: c.name,
+                href: `/products?collection=${c.slug}`,
+              })),
+            }]
+          : []),
       ],
     },
     {
@@ -70,12 +93,19 @@ export default function Header() {
     {
       label: t("about"),
       href: "/about",
+      children: [
+        { label: "Our Story",    href: "/about/our-story" },
+        { label: "Our World",    href: "/about/our-world" },
+        { label: "Lunelle Girl", href: "/about/lunelle-girl" },
+        { label: "Our Mantra",   href: "/about/our-mantra" },
+      ],
     },
   ];
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", onScroll);
+    const onScroll = () => setScrolled(window.scrollY > 10);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
@@ -83,31 +113,25 @@ export default function Header() {
     if (searchOpen) setTimeout(() => searchRef.current?.focus(), 50);
   }, [searchOpen]);
 
+  /* icon / text color */
+  const textColor   = isTransparent ? "text-white"       : "text-stone-700";
+  const hoverColor  = isTransparent ? "hover:text-white/70" : "hover:text-black";
+  const iconColor   = isTransparent ? "text-white"       : "text-stone-600";
+  const logoColor   = isTransparent ? "text-white"       : "text-stone-900";
+
   return (
     <>
-      {/* ── Announcement bar ── */}
-      <div className="bg-stone-900 text-white text-xs py-2.5 tracking-widest uppercase overflow-hidden">
-        <div className="flex whitespace-nowrap" style={{ animation: "marquee 28s linear infinite" }}>
-          {Array.from({ length: 8 }).map((_, i) => (
-            <span key={i} className="flex-shrink-0 px-16">
-              {t("freeReturns")}
-              <span className="mx-8 opacity-40">·</span>
-              {t("newCollection")}
-              <span className="mx-8 opacity-40">·</span>
-              {language === "FR" ? "Retours gratuits sous 30 jours" : "Free returns within 30 days"}
-            </span>
-          ))}
-        </div>
-        <style>{`@keyframes marquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}`}</style>
-      </div>
-
       {/* ══════════════════════════════════════════════════
-          HEADER — single row: nav | LUNELLE | icons
+          HEADER — fixed, transparent on hero, opaque on scroll
       ══════════════════════════════════════════════════ */}
-      <header className={cn(
-        "sticky top-0 z-50 bg-white transition-shadow duration-300",
-        scrolled && "shadow-[0_1px_0_0_rgba(0,0,0,0.08)]"
-      )}>
+      <header
+        className={cn(
+          "fixed top-0 inset-x-0 z-50 transition-all duration-300",
+          isTransparent
+            ? "bg-transparent"
+            : "bg-white shadow-[0_1px_0_0_rgba(0,0,0,0.08)]"
+        )}
+      >
         <div className="max-w-screen-xl mx-auto px-6 md:px-10">
 
           {/* ── Desktop single row ── */}
@@ -124,32 +148,79 @@ export default function Header() {
                 >
                   <Link
                     href={item.href}
-                    className="type-nav text-stone-700 hover:text-black transition-colors py-4 inline-block"
+                    className={cn("type-nav transition-colors py-4 inline-block", textColor, hoverColor)}
                   >
                     {item.label}
                   </Link>
 
-                  {/* Mega menu */}
+                  {/* Mega menu — vertical */}
                   {item.groups && activeDropdown === item.label && (
-                    <div className="absolute top-full left-0 bg-white shadow-lg border-t border-stone-100 z-50 py-5 px-6 flex gap-10 min-w-max">
-                      {item.groups.map((group, gi) => (
-                        <div key={gi}>
-                          {group.title && (
-                            <p className="text-[10px] tracking-[0.15em] uppercase text-stone-400 mb-3 font-medium">
-                              {group.title}
-                            </p>
-                          )}
-                          <ul className="space-y-2">
-                            {group.items.map((child) => (
-                              <li key={child.label}>
-                                <Link href={child.href} className="block text-sm font-light text-stone-600 hover:text-black transition-colors py-0.5">
-                                  {child.label}
-                                </Link>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
+                    <div
+                      className="absolute top-full left-0 bg-white shadow-lg border-t border-stone-100 z-50 py-4 min-w-[200px]"
+                      onMouseLeave={() => setHoveredGroup(null)}
+                    >
+                      {item.groups.map((group, gi) => {
+                        const isFlyout = !!group.flyout;
+                        return (
+                          <div
+                            key={gi}
+                            className="relative"
+                            onMouseEnter={() => isFlyout ? setHoveredGroup(gi) : setHoveredGroup(null)}
+                          >
+                            {gi > 0 && <div className="mx-5 my-3 border-t border-stone-100" />}
+
+                            {group.title && isFlyout ? (
+                              /* Flyout trigger */
+                              <Link
+                                href="/products"
+                                className="flex items-center justify-between px-5 py-2 text-sm font-light text-stone-600 hover:text-black hover:bg-stone-50 transition-colors"
+                              >
+                                <span>{group.title}</span>
+                                <ChevronRight size={12} className="text-stone-300 ml-3" />
+                              </Link>
+                            ) : group.title ? (
+                              <p className="px-5 text-[9px] tracking-[0.2em] uppercase text-stone-400 mb-2">
+                                {group.title}
+                              </p>
+                            ) : null}
+
+                            {/* Items: shown inline for non-flyout groups */}
+                            {!isFlyout && (
+                              <ul>
+                                {group.items.map((child) => (
+                                  <li key={child.label}>
+                                    <Link
+                                      href={child.href}
+                                      className="block px-5 py-2 text-sm font-light text-stone-600 hover:text-black hover:bg-stone-50 transition-colors"
+                                    >
+                                      {child.label}
+                                    </Link>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+
+                            {/* Flyout panel for Ready to Wear */}
+                            {isFlyout && hoveredGroup === gi && (
+                              <div
+                                className="absolute left-full top-0 -mt-1 bg-white shadow-lg border border-stone-100 min-w-[160px] py-2 z-50"
+                                onMouseEnter={() => setHoveredGroup(gi)}
+                                onMouseLeave={() => setHoveredGroup(null)}
+                              >
+                                {group.items.map((child) => (
+                                  <Link
+                                    key={child.label}
+                                    href={child.href}
+                                    className="block px-5 py-2 text-sm font-light text-stone-600 hover:text-black hover:bg-stone-50 transition-colors"
+                                  >
+                                    {child.label}
+                                  </Link>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
 
@@ -171,7 +242,7 @@ export default function Header() {
             {/* CENTER — Logo */}
             <Link href="/" className="flex items-center justify-center px-10">
               <span
-                className="type-logo"
+                className={cn("type-logo transition-colors duration-300", logoColor)}
                 style={{ fontSize: "clamp(19px, 2vw, 52px)" }}
               >
                 Lunelle
@@ -183,7 +254,7 @@ export default function Header() {
               {/* Search */}
               <button
                 onClick={() => setSearchOpen(!searchOpen)}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm font-light text-stone-600 hover:text-black transition-colors"
+                className={cn("flex items-center gap-1.5 px-3 py-2 text-sm font-light transition-colors", iconColor, hoverColor)}
               >
                 <Search size={16} strokeWidth={1.5} />
                 <span className="hidden lg:block">Search</span>
@@ -194,9 +265,12 @@ export default function Header() {
                 <div className="relative">
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-light text-stone-600 hover:text-black transition-colors"
+                    className={cn("flex items-center gap-1.5 px-3 py-2 text-sm font-light transition-colors", iconColor, hoverColor)}
                   >
-                    <div className="w-6 h-6 rounded-full bg-stone-900 text-white flex items-center justify-center text-[10px] font-medium">
+                    <div className={cn(
+                      "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-medium",
+                      isTransparent ? "bg-white/20 text-white border border-white/40" : "bg-stone-900 text-white"
+                    )}>
                       {currentUser.firstName[0]}{currentUser.lastName[0]}
                     </div>
                     <span className="hidden lg:block">{t("myAccount")}</span>
@@ -204,7 +278,7 @@ export default function Header() {
                   {userMenuOpen && (
                     <div className="absolute right-0 top-full mt-1 bg-white border border-stone-100 shadow-lg min-w-48 py-2 z-50">
                       <div className="px-4 py-3 border-b border-stone-100">
-                        <p className="text-sm font-medium">{currentUser.firstName} {currentUser.lastName}</p>
+                        <p className="text-sm font-medium text-stone-900">{currentUser.firstName} {currentUser.lastName}</p>
                         <p className="text-xs text-stone-400 mt-0.5 truncate">{currentUser.email}</p>
                       </div>
                       {[
@@ -227,7 +301,7 @@ export default function Header() {
                 </div>
               ) : (
                 <Link href="/auth"
-                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-light text-stone-600 hover:text-black transition-colors">
+                  className={cn("flex items-center gap-1.5 px-3 py-2 text-sm font-light transition-colors", iconColor, hoverColor)}>
                   <User size={16} strokeWidth={1.5} />
                   <span className="hidden lg:block">{t("signIn")}</span>
                 </Link>
@@ -235,10 +309,13 @@ export default function Header() {
 
               {/* Wishlist */}
               <Link href="/wishlist"
-                className="relative px-3 py-2 text-stone-600 hover:text-black transition-colors">
+                className={cn("relative px-3 py-2 transition-colors", iconColor, hoverColor)}>
                 <Heart size={16} strokeWidth={1.5} />
                 {wishlistCount() > 0 && (
-                  <span className="absolute top-1 right-1 bg-stone-900 text-white text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center">
+                  <span className={cn(
+                    "absolute top-1 right-1 text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center",
+                    isTransparent ? "bg-white text-stone-900" : "bg-stone-900 text-white"
+                  )}>
                     {wishlistCount()}
                   </span>
                 )}
@@ -246,10 +323,13 @@ export default function Header() {
 
               {/* Cart */}
               <button onClick={toggleCart}
-                className="relative px-3 py-2 text-stone-600 hover:text-black transition-colors">
+                className={cn("relative px-3 py-2 transition-colors", iconColor, hoverColor)}>
                 <ShoppingBag size={16} strokeWidth={1.5} />
                 {itemCount() > 0 && (
-                  <span className="absolute top-1 right-1 bg-stone-900 text-white text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center">
+                  <span className={cn(
+                    "absolute top-1 right-1 text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center",
+                    isTransparent ? "bg-white text-stone-900" : "bg-stone-900 text-white"
+                  )}>
                     {itemCount()}
                   </span>
                 )}
@@ -257,7 +337,7 @@ export default function Header() {
 
               {/* Locale */}
               <div className="ml-1">
-                <LocaleSelector />
+                <LocaleSelector transparent={isTransparent} />
               </div>
             </div>
           </div>
@@ -265,24 +345,32 @@ export default function Header() {
           {/* ── Mobile row ── */}
           <div className="md:hidden grid grid-cols-3 items-center h-14">
             <div className="flex items-center">
-              <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2 -ml-2">
+              <button
+                onClick={() => setMobileOpen(!mobileOpen)}
+                className={cn("p-2 -ml-2 transition-colors", iconColor)}
+              >
                 {mobileOpen ? <X size={20} strokeWidth={1.5} /> : <Menu size={20} strokeWidth={1.5} />}
               </button>
             </div>
             <Link href="/" className="flex justify-center">
-              <span className="text-xl tracking-[0.25em] uppercase"
-                style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 500 }}>
+              <span
+                className={cn("text-xl tracking-[0.25em] uppercase transition-colors duration-300", logoColor)}
+                style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 500 }}
+              >
                 Lunelle
               </span>
             </Link>
             <div className="flex items-center justify-end gap-0.5">
-              <button onClick={() => setSearchOpen(!searchOpen)} className="p-2">
+              <button onClick={() => setSearchOpen(!searchOpen)} className={cn("p-2 transition-colors", iconColor)}>
                 <Search size={18} strokeWidth={1.5} />
               </button>
-              <button onClick={toggleCart} className="relative p-2">
+              <button onClick={toggleCart} className={cn("relative p-2 transition-colors", iconColor)}>
                 <ShoppingBag size={18} strokeWidth={1.5} />
                 {itemCount() > 0 && (
-                  <span className="absolute top-1 right-1 bg-stone-900 text-white text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center">
+                  <span className={cn(
+                    "absolute top-1 right-1 text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center",
+                    isTransparent ? "bg-white text-stone-900" : "bg-stone-900 text-white"
+                  )}>
                     {itemCount()}
                   </span>
                 )}
@@ -315,7 +403,7 @@ export default function Header() {
             {navItems.map((item) => (
               <div key={item.label}>
                 <Link href={item.href}
-                  className="block px-6 py-4 text-sm font-light border-b border-stone-100"
+                  className="block px-6 py-4 text-sm font-light border-b border-stone-100 text-stone-800"
                   onClick={() => setMobileOpen(false)}>
                   {item.label}
                 </Link>

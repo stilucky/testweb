@@ -13,6 +13,7 @@ export interface TailoredMeasurements {
 
 export interface TailoredOrder {
   id: string;
+  type: "made-to-order" | "customized-fit";
   createdAt: string;
   status: "pending" | "confirmed" | "in_production" | "shipped" | "completed" | "cancelled";
 
@@ -23,6 +24,9 @@ export interface TailoredOrder {
   designCategory: string;
   color: string;
 
+  /* Made-to-order: selected standard size */
+  selectedSize?: string;
+
   /* Pricing */
   basePrice: number;
   basePriceCAD: number;
@@ -31,7 +35,7 @@ export interface TailoredOrder {
   totalPriceCAD: number;
   currency: string;
 
-  /* Measurements */
+  /* Customized-fit: body measurements (empty for made-to-order) */
   measurements: TailoredMeasurements;
   notes: string;
 

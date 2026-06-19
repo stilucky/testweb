@@ -18,10 +18,7 @@ export default function BestSellersSection() {
           <p className="type-label text-stone-400 mb-3">
             {t("customerFavs")}
           </p>
-          <h2
-            className="text-3xl md:text-4xl"
-            style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
-          >
+          <h2 className="text-3xl md:text-4xl font-light">
             {t("bestSellersHeading")}
           </h2>
         </div>

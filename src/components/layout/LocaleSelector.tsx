@@ -15,7 +15,7 @@ const currencies: { code: Currency; label: string; symbol: string }[] = [
   { code: "CAD", label: "Canadian Dollar", symbol: "CA$" },
 ];
 
-export default function LocaleSelector() {
+export default function LocaleSelector({ transparent = false }: { transparent?: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const { language, currency, setLanguage, setCurrency } = useLocaleStore();
@@ -35,16 +35,22 @@ export default function LocaleSelector() {
       <button
         onClick={() => setOpen(!open)}
         className={cn(
-          "flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-widest uppercase transition-colors rounded-sm",
-          "text-stone-500 hover:text-stone-800 hover:bg-stone-50",
-          open && "text-stone-800 bg-stone-50"
+          "flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-widest uppercase transition-colors",
+          transparent
+            ? "text-white hover:text-white/70"
+            : "text-stone-500 hover:text-stone-800 hover:bg-stone-50",
+          !transparent && open && "text-stone-800 bg-stone-50"
         )}
       >
-        <Globe size={12} className="text-stone-400" />
+        <Globe size={12} className={transparent ? "text-white" : "text-stone-400"} />
         <span className="font-medium">{language}</span>
-        <span className="text-stone-300">·</span>
+        <span className={transparent ? "text-white/40" : "text-stone-300"}>·</span>
         <span>{currency}</span>
-        <ChevronDown size={10} className={cn("text-stone-400 transition-transform", open && "rotate-180")} />
+        <ChevronDown size={10} className={cn(
+          "transition-transform",
+          transparent ? "text-white" : "text-stone-400",
+          open && "rotate-180"
+        )} />
       </button>
 
       {/* Dropdown panel */}

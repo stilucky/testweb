@@ -1,135 +1,131 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
-import type { Metadata } from "next";
+import { ArrowRight } from "lucide-react";
+import { useAboutStore } from "@/store/aboutStore";
 
-export const metadata: Metadata = {
-  title: "About",
-  description: "The story behind Lunelle — where luxury meets craftsmanship.",
-};
+const SECTION_ORDER: import("@/store/aboutStore").AboutKey[] = [
+  "our-story",
+  "our-world",
+  "lunelle-girl",
+  "our-mantra",
+];
 
 export default function AboutPage() {
+  const { sections, posts } = useAboutStore();
+
+  const ordered = SECTION_ORDER.map((k) => sections.find((s) => s.key === k)!).filter(Boolean);
+
   return (
-    <>
-      {/* Hero */}
-      <section className="relative h-[60vh] overflow-hidden">
+    <div className="bg-white pt-16">
+
+      {/* ── Hero brand statement ── */}
+      <div className="max-w-3xl mx-auto px-6 py-28 text-center">
+        <p className="text-[9px] tracking-[0.4em] uppercase text-stone-300 mb-8">
+          Est. 2020 — Montréal
+        </p>
+        <p
+          className="text-2xl md:text-4xl font-light text-stone-900 leading-[1.6]"
+          style={{ fontFamily: "var(--font-cormorant), serif" }}
+        >
+          Lunelle is a fashion house rooted in feminine sensibility,
+          modern craft, and the quiet power of a perfectly chosen garment.
+        </p>
+      </div>
+
+      {/* ── Full-width divider image ── */}
+      <div className="relative w-full overflow-hidden" style={{ height: "60vh" }}>
         <Image
-          src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1600&q=80"
-          alt="About Lunelle"
+          src={ordered[0]?.heroImage ?? ""}
+          alt="Lunelle"
           fill
           priority
           sizes="100vw"
           className="object-cover"
+          style={{ objectPosition: ordered[0]?.heroImagePosition ?? "center" }}
         />
-        <div className="absolute inset-0 bg-black/40" />
-        <div className="relative z-10 h-full flex flex-col items-center justify-center text-center text-white px-4">
-          <p className="text-xs tracking-[0.3em] uppercase mb-4 text-white/70">Est. 2020</p>
-          <h1
-            className="text-3xl md:text-4xl"
-            style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
-          >
-            Our Story
-          </h1>
-        </div>
-      </section>
+      </div>
 
-      {/* Story */}
-      <section className="py-24 px-4 md:px-8 max-w-screen-xl mx-auto">
-        <div className="grid md:grid-cols-2 gap-16 items-center">
-          <div>
-            <p className="type-label text-stone-400 mb-6">Who We Are</p>
-            <h2
-              className="text-3xl md:text-4xl mb-8 leading-tight"
-              style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
-            >
-              Fashion that tells your story
-            </h2>
-            <div className="space-y-5 text-stone-500 text-sm leading-relaxed">
-              <p>
-                Lunelle was born from a passion for fashion that transcends trends — pieces that
-                carry meaning, crafted with intention. Founded in 2020, we set out to create a
-                curated destination for women who appreciate the artistry behind every stitch.
-              </p>
-              <p>
-                Each piece in our collection is thoughtfully selected for its quality, its ability
-                to make a woman feel confident and beautiful, and its versatility across life&apos;s most
-                memorable moments — from intimate celebrations to grand occasions.
-              </p>
-              <p>
-                We believe that exceptional fashion should feel personal. That&apos;s why we work with
-                skilled artisans who share our commitment to craftsmanship, ensuring every piece
-                meets our exacting standards before it reaches your wardrobe.
-              </p>
-            </div>
-          </div>
-          <div className="relative aspect-[4/5] overflow-hidden">
-            <Image
-              src="https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=800&q=80"
-              alt="Lunelle craftsmanship"
-              fill
-              sizes="(max-width: 768px) 100vw, 50vw"
-              className="object-cover"
-            />
-          </div>
-        </div>
-      </section>
+      {/* ── Section grid ── */}
+      <div className="max-w-screen-xl mx-auto px-6 md:px-10 py-24">
+        <p className="text-[9px] tracking-[0.35em] uppercase text-stone-300 mb-16 text-center">
+          Our chapters
+        </p>
 
-      {/* Values */}
-      <section className="py-20 bg-stone-50">
-        <div className="max-w-screen-xl mx-auto px-4 md:px-8">
-          <div className="text-center mb-16">
-            <h2
-              className="text-3xl md:text-4xl"
-              style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
-            >
-              Our Values
-            </h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-12">
-            {[
-              {
-                title: "Craftsmanship",
-                desc: "Every piece is selected for exceptional quality and artisanal skill. We partner only with makers who share our standards.",
-              },
-              {
-                title: "Intentional Curation",
-                desc: "We curate with purpose — fewer, better pieces that stand the test of time and serve as anchors in your wardrobe.",
-              },
-              {
-                title: "Sustainability",
-                desc: "We are committed to responsible sourcing, minimal packaging, and transparent production practices.",
-              },
-            ].map((v) => (
-              <div key={v.title} className="text-center">
-                <div className="w-12 h-px bg-stone-300 mx-auto mb-6" />
-                <h3
-                  className="text-2xl mb-4"
-                  style={{ fontFamily: "var(--font-cormorant), serif" }}
+        <div className="grid md:grid-cols-2 gap-px bg-stone-100">
+          {ordered.map((section, i) => {
+            const count = posts.filter(
+              (p) => p.sectionKey === section.key && p.status === "published"
+            ).length;
+
+            return (
+              <Link
+                key={section.key}
+                href={`/about/${section.key}`}
+                className="group relative overflow-hidden bg-white block"
+              >
+                {/* Image */}
+                <div
+                  className="relative overflow-hidden"
+                  style={{ aspectRatio: i === 0 ? "16/9" : "4/3" }}
                 >
-                  {v.title}
-                </h3>
-                <p className="text-stone-500 text-sm leading-relaxed">{v.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+                  <Image
+                    src={section.heroImage}
+                    alt={section.label}
+                    fill
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+                    style={{ objectPosition: section.heroImagePosition ?? "center" }}
+                  />
+                  <div className="absolute inset-0 bg-stone-900/10 group-hover:bg-stone-900/20 transition-colors duration-500" />
+                </div>
 
-      {/* CTA */}
-      <section className="py-24 text-center px-4">
-        <p className="type-label text-stone-400 mb-4">Discover the Collection</p>
-        <h2
-          className="text-3xl md:text-4xl mb-8"
-          style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
-        >
-          Dress the life you imagine
-        </h2>
-        <Link
-          href="/products"
-          className="inline-block bg-stone-900 text-white text-xs tracking-widest uppercase px-12 py-4 hover:bg-stone-700 transition-colors"
-        >
-          Shop Collection
-        </Link>
-      </section>
-    </>
+                {/* Info */}
+                <div className="p-8 md:p-10">
+                  <p className="text-[9px] tracking-[0.3em] uppercase text-stone-300 mb-3">
+                    {String(i + 1).padStart(2, "0")}
+                    {count > 0 && <span className="ml-3">{count} {count === 1 ? "story" : "stories"}</span>}
+                  </p>
+                  <h2
+                    className="text-3xl md:text-4xl font-light text-stone-900 mb-3"
+                    style={{ fontFamily: "var(--font-cormorant), serif" }}
+                  >
+                    {section.label}
+                  </h2>
+                  <p className="text-sm text-stone-400 font-light mb-6 italic">
+                    {section.subtitle}
+                  </p>
+                  <span className="inline-flex items-center gap-2 text-[10px] tracking-[0.2em] uppercase text-stone-900 group-hover:gap-3 transition-all duration-300">
+                    Read <ArrowRight size={12} />
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── CTA ── */}
+      <div className="border-t border-stone-100 py-24 text-center px-6">
+        <p className="text-[9px] tracking-[0.35em] uppercase text-stone-300 mb-6">
+          Ready to explore?
+        </p>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <Link
+            href="/products"
+            className="inline-block bg-stone-900 text-white text-[10px] tracking-[0.25em] uppercase px-12 py-4 hover:bg-stone-700 transition-colors"
+          >
+            Shop Collection
+          </Link>
+          <Link
+            href="/tailored"
+            className="inline-block border border-stone-300 text-stone-700 text-[10px] tracking-[0.25em] uppercase px-12 py-4 hover:border-stone-800 transition-colors"
+          >
+            Tailored Orders
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }

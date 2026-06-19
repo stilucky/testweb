@@ -22,10 +22,7 @@ export default function EditorialBanner() {
           <p className="type-label text-stone-400 mb-6">
             L&apos;ÉCHO | Resort 2025
           </p>
-          <h2
-            className="text-3xl md:text-4xl lg:text-5xl leading-tight mb-6 text-stone-900"
-            style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
-          >
+          <h2 className="text-3xl md:text-4xl lg:text-5xl leading-tight mb-6 text-stone-900 font-light">
             Where Luxury
             <br />
             <em>Meets</em> The Sea

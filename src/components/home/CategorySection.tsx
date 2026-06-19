@@ -15,10 +15,7 @@ export default function CategorySection() {
         <p className="type-label text-stone-400 mb-3">
           {t("collections")}
         </p>
-        <h2
-          className="text-3xl md:text-4xl"
-          style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
-        >
+        <h2 className="text-3xl md:text-4xl font-light">
           {t("shopByCategory")}
         </h2>
       </div>
@@ -38,10 +35,7 @@ export default function CategorySection() {
             />
             <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors duration-300" />
             <div className="absolute inset-0 flex flex-col items-center justify-end pb-6 text-white">
-              <span
-                className="text-xl md:text-2xl tracking-wide"
-                style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
-              >
+              <span className="text-xl md:text-2xl tracking-wide font-light">
                 {cat.label}
               </span>
               <span className="text-xs tracking-widest uppercase mt-1 opacity-70 group-hover:opacity-100 transition-opacity">

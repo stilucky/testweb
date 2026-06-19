@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { SlidersHorizontal, X, ChevronDown } from "lucide-react";
 import { useProductStore } from "@/store/productStore";
+import { useCollectionStore } from "@/store/collectionStore";
 import ProductCard from "@/components/product/ProductCard";
 import { cn } from "@/lib/utils";
 import { useLocaleStore } from "@/store/localeStore";
@@ -19,12 +20,14 @@ const priceRanges = [
 
 function ProductsContent() {
   const searchParams = useSearchParams();
-  const filterParam = searchParams.get("filter");
-  const categoryParam = searchParams.get("category") ?? "all";
+  const filterParam      = searchParams.get("filter");
+  const categoryParam    = searchParams.get("category") ?? "all";
+  const collectionParam  = searchParams.get("collection");
 
-  const products = useProductStore((s) => s.products);
-  const language = useLocaleStore((s) => s.language);
-  const t = useTranslations(language);
+  const products    = useProductStore((s) => s.products);
+  const { collections } = useCollectionStore();
+  const language    = useLocaleStore((s) => s.language);
+  const t           = useTranslations(language);
 
   const sortOptions = [
     { label: t("newest"),      value: "newest" },
@@ -58,13 +61,30 @@ function ProductsContent() {
     );
   };
 
+  const activeCollection = collectionParam
+    ? collections.find((c) => c.slug === collectionParam && c.status === "active")
+    : null;
+
   const filtered = useMemo(() => {
     let list = [...products];
 
-    if (filterParam === "new") list = list.filter((p) => p.isNew);
-    else if (filterParam === "bestseller") list = list.filter((p) => p.isBestSeller);
-    else if (filterParam === "occasion")
-      list = list.filter((p) => p.tags.includes("occasion") || p.tags.includes("formal") || p.tags.includes("cocktail"));
+    // Collection filter takes priority over other filter params
+    if (collectionParam) {
+      const col = collections.find((c) => c.slug === collectionParam && c.status === "active");
+      if (col) {
+        list = col.productIds.length > 0
+          ? list.filter((p) => col.productIds.includes(p.id))
+          : list; // collection exists but no products assigned yet — show all to avoid empty state
+      }
+    } else if (filterParam === "new") {
+      list = list.filter((p) => p.isNew);
+    } else if (filterParam === "bestseller") {
+      list = list.filter((p) => p.isBestSeller);
+    } else if (filterParam === "occasion") {
+      list = list.filter((p) =>
+        p.tags.includes("occasion") || p.tags.includes("formal") || p.tags.includes("cocktail")
+      );
+    }
 
     if (selectedCategory !== "all") {
       list = list.filter((p) => p.category === selectedCategory);
@@ -90,15 +110,20 @@ function ProductsContent() {
       list.sort((a, b) => (b.isBestSeller ? 1 : 0) - (a.isBestSeller ? 1 : 0));
 
     return list;
-  }, [products, filterParam, selectedCategory, selectedSizes, selectedPrice, sortBy]);
+  }, [products, collections, collectionParam, filterParam, selectedCategory, selectedSizes, selectedPrice, sortBy]);
 
   const pageTitle =
-    filterParam === "new"       ? t("newInHeading")
-    : filterParam === "bestseller" ? t("bestSellersHeading")
-    : filterParam === "occasion"   ? t("occasionWear")
-    : selectedCategory !== "all"
-      ? categoryOptions.find((c) => c.value === selectedCategory)?.label ?? t("allCategories")
-    : t("shopAll");
+    activeCollection
+      ? activeCollection.name
+      : filterParam === "new"
+        ? t("newInHeading")
+        : filterParam === "bestseller"
+          ? t("bestSellersHeading")
+          : filterParam === "occasion"
+            ? t("occasionWear")
+            : selectedCategory !== "all"
+              ? categoryOptions.find((c) => c.value === selectedCategory)?.label ?? t("allCategories")
+              : t("shopAll");
 
   const hasFilters =
     selectedCategory !== "all" || selectedSizes.length > 0 || selectedPrice !== null;

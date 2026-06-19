@@ -215,6 +215,10 @@ export default function CheckoutPage() {
   const handleApplyCoupon = () => {
     const code = couponInput.trim().toUpperCase();
     if (!code) return;
+    if (appliedCoupon) {
+      setCouponError("Only one discount code can be applied per order. Remove the current code first.");
+      return;
+    }
     setCouponLoading(true);
     setCouponError("");
     setTimeout(() => {
