@@ -1,7 +1,10 @@
 #!/bin/bash
-# Lunelle — zero-downtime deploy script
+# Lunelle — npm deploy script (no Docker)
 # Usage: ./deploy.sh
 set -e
+
+APP_DIR="$(cd "$(dirname "$0")" && pwd)"
+APP_NAME="lunelle"
 
 echo "━━━ Lunelle Deploy ━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
@@ -9,17 +12,22 @@ echo "━━━ Lunelle Deploy ━━━━━━━━━━━━━━━━�
 echo "▸ Pulling latest code..."
 git pull origin main
 
-# Build new image
-echo "▸ Building Docker image..."
-docker compose build --no-cache app
+# Install dependencies
+echo "▸ Installing dependencies..."
+npm ci --omit=dev=false
 
-# Restart app (nginx stays running — zero downtime)
-echo "▸ Restarting app container..."
-docker compose up -d --no-deps app
+# Build production bundle
+echo "▸ Building..."
+npm run build
 
-# Remove dangling images
-echo "▸ Cleaning up old images..."
-docker image prune -f
+# Restart / start with PM2
+echo "▸ Restarting app with PM2..."
+if pm2 list | grep -q "$APP_NAME"; then
+  pm2 restart "$APP_NAME"
+else
+  pm2 start npm --name "$APP_NAME" -- start
+  pm2 save
+fi
 
 echo ""
 echo "✓ Deploy complete → https://lunellestory.ca"
