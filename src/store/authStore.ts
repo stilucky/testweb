@@ -43,7 +43,7 @@ interface AuthStore {
     lastName: string;
     email: string;
     password: string;
-  }) => { success: boolean; error?: string };
+  }) => { success: boolean; error?: string; user?: User };
   logout: () => void;
   updateProfile: (data: Partial<Pick<User, "firstName" | "lastName" | "email" | "phone">>) => void;
   resetPassword: (email: string, newPassword: string) => { success: boolean; error?: string };
@@ -137,7 +137,7 @@ export const useAuthStore = create<AuthStore>()(
         };
         const { password: _pw, ...user } = newUser;
         set((s) => ({ users: [...s.users, newUser], currentUser: user }));
-        return { success: true };
+        return { success: true, user };
       },
 
       logout: () => set({ currentUser: null }),

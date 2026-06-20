@@ -132,7 +132,7 @@ export default function Header() {
             : "bg-white shadow-[0_1px_0_0_rgba(0,0,0,0.08)]"
         )}
       >
-        <div className="max-w-screen-xl mx-auto px-6 md:px-10">
+        <div className="px-6 md:px-12 xl:px-20">
 
           {/* ── Desktop single row ── */}
           <div className="hidden md:grid md:grid-cols-[1fr_auto_1fr] items-center h-16">
@@ -382,7 +382,7 @@ export default function Header() {
         {/* ── Search overlay ── */}
         {searchOpen && (
           <div className="border-t border-stone-100 bg-white px-6 md:px-10 py-4">
-            <div className="max-w-screen-xl mx-auto relative">
+            <div className="relative">
               <Search size={15} className="absolute left-0 top-1/2 -translate-y-1/2 text-stone-400" />
               <input
                 ref={searchRef}

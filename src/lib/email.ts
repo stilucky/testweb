@@ -91,3 +91,52 @@ export async function sendOTPEmail({
     html: emailTemplate(subject, bodyHtml),
   });
 }
+
+export async function sendWelcomeEmail({
+  to,
+  name,
+  couponCode,
+}: {
+  to: string;
+  name: string;
+  couponCode?: string;
+}): Promise<void> {
+  const subject = "Welcome to Lunelle";
+
+  const bodyHtml = `
+    <p style="margin:0 0 20px;color:#78716c;font-size:14px;line-height:1.7;">
+      Hi ${name},<br><br>
+      Welcome to Lunelle. Your account has been successfully created.
+    </p>
+    ${
+      couponCode
+        ? `<div style="background:#f5f5f4;border:1px solid #e7e5e4;text-align:center;padding:28px;margin-bottom:28px;">
+             <p style="margin:0 0 8px;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#a8a29e;">
+               Your welcome offer
+             </p>
+             <p style="margin:0 0 6px;font-size:28px;font-weight:300;color:#1c1917;">10% off</p>
+             <p style="margin:0 0 14px;font-size:11px;color:#78716c;">your first order</p>
+             <p style="margin:0;font-size:18px;font-weight:400;letter-spacing:0.3em;color:#1c1917;font-family:Courier,monospace;border:1px solid #d6d3d1;display:inline-block;padding:8px 20px;background:#fff;">
+               ${couponCode}
+             </p>
+           </div>`
+        : ""
+    }
+    <p style="margin:0 0 20px;color:#a8a29e;font-size:13px;line-height:1.7;">
+      Explore our latest collections and enjoy complimentary shipping on orders over $200.
+    </p>
+    <div style="text-align:center;margin-top:32px;">
+      <a href="${process.env.NEXTAUTH_URL ?? "https://lunellestory.ca"}/products"
+         style="display:inline-block;padding:14px 36px;background:#1c1917;color:#fff;text-decoration:none;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;">
+        Shop Now
+      </a>
+    </div>
+  `;
+
+  await transporter.sendMail({
+    from: `"Lunelle" <${process.env.SMTP_USER}>`,
+    to,
+    subject,
+    html: emailTemplate(subject, bodyHtml),
+  });
+}

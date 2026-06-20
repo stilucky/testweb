@@ -11,6 +11,7 @@ html {
 
 body {
   font-family: var(--font-sans);
+  font-size: 16px;
   font-weight: 400;
   background: #ffffff;
   color: #1c1917;
@@ -50,21 +51,21 @@ h1, h2, h3, h4, h5, h6 {
 .type-h1 {
   font-family: var(--font-sans);
   font-weight: 300;
-  font-size: 40px;
+  font-size: 48px;
   letter-spacing: 0.01em;
 }
 
 .type-h2 {
   font-family: var(--font-sans);
   font-weight: 300;
-  font-size: 26px;
+  font-size: 32px;
   letter-spacing: 0.01em;
 }
 
 .type-quote {
   font-family: var(--font-sans);
   font-weight: 300;
-  font-size: 18px;
+  font-size: 22px;
   font-style: italic;
   line-height: 1.6;
 }
@@ -72,7 +73,7 @@ h1, h2, h3, h4, h5, h6 {
 .type-scarcity {
   font-family: var(--font-jost), sans-serif;
   font-weight: 400;
-  font-size: 11px;
+  font-size: 12px;
   font-style: italic;
   letter-spacing: 0.02em;
 }
@@ -80,21 +81,21 @@ h1, h2, h3, h4, h5, h6 {
 .type-page-title {
   font-family: var(--font-jost), sans-serif;
   font-weight: 300;
-  font-size: 18px;
+  font-size: 21px;
   letter-spacing: 0.06em;
 }
 
 .type-product-name {
   font-family: var(--font-jost), sans-serif;
   font-weight: 400;
-  font-size: 14px;
+  font-size: 16px;
   letter-spacing: 0.04em;
 }
 
 .type-label {
   font-family: var(--font-jost), sans-serif;
   font-weight: 400;
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.2em;
 }
@@ -102,28 +103,28 @@ h1, h2, h3, h4, h5, h6 {
 .type-nav {
   font-family: var(--font-jost), sans-serif;
   font-weight: 400;
-  font-size: 13px;
+  font-size: 14px;
   letter-spacing: 0.02em;
 }
 
 .type-body {
   font-family: var(--font-jost), sans-serif;
   font-weight: 300;
-  font-size: 14px;
+  font-size: 16px;
   letter-spacing: 0.01em;
 }
 
 .type-price {
   font-family: var(--font-jost), sans-serif;
   font-weight: 400;
-  font-size: 13px;
+  font-size: 15px;
   letter-spacing: 0.04em;
 }
 
 .type-cta {
   font-family: var(--font-jost), sans-serif;
   font-weight: 500;
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.2em;
 }
@@ -131,7 +132,7 @@ h1, h2, h3, h4, h5, h6 {
 .type-footer {
   font-family: var(--font-jost), sans-serif;
   font-weight: 400;
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: 0.08em;
 }
 

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import {
   Search, Plus, Edit, Trash2, Eye, ChevronDown,
   Package, X, Save, RefreshCw, Cloud, CloudOff,
-  AlertCircle, CheckCircle, Loader2,
+  AlertCircle, CheckCircle, Loader2, ImagePlus, Trash,
 } from "lucide-react";
 import { Product } from "@/types";
 import { formatPrice, cn } from "@/lib/utils";
@@ -80,6 +80,8 @@ export default function AdminProductsPage() {
   const [form, setForm]                   = useState<FormData>(emptyForm);
   const [errors, setErrors]               = useState<Partial<Record<keyof FormData, string>>>({});
   const [saving, setSaving]               = useState(false);
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ── toasts ────────────────────────────────────────────────────────────────
   const addToast = useCallback((type: ToastType, message: string) => {
@@ -113,15 +115,30 @@ export default function AdminProductsPage() {
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   // ── modal helpers ─────────────────────────────────────────────────────────
+  const handleImageUpload = (files: FileList | null) => {
+    if (!files) return;
+    Array.from(files).forEach((file) => {
+      if (!file.type.startsWith("image/")) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        if (result) setUploadedImages((prev) => [...prev, result]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   const openAdd = () => {
     setEditingProduct(null);
     setForm(emptyForm);
     setErrors({});
+    setUploadedImages([]);
     setModalOpen(true);
   };
 
   const openEdit = (product: Product) => {
     setEditingProduct(product);
+    setUploadedImages([]);
     setForm({
       name: product.name,
       slug: product.slug,
@@ -155,6 +172,7 @@ export default function AdminProductsPage() {
     setEditingProduct(null);
     setForm(emptyForm);
     setErrors({});
+    setUploadedImages([]);
   };
 
   const validate = (): boolean => {
@@ -165,7 +183,7 @@ export default function AdminProductsPage() {
     if (!form.stock || isNaN(Number(form.stock)) || Number(form.stock) < 0) e.stock = "Valid stock required";
     if (!form.shortDescription.trim()) e.shortDescription = "Required";
     if (form.sizes.length === 0) e.sizes = "Select at least one size";
-    if (!form.images.trim()) e.images = "At least one image URL required";
+    if (!form.images.trim() && uploadedImages.length === 0) e.images = "At least one image required";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -175,7 +193,7 @@ export default function AdminProductsPage() {
     setSaving(true);
 
     const parseUrls = (raw: string) => raw.split("\n").map((u) => u.trim()).filter(Boolean);
-    const imageList = parseUrls(form.images);
+    const imageList = [...uploadedImages, ...parseUrls(form.images)];
     // Sort primary color to front
     const sortedColors = [...form.colors].sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0));
     const builtColors = sortedColors.map((c) => ({
@@ -823,11 +841,56 @@ export default function AdminProductsPage() {
               </Field>
 
               {/* Default images */}
-              <Field label="Default Images" required error={errors.images}>
-                <p className="text-[11px] text-stone-400 mb-2">Main product images (one URL per line)</p>
+              <Field label="Product Images" required error={errors.images}>
+                {/* Upload zone */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => handleImageUpload(e.target.files)}
+                />
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => { e.preventDefault(); handleImageUpload(e.dataTransfer.files); }}
+                  className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-stone-200 hover:border-stone-400 py-7 cursor-pointer transition-colors mb-3 bg-stone-50/50 hover:bg-stone-50"
+                >
+                  <ImagePlus size={22} className="text-stone-400" />
+                  <p className="text-xs text-stone-500">Click hoặc kéo thả ảnh vào đây</p>
+                  <p className="text-[10px] text-stone-400">JPG, PNG, WEBP — nhiều ảnh cùng lúc</p>
+                </div>
+
+                {/* Uploaded image thumbnails */}
+                {uploadedImages.length > 0 && (
+                  <div className="grid grid-cols-4 gap-2 mb-3">
+                    {uploadedImages.map((src, i) => (
+                      <div key={i} className="relative group aspect-square bg-stone-100 overflow-hidden">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={src} alt="" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setUploadedImages((prev) => prev.filter((_, idx) => idx !== i))}
+                          className="absolute top-1 right-1 w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Trash size={9} />
+                        </button>
+                        {i === 0 && (
+                          <span className="absolute bottom-1 left-1 bg-stone-900 text-white text-[9px] px-1.5 py-0.5">
+                            Main
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* URL fallback */}
+                <p className="text-[10px] text-stone-400 mb-1.5">Hoặc dán URL ảnh (mỗi URL một dòng):</p>
                 <textarea value={form.images} onChange={(e) => setForm((f) => ({ ...f, images: e.target.value }))}
-                  placeholder={"https://images.unsplash.com/photo-xxx?w=800\nhttps://..."}
-                  rows={3} className={cn("w-full px-4 py-3 border text-sm focus:outline-none transition-colors resize-none font-mono",
+                  placeholder={"https://cdn.example.com/image-1.jpg\nhttps://..."}
+                  rows={2} className={cn("w-full px-4 py-3 border text-sm focus:outline-none transition-colors resize-none font-mono",
                     errors.images ? "border-red-400" : "border-stone-200 focus:border-stone-800")} />
               </Field>
 

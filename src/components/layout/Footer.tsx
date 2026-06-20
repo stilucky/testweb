@@ -52,7 +52,7 @@ export default function Footer() {
     <footer className="bg-stone-900 text-white mt-24">
 
       {/* ── Links grid ── */}
-      <div className="max-w-screen-xl mx-auto px-6 md:px-10 py-12">
+      <div className="px-6 md:px-12 xl:px-20 py-12">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-10">
 
           {/* Brand */}
@@ -152,7 +152,7 @@ export default function Footer() {
 
       {/* ── Bottom bar ── */}
       <div className="border-t border-stone-800">
-        <div className="max-w-screen-xl mx-auto px-6 md:px-10 py-5 flex flex-col md:flex-row items-center justify-between gap-3">
+        <div className="px-6 md:px-12 xl:px-20 py-5 flex flex-col md:flex-row items-center justify-between gap-3">
           <p className="text-[11px] text-stone-600">
             &copy; {new Date().getFullYear()} Lunelle. {t("allRightsReserved")}
           </p>

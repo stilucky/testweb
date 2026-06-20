@@ -83,7 +83,7 @@ export default function AuthPage() {
       return;
     }
 
-    // Register flow
+    // Register flow — send OTP first, create account only after verify
     if (form.password !== form.confirmPassword) {
       setError("Passwords do not match");
       setLoading(false);
@@ -95,29 +95,21 @@ export default function AuthPage() {
       return;
     }
 
-    const result = register({
-      firstName: form.firstName,
-      lastName: form.lastName,
-      email: form.email,
-      password: form.password,
-    });
-
-    if (!result.success) {
-      setError(result.error ?? "Registration failed");
+    // Check email not already taken before sending OTP
+    const { emailExists } = useAuthStore.getState();
+    if (emailExists(form.email)) {
+      setError("An account with this email already exists");
       setLoading(false);
       return;
     }
 
-    // Account created — now send activation OTP
     setPendingEmail(form.email);
     try {
       await sendVerifyOTP(form.email, form.firstName);
       startResendCooldown();
       setRegisterStep("otp");
-    } catch {
-      // OTP failed but account is created — let them in anyway
-      setSuccess("Account created! Redirecting...");
-      setTimeout(() => router.push("/account"), 1000);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to send verification code");
     }
     setLoading(false);
   };
@@ -157,6 +149,7 @@ export default function AuthPage() {
     }
     setLoading(true);
     try {
+      // 1. Verify OTP
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -164,7 +157,29 @@ export default function AuthPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Invalid code");
-      setSuccess("Account verified! Redirecting...");
+
+      // 2. Create account now that email is verified
+      const result = register({
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        password: form.password,
+      });
+
+      if (!result.success) throw new Error(result.error ?? "Registration failed");
+
+      // 3. Send welcome email (fire-and-forget)
+      fetch("/api/auth/welcome-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: form.email,
+          name: form.firstName,
+          couponCode: result.user?.personalCode,
+        }),
+      }).catch(() => {});
+
+      setSuccess("Account created! Redirecting...");
       setTimeout(() => router.push("/account"), 1000);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Verification failed");
@@ -189,11 +204,6 @@ export default function AuthPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSkipVerification = () => {
-    setSuccess("Account created! Redirecting...");
-    setTimeout(() => router.push("/account"), 800);
   };
 
   const switchMode = (newMode: AuthMode) => {
@@ -278,24 +288,15 @@ export default function AuthPage() {
             </button>
           </form>
 
-          <div className="mt-4 text-center space-y-3">
-            <div>
-              <span className="text-xs text-stone-400">Didn't receive the code? </span>
-              <button
-                type="button"
-                onClick={handleResendOTP}
-                disabled={resendCooldown > 0 || loading}
-                className="text-xs text-stone-700 underline disabled:text-stone-400 disabled:no-underline"
-              >
-                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend"}
-              </button>
-            </div>
+          <div className="mt-4 text-center">
+            <span className="text-xs text-stone-400">Didn't receive the code? </span>
             <button
               type="button"
-              onClick={handleSkipVerification}
-              className="text-xs text-stone-400 hover:text-stone-600 transition-colors"
+              onClick={handleResendOTP}
+              disabled={resendCooldown > 0 || loading}
+              className="text-xs text-stone-700 underline disabled:text-stone-400 disabled:no-underline"
             >
-              Skip for now
+              {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend"}
             </button>
           </div>
         </div>
