@@ -6,6 +6,7 @@ export interface HeroSlide {
   image: string;           // background image (empty string OK for pure video slides)
   videoUrl?: string;       // YouTube URL or native video base64/URL
   videoType?: "youtube" | "native";
+  enabled?: boolean;       // default true — hide slide without deleting
   tag: string;
   title: string;
   subtitle: string;
@@ -16,13 +17,12 @@ export interface HeroSlide {
 
 interface HeroStore {
   slides: HeroSlide[];
-  enabled: boolean;
   maxSlides: number;
   autoplayInterval: number; // seconds
-  setEnabled: (v: boolean) => void;
   addSlide: (slide: Omit<HeroSlide, "id">) => void;
   removeSlide: (id: string) => void;
   updateSlide: (id: string, updates: Partial<Omit<HeroSlide, "id">>) => void;
+  toggleSlideEnabled: (id: string) => void;
   moveSlide: (id: string, direction: "up" | "down") => void;
   setMaxSlides: (max: number) => void;
   setAutoplayInterval: (secs: number) => void;
@@ -65,10 +65,8 @@ export const useHeroStore = create<HeroStore>()(
   persist(
     (set, get) => ({
       slides: DEFAULT_SLIDES,
-      enabled: true,
       maxSlides: 5,
       autoplayInterval: 5,
-      setEnabled: (v) => set({ enabled: v }),
 
       addSlide: (slideData) => {
         const { slides, maxSlides } = get();
@@ -82,6 +80,13 @@ export const useHeroStore = create<HeroStore>()(
 
       removeSlide: (id) =>
         set((s) => ({ slides: s.slides.filter((sl) => sl.id !== id) })),
+
+      toggleSlideEnabled: (id) =>
+        set((s) => ({
+          slides: s.slides.map((sl) =>
+            sl.id === id ? { ...sl, enabled: sl.enabled === false ? true : false } : sl
+          ),
+        })),
 
       updateSlide: (id, updates) =>
         set((s) => ({

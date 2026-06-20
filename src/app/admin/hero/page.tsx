@@ -71,8 +71,8 @@ function SlideThumbnail({ slide }: { slide: HeroSlide }) {
 
 export default function HeroAdminPage() {
   const {
-    slides, enabled, maxSlides, autoplayInterval,
-    setEnabled, addSlide, removeSlide, updateSlide, moveSlide,
+    slides, maxSlides, autoplayInterval,
+    addSlide, removeSlide, updateSlide, toggleSlideEnabled, moveSlide,
     setMaxSlides, setAutoplayInterval,
   } = useHeroStore();
 
@@ -151,26 +151,6 @@ export default function HeroAdminPage() {
         </div>
       </div>
 
-      {/* ── Enabled toggle ── */}
-      <div className="flex items-center justify-between p-5 border border-stone-200 mb-6">
-        <div>
-          <p className="text-sm font-medium text-stone-800">Hiển thị Hero Slider</p>
-          <p className="text-xs text-stone-400 mt-0.5">Bật/tắt toàn bộ phần hero trên trang chủ</p>
-        </div>
-        <button
-          onClick={() => setEnabled(!enabled)}
-          className={cn(
-            "relative w-11 h-6 rounded-full transition-colors duration-200",
-            enabled ? "bg-stone-900" : "bg-stone-200"
-          )}
-        >
-          <span className={cn(
-            "absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200",
-            enabled ? "translate-x-6" : "translate-x-1"
-          )} />
-        </button>
-      </div>
-
       {/* ── Global settings ── */}
       <div className="bg-white border border-stone-100 p-5 mb-6">
         <div className="flex items-center gap-2 mb-4">
@@ -209,7 +189,7 @@ export default function HeroAdminPage() {
           <div key={slide.id} className="bg-white border border-stone-100">
 
             {/* ── Slide row ── */}
-            <div className="flex items-start gap-4 p-4">
+            <div className={cn("flex items-start gap-4 p-4", slide.enabled === false && "opacity-50")}>
               {/* Thumbnail */}
               <div className="w-28 h-20 shrink-0 relative overflow-hidden bg-stone-100">
                 <SlideThumbnail slide={slide} />
@@ -253,6 +233,20 @@ export default function HeroAdminPage() {
 
               {/* Actions */}
               <div className="flex items-start gap-1 shrink-0">
+                {/* Per-slide enabled toggle */}
+                <button
+                  onClick={() => toggleSlideEnabled(slide.id)}
+                  title={slide.enabled === false ? "Bật slide" : "Tắt slide"}
+                  className={cn(
+                    "relative w-9 h-5 rounded-full transition-colors duration-200 shrink-0 mt-1",
+                    slide.enabled === false ? "bg-stone-200" : "bg-stone-900"
+                  )}
+                >
+                  <span className={cn(
+                    "absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200",
+                    slide.enabled === false ? "translate-x-0.5" : "translate-x-4"
+                  )} />
+                </button>
                 <button onClick={() => setPreview(preview?.id === slide.id ? null : slide)}
                   className="p-2 text-stone-400 hover:text-stone-900 transition-colors" title="Preview">
                   <Eye size={14} />
