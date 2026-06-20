@@ -60,19 +60,10 @@ const defaultUsers: StoredUser[] = [
     id: "admin1",
     firstName: "Admin",
     lastName: "Lunelle",
-    email: "admin@Lunelle.com",
-    password: "admin123",
+    email: "admin@lunellestory.ca",
+    password: "123456",
     role: "admin",
     createdAt: "2024-01-01",
-  },
-  {
-    id: "test1",
-    firstName: "Test",
-    lastName: "User",
-    email: "test@Lunelle.com",
-    password: "test123",
-    role: "customer",
-    createdAt: "2026-01-01",
   },
 ];
 
