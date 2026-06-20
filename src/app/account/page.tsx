@@ -213,7 +213,7 @@ function TailoredOrderCard({
               <div className="flex items-center">
                 {tailoredSteps.map((step, i) => {
                   const isDone = i <= currentStepIdx;
-                  const labels: Record<typeof step, string> = {
+                  const labels: Record<string, string> = {
                     pending: "Received",
                     confirmed: "Confirmed",
                     in_production: "Production",
