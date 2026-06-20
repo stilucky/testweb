@@ -69,6 +69,31 @@ function SlideThumbnail({ slide }: { slide: HeroSlide }) {
   );
 }
 
+function SlidePreviewMedia({ slide }: { slide: HeroSlide }) {
+  if (slide.videoType === "youtube" && slide.videoUrl) {
+    const ytId = getYouTubeId(slide.videoUrl);
+    if (ytId) {
+      return (
+        <iframe
+          src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&controls=0&rel=0`}
+          allow="autoplay; encrypted-media"
+          className="absolute inset-0 w-full h-full border-0"
+        />
+      );
+    }
+  }
+  if (slide.videoType === "native" && slide.videoUrl) {
+    return (
+      <video src={slide.videoUrl} autoPlay muted loop playsInline
+        className="absolute inset-0 w-full h-full object-cover" />
+    );
+  }
+  if (slide.image) {
+    return <Image src={slide.image} alt={slide.title} fill className="object-cover" sizes="100vw" />;
+  }
+  return null;
+}
+
 export default function HeroAdminPage() {
   const {
     slides, maxSlides, autoplayInterval,
@@ -270,24 +295,7 @@ export default function HeroAdminPage() {
             {preview?.id === slide.id && (
               <div className="border-t border-stone-100 p-3 bg-stone-50">
                 <div className="relative h-48 overflow-hidden bg-stone-200">
-                  {slide.videoType === "youtube" && slide.videoUrl
-                    ? (() => {
-                        const ytId = getYouTubeId(slide.videoUrl);
-                        return ytId ? (
-                          <iframe
-                            src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&controls=0&rel=0`}
-                            allow="autoplay; encrypted-media"
-                            className="absolute inset-0 w-full h-full border-0"
-                          />
-                        ) : null;
-                      })()
-                    : slide.videoType === "native" && slide.videoUrl
-                    ? <video src={slide.videoUrl} autoPlay muted loop playsInline
-                        className="absolute inset-0 w-full h-full object-cover" />
-                    : slide.image
-                    ? <Image src={slide.image} alt={slide.title} fill className="object-cover" sizes="100vw" />
-                    : null
-                  }
+                  <SlidePreviewMedia slide={slide} />
                   <div className="absolute inset-0 bg-black/30 flex flex-col justify-end pb-6 px-6">
                     <p className="text-white/70 text-[10px] tracking-widests uppercase mb-1">{slide.tag}</p>
                     <p className="text-white text-xl font-light whitespace-pre-line leading-tight mb-1">{slide.title}</p>
