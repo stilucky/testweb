@@ -17,7 +17,7 @@ export interface DraftOrderStatus {
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const domain = process.env.SHOPIFY_SHOP_DOMAIN;
   const token = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;
@@ -26,7 +26,7 @@ export async function GET(
     return NextResponse.json({ error: "Shopify not configured" }, { status: 503 });
   }
 
-  const { id } = params;
+  const { id } = await params;
   if (!id || !/^\d+$/.test(id)) {
     return NextResponse.json({ error: "Invalid draft order ID" }, { status: 400 });
   }
