@@ -61,7 +61,7 @@ export default function Header() {
           : []),
         {
           title: t("readyToWear"),
-          flyout: true,
+          flyout: false,
           items: [
             { label: t("dresses"),  href: "/products?category=dresses" },
             { label: t("tops"),     href: "/products?category=tops" },
@@ -186,9 +186,12 @@ export default function Header() {
                                   <ChevronRight size={13} className="text-stone-300 ml-3" />
                                 </Link>
                               ) : group.title ? (
-                                <p className="px-5 pt-1 pb-1 text-[10px] tracking-[0.2em] uppercase text-stone-400">
+                                <Link
+                                  href="/products"
+                                  className="block px-5 pt-2 pb-1 text-[10px] tracking-[0.2em] uppercase text-stone-400 hover:text-stone-700 transition-colors"
+                                >
                                   {group.title}
-                                </p>
+                                </Link>
                               ) : null}
 
                               {!isFlyout && (

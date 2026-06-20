@@ -25,7 +25,7 @@ import { useCouponStore } from "@/store/couponStore";
 import { useSubscriberStore } from "@/store/subscriberStore";
 import { formatPrice, cn } from "@/lib/utils";
 
-type Step = "information" | "shipping" | "payment";
+type Step = "information" | "payment";
 type CheckoutMode = "guest" | "signin";
 
 // Province/State data per country
@@ -145,12 +145,6 @@ function FSelect({
   );
 }
 
-const shippingOptions = [
-  { id: "standard", label: "Standard Shipping", sub: "5–7 business days", price: 15 },
-  { id: "express", label: "Express Shipping", sub: "2–3 business days", price: 25 },
-  { id: "overnight", label: "Overnight", sub: "Next business day", price: 45 },
-];
-
 interface InfoForm {
   email: string;
   newsletter: boolean;
@@ -166,7 +160,7 @@ interface InfoForm {
 
 export default function CheckoutPage() {
   const { items, total, clearCart } = useCartStore();
-  const { addOrder } = useOrderStore();
+  const { addOrder, updateShopifyOrderId } = useOrderStore();
   const { currentUser, addAddress, getAddresses } = useAuthStore();
   const { validateCoupon, useCoupon } = useCouponStore();
   const { markCouponUsed } = useSubscriberStore();
@@ -175,7 +169,6 @@ export default function CheckoutPage() {
   const [checkoutMode, setCheckoutMode] = useState<CheckoutMode>("guest");
   const [step, setStep] = useState<Step>("information");
 
-  const [selectedShipping, setSelectedShipping] = useState("standard");
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<{
     code: string; label: string; type: "percent" | "fixed"; value: number;
@@ -203,7 +196,7 @@ export default function CheckoutPage() {
 
   // ─── Calculations ───
   const subtotal = total();
-  const shippingCost = subtotal >= 200 ? 0 : (shippingOptions.find((s) => s.id === selectedShipping)?.price ?? 15);
+  const shippingCost = subtotal >= 200 ? 0 : 15;
   const discountAmount = appliedCoupon
     ? appliedCoupon.type === "percent"
       ? Math.round((subtotal * appliedCoupon.value) / 100 * 100) / 100
@@ -272,7 +265,6 @@ export default function CheckoutPage() {
     setShopifyError("");
     try {
       maybeSaveAddress();
-      const shippingOption = shippingOptions.find((s) => s.id === selectedShipping);
       const orderItems = items.map((item) => ({
         name: item.product.name,
         qty: item.quantity,
@@ -293,7 +285,7 @@ export default function CheckoutPage() {
         status: "pending",
         payment: "pending",
         paymentMethod: "shopify",
-        shippingMethod: shippingOption?.label ?? "Standard Shipping",
+        shippingMethod: "Standard Shipping",
         shippingAddress: [info.address, info.city, info.province, info.postal, info.country].filter(Boolean).join(", "),
         couponCode: appliedCoupon?.code,
         userId: currentUser?.id,
@@ -308,7 +300,6 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           items,
           info,
-          selectedShipping,
           discountAmount,
           appliedCoupon,
           localOrderId: orderId,
@@ -316,6 +307,7 @@ export default function CheckoutPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Shopify checkout failed");
+      if (data.draftOrderId) updateShopifyOrderId(orderId, data.draftOrderId);
       clearCart();
       window.location.href = data.invoiceUrl;
     } catch (err: unknown) {
@@ -343,7 +335,6 @@ export default function CheckoutPage() {
 
   const stepLabels: Record<Step, string> = {
     information: "Information",
-    shipping: "Shipping",
     payment: "Review & Pay",
   };
 
@@ -372,7 +363,7 @@ export default function CheckoutPage() {
 
       {/* Step indicator */}
       <div className="flex items-center gap-3 mb-10 text-xs tracking-widest uppercase justify-center">
-        {(["information", "shipping", "payment"] as Step[]).map((s, i) => (
+        {(["information", "payment"] as Step[]).map((s, i) => (
           <div key={s} className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <span
@@ -380,14 +371,12 @@ export default function CheckoutPage() {
                   "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium transition-colors",
                   step === s
                     ? "bg-stone-900 text-white"
-                    : (step === "shipping" && s === "information") ||
-                      (step === "payment" && s !== "payment")
+                    : step === "payment" && s === "information"
                     ? "bg-stone-900 text-white"
                     : "bg-stone-100 text-stone-400"
                 )}
               >
-                {(step === "shipping" && s === "information") ||
-                (step === "payment" && s !== "payment") ? (
+                {step === "payment" && s === "information" ? (
                   <Check size={10} />
                 ) : (
                   i + 1
@@ -397,7 +386,7 @@ export default function CheckoutPage() {
                 {stepLabels[s]}
               </span>
             </div>
-            {i < 2 && <span className="text-stone-200">—</span>}
+            {i < 1 && <span className="text-stone-200">—</span>}
           </div>
         ))}
       </div>
@@ -612,100 +601,17 @@ export default function CheckoutPage() {
                   </div>
 
                   <button
-                    onClick={() => { if (validateInfo()) setStep("shipping"); }}
+                    onClick={() => { if (validateInfo()) setStep("payment"); }}
                     className="w-full py-4 bg-stone-900 text-white text-xs tracking-widests uppercase hover:bg-stone-700 transition-colors font-medium"
                   >
-                    Continue to Shipping
+                    Continue to Review
                   </button>
                 </>
               )}
             </div>
           )}
 
-          {/* ─── Step 2: Shipping ─── */}
-          {step === "shipping" && (
-            <div className="space-y-6">
-              <div className="bg-stone-50 px-5 py-4 flex items-center justify-between text-sm">
-                <div className="space-y-1 text-stone-500">
-                  <p><span className="text-stone-400 text-xs mr-2">Contact</span>{info.email}</p>
-                  <p><span className="text-stone-400 text-xs mr-2">Ship to</span>{[info.address, info.city, info.province, info.country].filter(Boolean).join(", ")}</p>
-                </div>
-                <button
-                  onClick={() => setStep("information")}
-                  className="text-xs underline underline-offset-2 text-stone-400 hover:text-stone-900 transition-colors"
-                >
-                  Change
-                </button>
-              </div>
-
-              <div>
-                <h2 className="text-xs tracking-widests uppercase font-medium mb-5">Shipping Method</h2>
-                <div className="space-y-3">
-                  {shippingOptions.map((opt) => {
-                    const isFree = subtotal >= 200 && opt.id === "standard";
-                    return (
-                      <label
-                        key={opt.id}
-                        className={cn(
-                          "flex items-center justify-between p-4 border cursor-pointer transition-colors",
-                          selectedShipping === opt.id
-                            ? "border-stone-900 bg-stone-50"
-                            : "border-stone-200 hover:border-stone-400"
-                        )}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={cn(
-                            "w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0",
-                            selectedShipping === opt.id ? "border-stone-900" : "border-stone-300"
-                          )}>
-                            {selectedShipping === opt.id && (
-                              <div className="w-2 h-2 rounded-full bg-stone-900" />
-                            )}
-                          </div>
-                          <input
-                            type="radio"
-                            name="shipping"
-                            value={opt.id}
-                            checked={selectedShipping === opt.id}
-                            onChange={() => setSelectedShipping(opt.id)}
-                            className="sr-only"
-                          />
-                          <div>
-                            <p className="text-sm font-medium">{opt.label}</p>
-                            <p className="text-xs text-stone-400">{opt.sub}</p>
-                          </div>
-                        </div>
-                        <span className="text-sm font-medium">
-                          {isFree ? (
-                            <span className="text-emerald-600">Free</span>
-                          ) : (
-                            formatPrice(opt.price)
-                          )}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => setStep("information")}
-                  className="flex-1 py-4 border border-stone-200 text-xs tracking-widests uppercase hover:bg-stone-50 transition-colors"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={() => setStep("payment")}
-                  className="flex-1 py-4 bg-stone-900 text-white text-xs tracking-widests uppercase hover:bg-stone-700 transition-colors"
-                >
-                  Review Order
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ─── Step 3: Review & Pay ─── */}
+          {/* ─── Step 2: Review & Pay ─── */}
           {step === "payment" && (
             <div className="space-y-6">
               {/* Order summary row */}
@@ -717,17 +623,6 @@ export default function CheckoutPage() {
                 <div className="flex justify-between">
                   <p><span className="text-stone-400 text-xs mr-2">Ship to</span>{[info.address, info.city, info.province, info.postal, info.country].filter(Boolean).join(", ")}</p>
                   <button onClick={() => setStep("information")} className="text-xs underline underline-offset-2 text-stone-400 hover:text-stone-900">Change</button>
-                </div>
-                <div className="flex justify-between">
-                  <p>
-                    <span className="text-stone-400 text-xs mr-2">Method</span>
-                    {shippingOptions.find((s) => s.id === selectedShipping)?.label}
-                    {" · "}
-                    {subtotal >= 200 && selectedShipping === "standard"
-                      ? "Free"
-                      : formatPrice(shippingOptions.find((s) => s.id === selectedShipping)?.price ?? 0)}
-                  </p>
-                  <button onClick={() => setStep("shipping")} className="text-xs underline underline-offset-2 text-stone-400 hover:text-stone-900">Change</button>
                 </div>
               </div>
 
@@ -777,7 +672,7 @@ export default function CheckoutPage() {
               {/* Actions */}
               <div className="flex gap-3">
                 <button
-                  onClick={() => setStep("shipping")}
+                  onClick={() => setStep("information")}
                   className="flex-1 py-4 border border-stone-200 text-xs tracking-widests uppercase hover:bg-stone-50 transition-colors"
                 >
                   Back

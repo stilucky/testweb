@@ -35,6 +35,7 @@ export interface Order {
   shippingAddress: string;
   couponCode?: string;
   userId?: string;
+  shopifyDraftOrderId?: number;
 }
 
 interface OrderStore {
@@ -42,6 +43,7 @@ interface OrderStore {
   addOrder: (data: Omit<Order, "id" | "date" | "createdAt">) => string;
   updateStatus: (id: string, status: OrderStatus) => void;
   updatePayment: (id: string, payment: PaymentStatus) => void;
+  updateShopifyOrderId: (id: string, shopifyDraftOrderId: number) => void;
 }
 
 export const useOrderStore = create<OrderStore>()(
@@ -76,14 +78,20 @@ export const useOrderStore = create<OrderStore>()(
         set((s) => ({
           orders: s.orders.map((o) => (o.id === id ? { ...o, payment } : o)),
         })),
+
+      updateShopifyOrderId: (id, shopifyDraftOrderId) =>
+        set((s) => ({
+          orders: s.orders.map((o) => (o.id === id ? { ...o, shopifyDraftOrderId } : o)),
+        })),
     }),
     {
       name: "Lunelle-orders",
-      version: 2,
+      version: 3,
       migrate: (persisted: unknown, version: number) => {
         if (version < 2) {
           return { orders: [] };
         }
+        // v2→v3: shopifyDraftOrderId field added — existing orders simply won't have it (undefined)
         return persisted;
       },
     }

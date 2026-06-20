@@ -1,0 +1,51 @@
+import { NextRequest, NextResponse } from "next/server";
+import { writeFile, mkdir } from "fs/promises";
+import { join } from "path";
+import { randomUUID } from "crypto";
+
+const UPLOAD_DIR = join(process.cwd(), "public", "uploads");
+const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15 MB per file
+const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif", "image/avif"];
+
+export async function POST(req: NextRequest) {
+  try {
+    await mkdir(UPLOAD_DIR, { recursive: true });
+
+    const formData = await req.formData();
+    const files = formData.getAll("files") as File[];
+
+    if (files.length === 0) {
+      return NextResponse.json({ error: "No files provided" }, { status: 400 });
+    }
+
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+    const urls: string[] = [];
+
+    for (const file of files) {
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        return NextResponse.json(
+          { error: `File type not allowed: ${file.type}` },
+          { status: 400 }
+        );
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        return NextResponse.json(
+          { error: `File too large: ${file.name} (max 15 MB)` },
+          { status: 400 }
+        );
+      }
+
+      const rawExt = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+      const ext = rawExt.replace(/[^a-z0-9]/g, "").slice(0, 5) || "jpg";
+      const filename = `${randomUUID()}.${ext}`;
+      const buffer = Buffer.from(await file.arrayBuffer());
+      await writeFile(join(UPLOAD_DIR, filename), buffer);
+      urls.push(`${appUrl}/uploads/${filename}`);
+    }
+
+    return NextResponse.json({ urls });
+  } catch (err) {
+    console.error("[POST /api/upload]", err);
+    return NextResponse.json({ error: String(err) }, { status: 500 });
+  }
+}

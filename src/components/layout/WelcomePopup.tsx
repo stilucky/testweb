@@ -5,19 +5,25 @@ import Link from "next/link";
 import Image from "next/image";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/store/authStore";
+import { usePathname } from "next/navigation";
 
 export default function WelcomePopup() {
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const pathname = usePathname();
   const [visible, setVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    /* Show every time the page is loaded — no dismiss persistence */
+    // Only show on homepage, and only when not logged in
+    if (currentUser || pathname !== "/") return;
+
     const timer = setTimeout(() => {
       setVisible(true);
       setMounted(true);
     }, 1800);
     return () => clearTimeout(timer);
-  }, []);
+  }, [currentUser, pathname]);
 
   const close = () => {
     setVisible(false);

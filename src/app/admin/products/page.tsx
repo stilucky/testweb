@@ -81,6 +81,8 @@ export default function AdminProductsPage() {
   const [errors, setErrors]               = useState<Partial<Record<keyof FormData, string>>>({});
   const [saving, setSaving]               = useState(false);
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const [showUrlInput, setShowUrlInput] = useState(false);
   const [uploadedVideoUrl, setUploadedVideoUrl] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -128,17 +130,31 @@ export default function AdminProductsPage() {
     reader.readAsDataURL(file);
   };
 
-  const handleImageUpload = (files: FileList | null) => {
-    if (!files) return;
-    Array.from(files).forEach((file) => {
-      if (!file.type.startsWith("image/")) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        if (result) setUploadedImages((prev) => [...prev, result]);
-      };
-      reader.readAsDataURL(file);
-    });
+  const handleImageUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const imageFiles = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    if (imageFiles.length === 0) return;
+    setUploadingImages(true);
+    try {
+      const fd = new FormData();
+      imageFiles.forEach((f) => fd.append("files", f));
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Upload failed");
+      setUploadedImages((prev) => [...prev, ...(data.urls as string[])]);
+    } catch (err) {
+      addToast("error", `Upload failed: ${err}`);
+    } finally {
+      setUploadingImages(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const parseUrls = (raw: string) => raw.split("\n").map((u) => u.trim()).filter(Boolean);
+
+  const removeUrlFromImages = (urlToRemove: string) => {
+    const updated = parseUrls(form.images).filter((u) => u !== urlToRemove);
+    setForm((f) => ({ ...f, images: updated.join("\n") }));
   };
 
   const openAdd = () => {
@@ -147,6 +163,7 @@ export default function AdminProductsPage() {
     setErrors({});
     setUploadedImages([]);
     setUploadedVideoUrl("");
+    setShowUrlInput(false);
     setModalOpen(true);
   };
 
@@ -189,6 +206,7 @@ export default function AdminProductsPage() {
     setErrors({});
     setUploadedImages([]);
     setUploadedVideoUrl("");
+    setShowUrlInput(false);
   };
 
   const validate = (): boolean => {
@@ -208,7 +226,6 @@ export default function AdminProductsPage() {
     if (!validate()) return;
     setSaving(true);
 
-    const parseUrls = (raw: string) => raw.split("\n").map((u) => u.trim()).filter(Boolean);
     const imageList = [...uploadedImages, ...parseUrls(form.images)];
     // Sort primary color to front
     const sortedColors = [...form.colors].sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0));
@@ -858,7 +875,6 @@ export default function AdminProductsPage() {
 
               {/* Default images */}
               <Field label="Product Images" required error={errors.images}>
-                {/* Upload zone */}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -867,47 +883,111 @@ export default function AdminProductsPage() {
                   className="hidden"
                   onChange={(e) => handleImageUpload(e.target.files)}
                 />
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => { e.preventDefault(); handleImageUpload(e.dataTransfer.files); }}
-                  className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-stone-200 hover:border-stone-400 py-7 cursor-pointer transition-colors mb-3 bg-stone-50/50 hover:bg-stone-50"
-                >
-                  <ImagePlus size={22} className="text-stone-400" />
-                  <p className="text-xs text-stone-500">Click hoặc kéo thả ảnh vào đây</p>
-                  <p className="text-[10px] text-stone-400">JPG, PNG, WEBP — nhiều ảnh cùng lúc</p>
-                </div>
 
-                {/* Uploaded image thumbnails */}
-                {uploadedImages.length > 0 && (
-                  <div className="grid grid-cols-4 gap-2 mb-3">
-                    {uploadedImages.map((src, i) => (
-                      <div key={i} className="relative group aspect-square bg-stone-100 overflow-hidden">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={src} alt="" className="w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => setUploadedImages((prev) => prev.filter((_, idx) => idx !== i))}
-                          className="absolute top-1 right-1 w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <Trash size={9} />
-                        </button>
-                        {i === 0 && (
-                          <span className="absolute bottom-1 left-1 bg-stone-900 text-white text-[9px] px-1.5 py-0.5">
-                            Main
-                          </span>
-                        )}
-                      </div>
-                    ))}
+                {/* Existing Shopify CDN images (when editing) */}
+                {parseUrls(form.images).length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-[10px] text-stone-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-400" />
+                      Shopify CDN
+                    </p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {parseUrls(form.images).map((url, i) => (
+                        <div key={i} className="relative group aspect-square bg-stone-100 overflow-hidden rounded-sm">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={url} alt="" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => removeUrlFromImages(url)}
+                            className="absolute top-1 right-1 w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Trash size={9} />
+                          </button>
+                          {i === 0 && (
+                            <span className="absolute bottom-1 left-1 bg-stone-900/80 text-white text-[9px] px-1.5 py-0.5">
+                              Main
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 
-                {/* URL fallback */}
-                <p className="text-[10px] text-stone-400 mb-1.5">Hoặc dán URL ảnh (mỗi URL một dòng):</p>
-                <textarea value={form.images} onChange={(e) => setForm((f) => ({ ...f, images: e.target.value }))}
-                  placeholder={"https://cdn.example.com/image-1.jpg\nhttps://..."}
-                  rows={2} className={cn("w-full px-4 py-3 border text-sm focus:outline-none transition-colors resize-none font-mono",
-                    errors.images ? "border-red-400" : "border-stone-200 focus:border-stone-800")} />
+                {/* Newly uploaded images (pending Shopify sync) */}
+                {uploadedImages.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-[10px] text-stone-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                      <span className="inline-block w-2 h-2 rounded-full bg-amber-400" />
+                      Uploaded — sẽ sync lên Shopify CDN khi lưu
+                    </p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {uploadedImages.map((src, i) => (
+                        <div key={i} className="relative group aspect-square bg-stone-100 overflow-hidden rounded-sm">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={src} alt="" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setUploadedImages((prev) => prev.filter((_, idx) => idx !== i))}
+                            className="absolute top-1 right-1 w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Trash size={9} />
+                          </button>
+                          <span className="absolute bottom-1 left-1 bg-amber-500/90 text-white text-[9px] px-1.5 py-0.5">
+                            Pending
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Upload drop zone */}
+                <div
+                  onClick={() => !uploadingImages && fileInputRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => { e.preventDefault(); handleImageUpload(e.dataTransfer.files); }}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-2 border-2 border-dashed py-6 transition-colors mb-2",
+                    uploadingImages
+                      ? "border-stone-300 bg-stone-50 cursor-wait"
+                      : "border-stone-200 hover:border-stone-400 bg-stone-50/50 hover:bg-stone-50 cursor-pointer"
+                  )}
+                >
+                  {uploadingImages ? (
+                    <>
+                      <Loader2 size={22} className="text-stone-400 animate-spin" />
+                      <p className="text-xs text-stone-500">Đang upload lên server...</p>
+                    </>
+                  ) : (
+                    <>
+                      <ImagePlus size={22} className="text-stone-400" />
+                      <p className="text-xs text-stone-500">Click hoặc kéo thả ảnh từ máy tính</p>
+                      <p className="text-[10px] text-stone-400">JPG, PNG, WEBP · tối đa 15 MB/ảnh</p>
+                    </>
+                  )}
+                </div>
+
+                {/* URL paste — collapsible */}
+                <button
+                  type="button"
+                  onClick={() => setShowUrlInput((v) => !v)}
+                  className="text-[10px] text-stone-400 hover:text-stone-600 underline underline-offset-2 transition-colors mb-1.5"
+                >
+                  {showUrlInput ? "Ẩn" : "Dán URL ảnh thay thế"}
+                </button>
+                {showUrlInput && (
+                  <textarea
+                    value={form.images}
+                    onChange={(e) => setForm((f) => ({ ...f, images: e.target.value }))}
+                    placeholder={"https://cdn.example.com/image-1.jpg\nhttps://..."}
+                    rows={3}
+                    className={cn(
+                      "w-full px-4 py-3 border text-sm focus:outline-none transition-colors resize-none font-mono",
+                      errors.images ? "border-red-400" : "border-stone-200 focus:border-stone-800"
+                    )}
+                  />
+                )}
               </Field>
 
               {/* Product Video */}

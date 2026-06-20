@@ -4,6 +4,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useCouponStore } from "./couponStore";
 
+const SESSION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
 export interface Address {
   id: string;
   label: string;
@@ -35,6 +37,7 @@ interface StoredUser extends User {
 
 interface AuthStore {
   currentUser: User | null;
+  loginAt: number | null;       // ms timestamp of last login — used for session expiry
   users: StoredUser[];
   userAddresses: Record<string, Address[]>;
   login: (email: string, password: string) => { success: boolean; error?: string };
@@ -45,6 +48,7 @@ interface AuthStore {
     password: string;
   }) => { success: boolean; error?: string; user?: User };
   logout: () => void;
+  checkSessionExpiry: () => void;
   updateProfile: (data: Partial<Pick<User, "firstName" | "lastName" | "email" | "phone">>) => void;
   resetPassword: (email: string, newPassword: string) => { success: boolean; error?: string };
   emailExists: (email: string) => boolean;
@@ -61,7 +65,7 @@ const defaultUsers: StoredUser[] = [
     firstName: "Admin",
     lastName: "Lunelle",
     email: "admin@lunellestory.ca",
-    password: "123456",
+    password: "R748Mc7SeY~8#\\=",
     role: "admin",
     createdAt: "2024-01-01",
   },
@@ -71,6 +75,7 @@ export const useAuthStore = create<AuthStore>()(
   persist(
     (set, get) => ({
       currentUser: null,
+      loginAt: null,
       users: defaultUsers,
       userAddresses: {},
 
@@ -84,7 +89,7 @@ export const useAuthStore = create<AuthStore>()(
           return { success: false, error: "Email or password is incorrect" };
         }
         const { password: _pw, ...user } = found;
-        set({ currentUser: user });
+        set({ currentUser: user, loginAt: Date.now() });
         return { success: true };
       },
 
@@ -127,11 +132,20 @@ export const useAuthStore = create<AuthStore>()(
           personalCode,
         };
         const { password: _pw, ...user } = newUser;
-        set((s) => ({ users: [...s.users, newUser], currentUser: user }));
+        set((s) => ({ users: [...s.users, newUser], currentUser: user, loginAt: Date.now() }));
         return { success: true, user };
       },
 
-      logout: () => set({ currentUser: null }),
+      logout: () => set({ currentUser: null, loginAt: null }),
+
+      checkSessionExpiry: () => {
+        const { currentUser, loginAt } = get();
+        if (!currentUser) return;
+        // loginAt null = grandfathered session (pre-v4), no expiry applied
+        if (loginAt !== null && Date.now() - loginAt > SESSION_MS) {
+          set({ currentUser: null, loginAt: null });
+        }
+      },
 
       updateProfile: (data) =>
         set((s) => ({
@@ -231,14 +245,23 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: "Lunelle-auth",
-      version: 3,
+      version: 5,
       migrate: (persisted: unknown, version: number) => {
-        const state = persisted as { users?: StoredUser[]; currentUser?: unknown; userAddresses?: unknown };
-        if (version < 3) {
-          // Wipe all old users, reset to defaultUsers only
+        const state = persisted as {
+          users?: StoredUser[];
+          currentUser?: unknown;
+          userAddresses?: unknown;
+          loginAt?: number | null;
+        };
+        if (version < 4) {
+          state.loginAt = null;
+        }
+        if (version < 5) {
+          // Reset all accounts — only the new admin account remains
           state.users = defaultUsers;
           state.currentUser = null;
           state.userAddresses = {};
+          state.loginAt = null;
         }
         return state;
       },

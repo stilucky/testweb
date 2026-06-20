@@ -46,3 +46,6 @@ next-env.d.ts
 ecosystem.config.cjs
 shopify-products-import.csv
 DEPLOY_VPS.md
+
+# temp product image uploads (served from public/uploads/, cleaned up after Shopify sync)
+/public/uploads/

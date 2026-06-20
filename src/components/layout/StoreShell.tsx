@@ -1,16 +1,26 @@
 "use client";
 
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Header from "./Header";
 import Footer from "./Footer";
 import CartDrawer from "../cart/CartDrawer";
 import LocaleInit from "./LocaleInit";
 import WelcomePopup from "./WelcomePopup";
+import { useAuthStore } from "@/store/authStore";
 
 export default function StoreShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAdmin  = pathname.startsWith("/admin");
   const isHome   = pathname === "/";
+  const checkSessionExpiry = useAuthStore((s) => s.checkSessionExpiry);
+
+  useEffect(() => {
+    // Check session expiry immediately on mount, then every hour
+    checkSessionExpiry();
+    const interval = setInterval(checkSessionExpiry, 60 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [checkSessionExpiry]);
 
   if (isAdmin) {
     return <>{children}</>;
