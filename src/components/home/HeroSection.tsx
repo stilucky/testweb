@@ -136,45 +136,6 @@ export default function HeroSection() {
         />
       )}
 
-      {/* ── Text overlay ── */}
-      {activeSlide && (activeSlide.title || activeSlide.tag) && (
-        <div
-          className={cn(
-            "absolute inset-0 z-20 flex flex-col justify-center px-10 md:px-20 pointer-events-none",
-            activeSlide.align === "center" && "items-center text-center",
-            activeSlide.align === "left" && "items-start text-left",
-            activeSlide.align === "right" && "items-end text-right",
-          )}
-        >
-          {activeSlide.tag && (
-            <p className="text-white/50 text-[9px] md:text-[11px] tracking-[0.4em] uppercase mb-5 font-light">
-              — {activeSlide.tag} —
-            </p>
-          )}
-          {activeSlide.title && (
-            <h1
-              className="text-white text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-light leading-[1.05] whitespace-pre-line mb-5"
-              style={{ fontFamily: "var(--font-cormorant), serif" }}
-            >
-              {activeSlide.title}
-            </h1>
-          )}
-          {activeSlide.subtitle && (
-            <p className="text-white/65 text-sm md:text-base font-light max-w-md leading-relaxed mb-8">
-              {activeSlide.subtitle}
-            </p>
-          )}
-          {activeSlide.cta && (
-            <Link
-              href={activeSlide.href}
-              className="pointer-events-auto inline-flex items-center gap-3 border border-white/60 text-white text-[10px] tracking-[0.22em] uppercase px-8 py-4 hover:bg-white hover:text-stone-900 transition-all duration-300"
-            >
-              {activeSlide.cta}
-            </Link>
-          )}
-        </div>
-      )}
-
       {/* ── Bottom bar ── */}
       <div className="absolute bottom-0 inset-x-0 z-30 px-8 md:px-16 pb-8 flex items-end justify-between gap-6">
         <Link
