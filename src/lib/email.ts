@@ -93,6 +93,99 @@ export async function sendOTPEmail({
   });
 }
 
+export async function sendProductAnnouncementEmail({
+  to,
+  productName,
+  productSlug,
+  productImage,
+  price,
+  salePrice,
+  shortDescription,
+  currency = "CAD",
+}: {
+  to: string;
+  productName: string;
+  productSlug: string;
+  productImage: string;
+  price: number;
+  salePrice?: number;
+  shortDescription?: string;
+  currency?: string;
+}): Promise<void> {
+  const subject = `New Arrival: ${productName}`;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://lunellestory.ca";
+  const productUrl = `${appUrl}/products/${productSlug}`;
+
+  const formattedPrice = salePrice
+    ? `<span style="text-decoration:line-through;color:#a8a29e;font-size:14px;">${currency} $${price.toFixed(2)}</span>&nbsp;<span style="color:#1c1917;font-size:18px;font-weight:400;">${currency} $${salePrice.toFixed(2)}</span>`
+    : `<span style="color:#1c1917;font-size:18px;font-weight:400;">${currency} $${price.toFixed(2)}</span>`;
+
+  const bodyHtml = `
+    <p style="margin:0 0 24px;color:#78716c;font-size:14px;line-height:1.7;">
+      A new piece has just arrived at Lunelle — crafted for those who appreciate refined simplicity.
+    </p>
+
+    <!-- Product card -->
+    <a href="${productUrl}" style="display:block;text-decoration:none;border:1px solid #e7e5e4;margin-bottom:28px;">
+      ${productImage
+        ? `<img src="${productImage}" alt="${productName}" style="width:100%;display:block;max-height:320px;object-fit:cover;" />`
+        : `<div style="width:100%;height:200px;background:#f5f5f4;display:flex;align-items:center;justify-content:center;">
+             <span style="font-size:11px;color:#a8a29e;letter-spacing:0.2em;text-transform:uppercase;">Lunelle</span>
+           </div>`
+      }
+      <div style="padding:24px;">
+        <p style="margin:0 0 6px;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:#a8a29e;">New Arrival</p>
+        <h2 style="margin:0 0 10px;font-size:20px;font-weight:300;color:#1c1917;font-family:Georgia,serif;">${productName}</h2>
+        ${shortDescription ? `<p style="margin:0 0 14px;font-size:13px;color:#78716c;line-height:1.6;">${shortDescription}</p>` : ""}
+        <p style="margin:0;">${formattedPrice}</p>
+      </div>
+    </a>
+
+    <div style="text-align:center;margin-bottom:28px;">
+      <a href="${productUrl}"
+         style="display:inline-block;padding:14px 40px;background:#1c1917;color:#fff;text-decoration:none;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;">
+        Shop Now
+      </a>
+    </div>
+
+    <p style="margin:0;color:#a8a29e;font-size:11px;line-height:1.7;text-align:center;">
+      You're receiving this because you subscribed to Lunelle updates.<br>
+      <a href="${appUrl}/unsubscribe" style="color:#a8a29e;">Unsubscribe</a>
+    </p>
+  `;
+
+  await transporter.sendMail({
+    from: `"Lunelle" <${process.env.SMTP_USER}>`,
+    to,
+    subject,
+    html: emailTemplate(subject, bodyHtml),
+  });
+}
+
+export async function sendCustomNewsletterEmail({
+  to,
+  subject,
+  bodyHtml,
+}: {
+  to: string;
+  subject: string;
+  bodyHtml: string;
+}): Promise<void> {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://lunellestory.ca";
+  const footerHtml = `
+    <p style="margin:24px 0 0;color:#a8a29e;font-size:11px;line-height:1.7;text-align:center;">
+      You're receiving this because you subscribed to Lunelle updates.<br>
+      <a href="${appUrl}/unsubscribe" style="color:#a8a29e;">Unsubscribe</a>
+    </p>
+  `;
+  await transporter.sendMail({
+    from: `"Lunelle" <${process.env.SMTP_USER}>`,
+    to,
+    subject,
+    html: emailTemplate(subject, bodyHtml + footerHtml),
+  });
+}
+
 export async function sendWelcomeEmail({
   to,
   name,

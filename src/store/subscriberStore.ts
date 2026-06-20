@@ -9,11 +9,26 @@ export interface Subscriber {
   couponUsed: boolean;
 }
 
+export interface EmailCampaign {
+  id: string;
+  type: "new_product" | "custom";
+  subject: string;
+  productId?: string;
+  productName?: string;
+  productImage?: string;
+  sentAt: string;
+  recipientCount: number;
+  successCount: number;
+  status: "sent" | "partial" | "failed";
+}
+
 interface SubscriberState {
   subscribers: Subscriber[];
+  emailCampaigns: EmailCampaign[];
   subscribe: (email: string) => { success: true; couponCode: string } | { success: false; error: string };
   markCouponUsed: (email: string) => void;
   deleteSubscriber: (id: string) => void;
+  addCampaign: (campaign: Omit<EmailCampaign, "id">) => void;
 }
 
 function generateCode(): string {
@@ -29,6 +44,15 @@ export const useSubscriberStore = create<SubscriberState>()(
   persist(
     (set, get) => ({
       subscribers: [],
+      emailCampaigns: [],
+
+      addCampaign: (campaign) => {
+        const newCampaign: EmailCampaign = {
+          ...campaign,
+          id: `campaign_${Date.now()}`,
+        };
+        set((s) => ({ emailCampaigns: [newCampaign, ...s.emailCampaigns] }));
+      },
 
       subscribe: (email) => {
         const normalized = email.trim().toLowerCase();
@@ -67,6 +91,13 @@ export const useSubscriberStore = create<SubscriberState>()(
         set((s) => ({ subscribers: s.subscribers.filter((sub) => sub.id !== id) }));
       },
     }),
-    { name: "Lunelle-subscribers", version: 1 }
+    {
+      name: "Lunelle-subscribers",
+      version: 2,
+      migrate: (old: unknown) => {
+        const state = old as Partial<SubscriberState>;
+        return { ...state, emailCampaigns: state.emailCampaigns ?? [] };
+      },
+    }
   )
 );

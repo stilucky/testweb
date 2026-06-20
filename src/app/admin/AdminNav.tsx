@@ -10,12 +10,12 @@ import {
   BarChart2,
   Tag,
   Mail,
+  Send,
   Settings,
   Layers,
   Scissors,
   ImagePlay,
   BookOpen,
-
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +30,7 @@ const navLinks = [
   { href: "/admin/customers",     label: "Customers",       icon: Users,           exact: false },
   { href: "/admin/analytics",     label: "Analytics",       icon: BarChart2,       exact: false },
   { href: "/admin/coupons",       label: "Coupons",         icon: Tag,             exact: false },
+  { href: "/admin/emails",         label: "Email Campaigns", icon: Send,            exact: false },
   { href: "/admin/subscribers",   label: "Subscribers",     icon: Mail,            exact: false },
   { href: "/admin/settings",      label: "Settings",        icon: Settings,        exact: false },
 ];

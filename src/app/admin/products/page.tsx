@@ -5,12 +5,13 @@ import Image from "next/image";
 import {
   Search, Plus, Edit, Trash2, Eye, ChevronDown,
   Package, X, Save, RefreshCw, Cloud, CloudOff,
-  AlertCircle, CheckCircle, Loader2, ImagePlus, Trash, Video,
+  AlertCircle, CheckCircle, Loader2, ImagePlus, Trash, Video, Send, Mail,
 } from "lucide-react";
 import { Product } from "@/types";
 import { formatPrice, cn } from "@/lib/utils";
 import { useProductStore } from "@/store/productStore";
 import { useCollectionStore } from "@/store/collectionStore";
+import { useSubscriberStore } from "@/store/subscriberStore";
 
 const categoryOptions = ["all", "dresses", "tops", "bottoms", "outerwear", "accessories"];
 const allSizes = ["XS", "S", "M", "L", "XL", "XXL"];
@@ -69,6 +70,12 @@ export default function AdminProductsPage() {
   const [loading, setLoading]           = useState(true);
   const { addProduct, updateProduct, removeProduct, setProducts } = useProductStore();
   const { collections, updateCollection } = useCollectionStore();
+  const { subscribers, addCampaign } = useSubscriberStore();
+
+  // Announce modal state — shown after creating a new product
+  const [announceProduct, setAnnounceProduct] = useState<Product | null>(null);
+  const [announcing, setAnnouncing] = useState(false);
+  const [announceResult, setAnnounceResult] = useState<{ ok: boolean; sent?: number } | null>(null);
   const [syncing, setSyncing]           = useState(false);
   const [toasts, setToasts]             = useState<Toast[]>([]);
 
@@ -314,6 +321,11 @@ export default function AdminProductsPage() {
         addProduct(data.product); // sync store
         syncCollections(data.product.id, form.collections);
         addToast("success", `"${data.product.name}" created on Shopify`);
+        // Prompt to send email announcement if there are subscribers
+        if (subscribers.length > 0) {
+          setAnnounceProduct(data.product);
+          setAnnounceResult(null);
+        }
       }
       closeModal();
     } catch (err) {
@@ -337,6 +349,56 @@ export default function AdminProductsPage() {
     } catch (err) {
       removeToast(toastId);
       addToast("error", String(err));
+    }
+  };
+
+  const handleAnnounce = async (product: Product) => {
+    if (subscribers.length === 0) {
+      setAnnounceProduct(null);
+      return;
+    }
+    setAnnouncing(true);
+    setAnnounceResult(null);
+    try {
+      const res = await fetch("/api/admin/send-newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          emails: subscribers.map((s) => s.email),
+          subject: `New Arrival: ${product.name}`,
+          type: "new_product",
+          product: {
+            name: product.name,
+            slug: product.slug,
+            price: product.price,
+            salePrice: product.salePrice,
+            image: product.images[0] ?? "",
+            shortDescription: product.shortDescription,
+            currency: "CAD",
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        addCampaign({
+          type: "new_product",
+          subject: `New Arrival: ${product.name}`,
+          productId: product.id,
+          productName: product.name,
+          productImage: product.images[0],
+          sentAt: new Date().toISOString(),
+          recipientCount: data.recipientCount ?? subscribers.length,
+          successCount: data.successCount ?? 0,
+          status: data.status ?? "sent",
+        });
+        setAnnounceResult({ ok: true, sent: data.successCount ?? subscribers.length });
+      } else {
+        setAnnounceResult({ ok: false });
+      }
+    } catch {
+      setAnnounceResult({ ok: false });
+    } finally {
+      setAnnouncing(false);
     }
   };
 
@@ -1175,6 +1237,62 @@ export default function AdminProductsPage() {
                 className="flex-1 py-3 bg-red-600 text-white text-xs tracking-widest uppercase hover:bg-red-700 transition-colors">
                 Delete
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Announce new product modal ─────────────────────────────────────── */}
+      {announceProduct && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => { setAnnounceProduct(null); setAnnounceResult(null); }} />
+          <div className="relative bg-white w-full max-w-sm shadow-2xl p-6">
+            {/* Icon */}
+            <div className="w-10 h-10 bg-stone-100 rounded-full flex items-center justify-center mb-4">
+              <Mail size={16} className="text-stone-500" />
+            </div>
+
+            <h3 className="text-base font-light text-stone-900 mb-1">Announce to subscribers?</h3>
+            <p className="text-xs text-stone-500 mb-5 leading-relaxed">
+              <span className="font-medium text-stone-700">&ldquo;{announceProduct.name}&rdquo;</span> is now live.
+              Send a &ldquo;New Arrival&rdquo; email to <span className="font-medium text-stone-700">{subscribers.length} subscriber{subscribers.length !== 1 ? "s" : ""}</span>?
+            </p>
+
+            {/* Result */}
+            {announceResult && (
+              <div className={cn(
+                "flex items-center gap-2 p-3 mb-4 text-xs",
+                announceResult.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
+              )}>
+                {announceResult.ok
+                  ? <><CheckCircle size={13} /> Sent to {announceResult.sent} subscriber{(announceResult.sent ?? 0) !== 1 ? "s" : ""}</>
+                  : <><AlertCircle size={13} /> Failed to send. Check SMTP settings.</>
+                }
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setAnnounceProduct(null); setAnnounceResult(null); }}
+                className="flex-1 py-2.5 border border-stone-200 text-xs tracking-widest uppercase text-stone-600 hover:bg-stone-50 transition-colors"
+              >
+                {announceResult ? "Close" : "Skip"}
+              </button>
+              {!announceResult && (
+                <button
+                  onClick={() => handleAnnounce(announceProduct)}
+                  disabled={announcing}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2 py-2.5 bg-stone-900 text-white text-xs tracking-widest uppercase transition-colors",
+                    announcing ? "opacity-50 cursor-not-allowed" : "hover:bg-stone-700"
+                  )}
+                >
+                  {announcing
+                    ? <><Loader2 size={13} className="animate-spin" /> Sending...</>
+                    : <><Send size={13} /> Send Email</>
+                  }
+                </button>
+              )}
             </div>
           </div>
         </div>
