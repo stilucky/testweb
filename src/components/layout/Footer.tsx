@@ -163,9 +163,6 @@ export default function Footer() {
             <Link href="/terms" className="text-[11px] text-stone-600 hover:text-stone-300 transition-colors">
               {t("termsOfService")}
             </Link>
-            <Link href="/admin" className="text-[11px] text-stone-700 hover:text-stone-500 transition-colors">
-              Admin
-            </Link>
           </div>
         </div>
       </div>

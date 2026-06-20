@@ -22,6 +22,7 @@ export interface Product {
   videoUrl?: string;
   priceCAD?: number;
   salePriceCAD?: number;
+  createdAt?: string;
 }
 
 export interface Color {

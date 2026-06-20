@@ -10,6 +10,7 @@ import {
 import { Product } from "@/types";
 import { formatPrice, cn } from "@/lib/utils";
 import { useProductStore } from "@/store/productStore";
+import { useCollectionStore } from "@/store/collectionStore";
 
 const categoryOptions = ["all", "dresses", "tops", "bottoms", "outerwear", "accessories"];
 const allSizes = ["XS", "S", "M", "L", "XL", "XXL"];
@@ -41,6 +42,7 @@ type FormData = {
   stock: string; category: string;
   gender: "women" | "men" | "unisex"; sizes: string[]; colors: FormColor[];
   images: string; videoUrl: string; isNew: boolean; isBestSeller: boolean; featured: boolean;
+  collections: string[];
 };
 
 const emptyForm: FormData = {
@@ -52,6 +54,7 @@ const emptyForm: FormData = {
   stock: "", category: "dresses",
   gender: "women", sizes: [], colors: [], images: "", videoUrl: "",
   isNew: false, isBestSeller: false, featured: false,
+  collections: [],
 };
 
 function toSlug(text: string) {
@@ -65,6 +68,7 @@ export default function AdminProductsPage() {
   const [productList, setProductList]   = useState<Product[]>([]);
   const [loading, setLoading]           = useState(true);
   const { addProduct, updateProduct, removeProduct, setProducts } = useProductStore();
+  const { collections, updateCollection } = useCollectionStore();
   const [syncing, setSyncing]           = useState(false);
   const [toasts, setToasts]             = useState<Toast[]>([]);
 
@@ -194,8 +198,12 @@ export default function AdminProductsPage() {
       isNew: product.isNew,
       isBestSeller: product.isBestSeller,
       featured: product.featured,
+      collections: collections
+        .filter((c) => c.productIds.includes(product.id))
+        .map((c) => c.id),
     });
     setErrors({});
+    setShowUrlInput(false);
     setModalOpen(true);
   };
 
@@ -220,6 +228,18 @@ export default function AdminProductsPage() {
     if (!form.images.trim() && uploadedImages.length === 0) e.images = "At least one image required";
     setErrors(e);
     return Object.keys(e).length === 0;
+  };
+
+  const syncCollections = (productId: string, selectedColIds: string[]) => {
+    collections.forEach((col) => {
+      const shouldInclude = selectedColIds.includes(col.id);
+      const isIncluded = col.productIds.includes(productId);
+      if (shouldInclude && !isIncluded) {
+        updateCollection(col.id, { productIds: [...col.productIds, productId] });
+      } else if (!shouldInclude && isIncluded) {
+        updateCollection(col.id, { productIds: col.productIds.filter((id) => id !== productId) });
+      }
+    });
   };
 
   const handleSave = async () => {
@@ -279,6 +299,7 @@ export default function AdminProductsPage() {
 
         setProductList((prev) => prev.map((p) => p.id === editingProduct.id ? data.product : p));
         updateProduct(data.product); // sync store
+        syncCollections(data.product.id, form.collections);
         addToast("success", `"${data.product.name}" updated on Shopify`);
       } else {
         // Create on Shopify
@@ -291,6 +312,7 @@ export default function AdminProductsPage() {
         if (!res.ok) throw new Error(data.error ?? "Create failed");
         setProductList((prev) => [data.product, ...prev]);
         addProduct(data.product); // sync store
+        syncCollections(data.product.id, form.collections);
         addToast("success", `"${data.product.name}" created on Shopify`);
       }
       closeModal();
@@ -1050,6 +1072,47 @@ export default function AdminProductsPage() {
                   );
                 })()}
               </Field>
+
+              {/* Collections */}
+              {collections.filter((c) => c.status === "active").length > 0 && (
+                <Field label="Collections">
+                  <div className="space-y-2">
+                    {collections.filter((c) => c.status === "active").map((col) => (
+                      <label key={col.id} className="flex items-center gap-2.5 cursor-pointer select-none group">
+                        <input
+                          type="checkbox"
+                          checked={form.collections.includes(col.id)}
+                          onChange={(e) => setForm((f) => ({
+                            ...f,
+                            collections: e.target.checked
+                              ? [...f.collections, col.id]
+                              : f.collections.filter((id) => id !== col.id),
+                          }))}
+                          className="w-4 h-4 accent-stone-900 shrink-0"
+                        />
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-sm text-stone-700 group-hover:text-stone-900 transition-colors truncate">
+                            {col.name}
+                          </span>
+                          {col.membersOnly && (
+                            <span className="text-[9px] bg-stone-100 text-stone-500 px-1.5 py-0.5 rounded tracking-widest uppercase shrink-0">
+                              Members Only
+                            </span>
+                          )}
+                          {col.featured && (
+                            <span className="text-[9px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded tracking-widest uppercase shrink-0">
+                              Featured
+                            </span>
+                          )}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-stone-400 mt-2">
+                    Product will appear in the selected collection pages.
+                  </p>
+                </Field>
+              )}
 
               {/* Flags */}
               <Field label="Labels">

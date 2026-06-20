@@ -132,6 +132,7 @@ export function shopifyToProduct(sp: ShopifyProduct): Product {
     isBestSeller: "isBestSeller" in tagMap,
     stock,
     tags: sp.tags.split(",").map((t) => t.trim()).filter((t) => !t.startsWith("color:") && !t.startsWith("gender:") && !t.startsWith("cat:")),
+    createdAt: sp.created_at,
   };
 }
 

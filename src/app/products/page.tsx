@@ -1,14 +1,17 @@
 "use client";
 
 import { useState, useMemo, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-import { SlidersHorizontal, X, ChevronDown } from "lucide-react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { SlidersHorizontal, X, ChevronDown, Lock } from "lucide-react";
+import Link from "next/link";
 import { useProductStore } from "@/store/productStore";
 import { useCollectionStore } from "@/store/collectionStore";
+import { useAuthStore } from "@/store/authStore";
 import ProductCard from "@/components/product/ProductCard";
 import { cn } from "@/lib/utils";
 import { useLocaleStore } from "@/store/localeStore";
 import { useTranslations } from "@/lib/i18n";
+
 
 const sizes = ["XS", "S", "M", "L", "XL"];
 const priceRanges = [
@@ -20,14 +23,16 @@ const priceRanges = [
 
 function ProductsContent() {
   const searchParams = useSearchParams();
+  const router       = useRouter();
   const filterParam      = searchParams.get("filter");
   const categoryParam    = searchParams.get("category") ?? "all";
   const collectionParam  = searchParams.get("collection");
 
-  const products    = useProductStore((s) => s.products);
+  const products       = useProductStore((s) => s.products);
   const { collections } = useCollectionStore();
-  const language    = useLocaleStore((s) => s.language);
-  const t           = useTranslations(language);
+  const currentUser    = useAuthStore((s) => s.currentUser);
+  const language       = useLocaleStore((s) => s.language);
+  const t              = useTranslations(language);
 
   const sortOptions = [
     { label: t("newest"),      value: "newest" },
@@ -127,6 +132,42 @@ function ProductsContent() {
 
   const hasFilters =
     selectedCategory !== "all" || selectedSizes.length > 0 || selectedPrice !== null;
+
+  // Members-only gate
+  if (activeCollection?.membersOnly && !currentUser) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 py-24">
+        <div className="w-14 h-14 rounded-full bg-stone-100 flex items-center justify-center mb-6">
+          <Lock size={22} className="text-stone-400" />
+        </div>
+        <p className="text-[10px] tracking-[0.25em] uppercase text-stone-400 mb-3">Members Only</p>
+        <h1
+          className="text-3xl md:text-4xl font-light mb-4"
+          style={{ fontFamily: "var(--font-cormorant), serif" }}
+        >
+          {activeCollection.name}
+        </h1>
+        <p className="text-sm text-stone-500 max-w-sm mb-8 leading-relaxed">
+          This collection is exclusively available to Lunelle members. Sign in or create a free account to unlock access.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Link
+            href="/auth?tab=register"
+            className="px-8 py-3.5 bg-stone-900 text-white text-[10px] tracking-[0.2em] uppercase hover:bg-stone-700 transition-colors"
+          >
+            Create Account — Free
+          </Link>
+          <Link
+            href="/auth"
+            className="px-8 py-3.5 border border-stone-200 text-[10px] tracking-[0.2em] uppercase hover:bg-stone-50 transition-colors"
+          >
+            Sign In
+          </Link>
+        </div>
+        <p className="text-xs text-stone-300 mt-6">Members receive a 10% welcome discount on their first order.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-screen-xl mx-auto px-4 md:px-8 py-12">

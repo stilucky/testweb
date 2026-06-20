@@ -29,10 +29,12 @@ export interface User {
   createdAt: string;
   passwordChangedAt?: string;
   personalCode?: string; // 10% welcome discount, generated on registration
+  googleId?: string;
+  avatar?: string;
 }
 
 interface StoredUser extends User {
-  password: string;
+  password?: string; // undefined for Google-only accounts
 }
 
 interface AuthStore {
@@ -81,11 +83,9 @@ export const useAuthStore = create<AuthStore>()(
 
       login: (email, password) => {
         const found = get().users.find(
-          (u) =>
-            u.email.toLowerCase() === email.toLowerCase() &&
-            u.password === password
+          (u) => u.email.toLowerCase() === email.toLowerCase()
         );
-        if (!found) {
+        if (!found || !found.password || found.password !== password) {
           return { success: false, error: "Email or password is incorrect" };
         }
         const { password: _pw, ...user } = found;
