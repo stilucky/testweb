@@ -360,32 +360,34 @@ export default function AdminProductsPage() {
     setAnnouncing(true);
     setAnnounceResult(null);
     try {
+      const subject = `New Arrival: ${product.name}`;
       const res = await fetch("/api/admin/send-newsletter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           emails: subscribers.map((s) => s.email),
-          subject: `New Arrival: ${product.name}`,
+          subject,
           type: "new_product",
-          product: {
+          products: [{
             name: product.name,
             slug: product.slug,
-            price: product.price,
-            salePrice: product.salePrice,
+            price: product.priceCAD ?? product.price,
+            salePrice: product.salePriceCAD ?? product.salePrice,
             image: product.images[0] ?? "",
             shortDescription: product.shortDescription,
             currency: "CAD",
-          },
+          }],
         }),
       });
       const data = await res.json();
       if (data.ok) {
         addCampaign({
           type: "new_product",
-          subject: `New Arrival: ${product.name}`,
-          productId: product.id,
-          productName: product.name,
+          subject,
+          productIds: [product.id],
+          productNames: [product.name],
           productImage: product.images[0],
+          recipientSource: "subscribers",
           sentAt: new Date().toISOString(),
           recipientCount: data.recipientCount ?? subscribers.length,
           successCount: data.successCount ?? 0,

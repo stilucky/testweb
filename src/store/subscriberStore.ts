@@ -1,4 +1,4 @@
-﻿import { create } from "zustand";
+import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 export interface Subscriber {
@@ -13,9 +13,12 @@ export interface EmailCampaign {
   id: string;
   type: "new_product" | "custom";
   subject: string;
-  productId?: string;
-  productName?: string;
-  productImage?: string;
+  // Multi-product support
+  productIds?: string[];
+  productNames?: string[];
+  productImage?: string;      // thumbnail of first product
+  // Recipient tracking
+  recipientSource: "subscribers" | "customers" | "all" | "custom";
   sentAt: string;
   recipientCount: number;
   successCount: number;
@@ -93,10 +96,27 @@ export const useSubscriberStore = create<SubscriberState>()(
     }),
     {
       name: "Lunelle-subscribers",
-      version: 2,
-      migrate: (old: unknown) => {
-        const state = old as Partial<SubscriberState>;
-        return { ...state, emailCampaigns: state.emailCampaigns ?? [] };
+      version: 3,
+      migrate: (old: unknown, version: number) => {
+        const state = old as Partial<SubscriberState> & {
+          emailCampaigns?: Array<EmailCampaign & { productId?: string; productName?: string }>;
+        };
+        if (version < 2) {
+          state.emailCampaigns = [];
+        }
+        if (version < 3) {
+          // Migrate old campaigns to new shape
+          state.emailCampaigns = (state.emailCampaigns ?? []).map((c) => {
+            const old = c as unknown as Record<string, unknown>;
+            return {
+              ...c,
+              productIds:    old["productId"]   ? [old["productId"] as string]   : undefined,
+              productNames:  old["productName"] ? [old["productName"] as string] : undefined,
+              recipientSource: "subscribers" as const,
+            };
+          });
+        }
+        return state;
       },
     }
   )

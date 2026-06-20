@@ -3,11 +3,13 @@
 import { useState, useMemo } from "react";
 import {
   Mail, Send, Plus, CheckCircle, AlertCircle, Loader2,
-  Users, MailCheck, Clock, ChevronRight, X, Package,
-  BarChart2, Eye,
+  Users, MailCheck, Clock, X, Package,
+  BarChart2, Eye, UserCheck, ChevronDown, ChevronUp, Search,
+  Square, SquareCheck,
 } from "lucide-react";
 import { useSubscriberStore, EmailCampaign } from "@/store/subscriberStore";
 import { useProductStore } from "@/store/productStore";
+import { useAuthStore } from "@/store/authStore";
 import { cn } from "@/lib/utils";
 
 function formatDate(iso: string) {
@@ -31,104 +33,202 @@ function StatusBadge({ status }: { status: EmailCampaign["status"] }) {
   );
 }
 
-type ComposeType = "new_product" | "custom";
+type RecipientMode = "subscribers" | "customers" | "all" | "custom";
+type ComposeType   = "new_product" | "custom";
 
 interface SendResult {
   ok: boolean;
-  status?: string;
+  status?: EmailCampaign["status"];
   successCount?: number;
   recipientCount?: number;
   error?: string;
 }
 
+// Merged entry for custom selection list
+interface RecipientEntry {
+  email: string;
+  name: string;
+  source: "subscriber" | "customer" | "both";
+}
+
 export default function AdminEmailsPage() {
   const { subscribers, emailCampaigns, addCampaign } = useSubscriberStore();
   const { products } = useProductStore();
+  const { users } = useAuthStore();
 
-  const [composeOpen, setComposeOpen] = useState(false);
-  const [composeType, setComposeType] = useState<ComposeType>("new_product");
-  const [selectedProductId, setSelectedProductId] = useState("");
-  const [customSubject, setCustomSubject] = useState("");
-  const [customBody, setCustomBody] = useState("");
-  const [sending, setSending] = useState(false);
-  const [sendResult, setSendResult] = useState<SendResult | null>(null);
+  // Registered customers (non-admin)
+  const customers = useMemo(
+    () => users.filter((u) => u.role === "customer"),
+    [users]
+  );
 
+  // ── Compose state ──────────────────────────────────────────────────────────
+  const [composeOpen, setComposeOpen]         = useState(false);
+  const [recipientMode, setRecipientMode]     = useState<RecipientMode>("subscribers");
+  const [customTab, setCustomTab]             = useState<"subscribers" | "customers">("subscribers");
+  const [customEmails, setCustomEmails]       = useState<Set<string>>(new Set());
+  const [recipientSearch, setRecipientSearch] = useState("");
+  const [composeType, setComposeType]         = useState<ComposeType>("new_product");
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [productSearch, setProductSearch]     = useState("");
+  const [customSubject, setCustomSubject]     = useState("");
+  const [customBody, setCustomBody]           = useState("");
+  const [sending, setSending]                 = useState(false);
+  const [sendResult, setSendResult]           = useState<SendResult | null>(null);
   const [previewCampaign, setPreviewCampaign] = useState<EmailCampaign | null>(null);
 
-  const activeSubscribers = subscribers; // all are active
-  const selectedProduct = products.find((p) => p.id === selectedProductId);
+  // ── Computed recipient lists ────────────────────────────────────────────────
+  const allEmailsUnique = useMemo(() => {
+    const set = new Set([
+      ...subscribers.map((s) => s.email),
+      ...customers.map((u) => u.email),
+    ]);
+    return [...set];
+  }, [subscribers, customers]);
 
+  const finalEmails = useMemo((): string[] => {
+    switch (recipientMode) {
+      case "subscribers": return subscribers.map((s) => s.email);
+      case "customers":   return customers.map((u) => u.email);
+      case "all":         return allEmailsUnique;
+      case "custom":      return [...customEmails];
+    }
+  }, [recipientMode, customEmails, subscribers, customers, allEmailsUnique]);
+
+  // Merged list for custom selection
+  const mergedRecipients = useMemo((): RecipientEntry[] => {
+    const map = new Map<string, RecipientEntry>();
+    subscribers.forEach((s) =>
+      map.set(s.email, { email: s.email, name: s.email, source: "subscriber" })
+    );
+    customers.forEach((u) => {
+      const existing = map.get(u.email);
+      if (existing) {
+        map.set(u.email, { ...existing, name: `${u.firstName} ${u.lastName}`, source: "both" });
+      } else {
+        map.set(u.email, { email: u.email, name: `${u.firstName} ${u.lastName}`, source: "customer" });
+      }
+    });
+    return [...map.values()];
+  }, [subscribers, customers]);
+
+  const filteredCustomList = useMemo(() => {
+    const base =
+      customTab === "subscribers"
+        ? mergedRecipients.filter((r) => r.source === "subscriber" || r.source === "both")
+        : mergedRecipients.filter((r) => r.source === "customer" || r.source === "both");
+    const q = recipientSearch.toLowerCase();
+    return q ? base.filter((r) => r.email.includes(q) || r.name.toLowerCase().includes(q)) : base;
+  }, [mergedRecipients, customTab, recipientSearch]);
+
+  // ── Product helpers ─────────────────────────────────────────────────────────
+  const filteredProducts = useMemo(() => {
+    const q = productSearch.toLowerCase();
+    return q
+      ? products.filter((p) => p.name.toLowerCase().includes(q))
+      : products;
+  }, [products, productSearch]);
+
+  const selectedProducts = products.filter((p) => selectedProductIds.includes(p.id));
+
+  const toggleProduct = (id: string) => {
+    setSelectedProductIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleCustomEmail = (email: string) => {
+    setCustomEmails((prev) => {
+      const next = new Set(prev);
+      next.has(email) ? next.delete(email) : next.add(email);
+      return next;
+    });
+  };
+
+  const toggleAllInCustomTab = () => {
+    const allEmails = filteredCustomList.map((r) => r.email);
+    const allSelected = allEmails.every((e) => customEmails.has(e));
+    setCustomEmails((prev) => {
+      const next = new Set(prev);
+      allEmails.forEach((e) => (allSelected ? next.delete(e) : next.add(e)));
+      return next;
+    });
+  };
+
+  // ── Subject auto-generation ────────────────────────────────────────────────
+  const autoSubject = useMemo(() => {
+    if (composeType === "custom") return customSubject;
+    if (selectedProducts.length === 0) return "";
+    if (selectedProducts.length === 1) return `New Arrival: ${selectedProducts[0].name}`;
+    return `New Arrivals at Lunelle — ${selectedProducts.slice(0, 2).map((p) => p.name).join(", ")}${selectedProducts.length > 2 ? " & more" : ""}`;
+  }, [composeType, selectedProducts, customSubject]);
+
+  // ── Stats ──────────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
-    const total = emailCampaigns.length;
-    const sent = emailCampaigns.filter((c) => c.status === "sent").length;
+    const now = new Date();
     const thisMonth = emailCampaigns.filter((c) => {
       const d = new Date(c.sentAt);
-      const now = new Date();
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).length;
     const totalReached = emailCampaigns.reduce((acc, c) => acc + c.successCount, 0);
-    return { total, sent, thisMonth, totalReached };
+    return { thisMonth, totalReached };
   }, [emailCampaigns]);
 
+  // ── Send ───────────────────────────────────────────────────────────────────
+  const canSend = finalEmails.length > 0 &&
+    (composeType === "new_product"
+      ? selectedProductIds.length > 0
+      : customSubject.trim() && customBody.trim());
+
   const handleSend = async () => {
-    if (activeSubscribers.length === 0) return;
-
-    let subject = "";
-    let product = undefined;
-    let customHtml = undefined;
-
-    if (composeType === "new_product") {
-      if (!selectedProduct) return;
-      subject = `New Arrival: ${selectedProduct.name}`;
-      product = {
-        name: selectedProduct.name,
-        slug: selectedProduct.slug,
-        price: selectedProduct.price,
-        salePrice: selectedProduct.salePrice,
-        image: selectedProduct.images[0] ?? "",
-        shortDescription: selectedProduct.shortDescription,
-        currency: "CAD",
-      };
-    } else {
-      if (!customSubject.trim() || !customBody.trim()) return;
-      subject = customSubject.trim();
-      customHtml = customBody.trim();
-    }
-
+    if (!canSend) return;
     setSending(true);
     setSendResult(null);
 
+    const subject = autoSubject;
+    const payload =
+      composeType === "new_product"
+        ? {
+            emails: finalEmails,
+            subject,
+            type: "new_product" as const,
+            products: selectedProducts.map((p) => ({
+              name: p.name,
+              slug: p.slug,
+              price: p.priceCAD ?? p.price,
+              salePrice: p.salePriceCAD ?? p.salePrice,
+              image: p.images[0] ?? "",
+              shortDescription: p.shortDescription,
+              currency: "CAD",
+            })),
+          }
+        : {
+            emails: finalEmails,
+            subject: customSubject.trim(),
+            type: "custom" as const,
+            customHtml: customBody.trim(),
+          };
+
     try {
-      const emails = activeSubscribers.map((s) => s.email);
       const res = await fetch("/api/admin/send-newsletter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          emails,
-          subject,
-          type: composeType,
-          product,
-          customHtml,
-        }),
+        body: JSON.stringify(payload),
       });
-      const data: SendResult & {
-        status?: EmailCampaign["status"];
-        successCount?: number;
-        recipientCount?: number;
-      } = await res.json();
-
+      const data: SendResult = await res.json();
       setSendResult(data);
 
       if (data.ok) {
         addCampaign({
           type: composeType,
-          subject,
-          productId: selectedProduct?.id,
-          productName: selectedProduct?.name,
-          productImage: selectedProduct?.images[0],
+          subject: payload.subject,
+          productIds:    composeType === "new_product" ? selectedProductIds : undefined,
+          productNames:  composeType === "new_product" ? selectedProducts.map((p) => p.name) : undefined,
+          productImage:  composeType === "new_product" ? selectedProducts[0]?.images[0] : undefined,
+          recipientSource: recipientMode,
           sentAt: new Date().toISOString(),
-          recipientCount: data.recipientCount ?? emails.length,
-          successCount: data.successCount ?? 0,
+          recipientCount: data.recipientCount ?? finalEmails.length,
+          successCount:   data.successCount ?? 0,
           status: data.status ?? "sent",
         });
       }
@@ -142,17 +242,23 @@ export default function AdminEmailsPage() {
   const closeCompose = () => {
     setComposeOpen(false);
     setSendResult(null);
-    setSelectedProductId("");
+    setSelectedProductIds([]);
     setCustomSubject("");
     setCustomBody("");
+    setCustomEmails(new Set());
+    setRecipientSearch("");
+    setProductSearch("");
+    setRecipientMode("subscribers");
     setComposeType("new_product");
   };
 
-  const canSend =
-    activeSubscribers.length > 0 &&
-    (composeType === "new_product"
-      ? !!selectedProductId
-      : customSubject.trim() && customBody.trim());
+  // ── Recipient mode cards ────────────────────────────────────────────────────
+  const recipientModes: { mode: RecipientMode; icon: React.ElementType; label: string; sub: string; count: number }[] = [
+    { mode: "subscribers", icon: Mail,      label: "Subscribers",     sub: "Newsletter signups",    count: subscribers.length },
+    { mode: "customers",   icon: UserCheck, label: "Customers",       sub: "Registered accounts",  count: customers.length },
+    { mode: "all",         icon: Users,     label: "All (Combined)",  sub: "Unique emails",         count: allEmailsUnique.length },
+    { mode: "custom",      icon: SquareCheck, label: "Custom",        sub: "Choose recipients",     count: customEmails.size },
+  ];
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
@@ -161,7 +267,7 @@ export default function AdminEmailsPage() {
         <div>
           <h1 className="text-2xl font-light text-stone-900 tracking-wide">Email Campaigns</h1>
           <p className="text-xs text-stone-400 mt-1">
-            Send newsletters to {activeSubscribers.length} subscriber{activeSubscribers.length !== 1 ? "s" : ""}
+            {subscribers.length} subscribers · {customers.length} registered customers
           </p>
         </div>
         <button
@@ -175,17 +281,17 @@ export default function AdminEmailsPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         {[
-          { label: "Subscribers",     value: activeSubscribers.length, icon: Users,    color: "text-stone-700" },
-          { label: "Campaigns Sent",  value: stats.total,              icon: MailCheck, color: "text-emerald-600" },
-          { label: "This Month",      value: stats.thisMonth,          icon: Clock,    color: "text-blue-600" },
-          { label: "Total Reached",   value: stats.totalReached,       icon: BarChart2, color: "text-purple-600" },
+          { label: "Subscribers",  value: subscribers.length,     icon: Mail,      color: "text-stone-700" },
+          { label: "Customers",    value: customers.length,        icon: UserCheck, color: "text-blue-600" },
+          { label: "This Month",   value: stats.thisMonth,         icon: Clock,     color: "text-amber-600" },
+          { label: "Total Reached",value: stats.totalReached,      icon: BarChart2, color: "text-purple-600" },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="border border-stone-100 p-4 flex items-center gap-3 bg-white">
             <div className="w-9 h-9 bg-stone-50 rounded-full flex items-center justify-center shrink-0">
               <Icon size={15} className={color} />
             </div>
             <div>
-              <p className="text-[10px] tracking-widest uppercase text-stone-400">{label}</p>
+              <p className="text-[10px] tracking-widests uppercase text-stone-400">{label}</p>
               <p className="text-2xl font-light text-stone-900 mt-0.5">{value}</p>
             </div>
           </div>
@@ -193,212 +299,358 @@ export default function AdminEmailsPage() {
       </div>
 
       {/* Campaign History */}
-      <div>
-        <h2 className="text-xs tracking-widest uppercase text-stone-400 mb-4">Campaign History</h2>
-
-        {emailCampaigns.length === 0 ? (
-          <div className="border border-dashed border-stone-200 py-20 text-center">
-            <Mail size={24} className="mx-auto text-stone-300 mb-3" />
-            <p className="text-sm text-stone-400 mb-1">No campaigns sent yet</p>
-            <p className="text-xs text-stone-300">Compose your first campaign to get started</p>
-          </div>
-        ) : (
-          <div className="border border-stone-100 overflow-x-auto bg-white">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-stone-100 bg-stone-50">
-                  {["Subject", "Type", "Sent At", "Recipients", "Delivered", "Status", ""].map((h) => (
-                    <th key={h} className="text-left text-[10px] tracking-widests uppercase text-stone-400 font-normal px-4 py-3 whitespace-nowrap">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-50">
-                {emailCampaigns.map((c) => (
-                  <tr key={c.id} className="hover:bg-stone-50/50 transition-colors group">
-                    <td className="px-4 py-3.5 max-w-xs">
-                      <div className="flex items-center gap-2">
-                        {c.productImage ? (
-                          <div
-                            className="w-8 h-8 shrink-0 bg-stone-100"
-                            style={{ backgroundImage: `url(${c.productImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
-                          />
-                        ) : (
-                          <div className="w-8 h-8 shrink-0 bg-stone-100 flex items-center justify-center">
-                            <Mail size={12} className="text-stone-400" />
-                          </div>
-                        )}
-                        <p className="text-xs text-stone-800 truncate max-w-[200px]">{c.subject}</p>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className="inline-flex items-center gap-1 text-[10px] tracking-widests uppercase text-stone-500">
-                        {c.type === "new_product" ? <><Package size={9} /> Product</> : <><Mail size={9} /> Custom</>}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 text-xs text-stone-500 whitespace-nowrap">
-                      {formatDate(c.sentAt)}
-                    </td>
-                    <td className="px-4 py-3.5 text-xs text-stone-600 font-medium">
-                      {c.recipientCount}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className="text-xs font-medium text-stone-700">{c.successCount}</span>
-                      <span className="text-xs text-stone-400"> / {c.recipientCount}</span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <StatusBadge status={c.status} />
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <button
-                        onClick={() => setPreviewCampaign(c)}
-                        className="p-1.5 rounded text-stone-300 hover:text-stone-700 hover:bg-stone-100 transition-colors opacity-0 group-hover:opacity-100"
-                        title="View details"
-                      >
-                        <Eye size={13} />
-                      </button>
-                    </td>
-                  </tr>
+      <h2 className="text-xs tracking-widests uppercase text-stone-400 mb-4">Campaign History</h2>
+      {emailCampaigns.length === 0 ? (
+        <div className="border border-dashed border-stone-200 py-20 text-center">
+          <MailCheck size={24} className="mx-auto text-stone-300 mb-3" />
+          <p className="text-sm text-stone-400 mb-1">No campaigns sent yet</p>
+          <p className="text-xs text-stone-300">Compose your first campaign to get started</p>
+        </div>
+      ) : (
+        <div className="border border-stone-100 overflow-x-auto bg-white">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-stone-100 bg-stone-50">
+                {["Subject", "Type", "Recipients", "Delivered", "Status", "Sent At", ""].map((h) => (
+                  <th key={h} className="text-left text-[10px] tracking-widests uppercase text-stone-400 font-normal px-4 py-3 whitespace-nowrap">
+                    {h}
+                  </th>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-50">
+              {emailCampaigns.map((c) => (
+                <tr key={c.id} className="hover:bg-stone-50/50 transition-colors group">
+                  <td className="px-4 py-3.5 max-w-xs">
+                    <div className="flex items-center gap-2">
+                      {c.productImage ? (
+                        <div className="w-8 h-8 shrink-0 bg-stone-100" style={{ backgroundImage: `url(${c.productImage})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+                      ) : (
+                        <div className="w-8 h-8 shrink-0 bg-stone-100 flex items-center justify-center">
+                          <Mail size={12} className="text-stone-400" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-xs text-stone-800 truncate max-w-[180px]">{c.subject}</p>
+                        {c.productNames && c.productNames.length > 1 && (
+                          <p className="text-[10px] text-stone-400 mt-0.5">{c.productNames.length} products</p>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3.5">
+                    <span className="inline-flex items-center gap-1 text-[10px] tracking-widests uppercase text-stone-500">
+                      {c.type === "new_product" ? <><Package size={9} /> Product</> : <><Mail size={9} /> Custom</>}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3.5">
+                    <div>
+                      <span className="text-xs font-medium text-stone-700">{c.recipientCount}</span>
+                      <p className="text-[10px] text-stone-400 mt-0.5 capitalize">{c.recipientSource?.replace("_", " ")}</p>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3.5">
+                    <span className="text-xs font-medium text-emerald-600">{c.successCount}</span>
+                    <span className="text-xs text-stone-400"> / {c.recipientCount}</span>
+                  </td>
+                  <td className="px-4 py-3.5"><StatusBadge status={c.status} /></td>
+                  <td className="px-4 py-3.5 text-xs text-stone-500 whitespace-nowrap">{formatDate(c.sentAt)}</td>
+                  <td className="px-4 py-3.5">
+                    <button onClick={() => setPreviewCampaign(c)} className="p-1.5 rounded text-stone-300 hover:text-stone-700 hover:bg-stone-100 transition-colors opacity-0 group-hover:opacity-100">
+                      <Eye size={13} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-      {/* ── Compose Modal ── */}
+      {/* ════════════════════════════════════════════════════════════════════════
+          Compose Modal
+      ════════════════════════════════════════════════════════════════════════ */}
       {composeOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={closeCompose} />
-          <div className="relative bg-white w-full max-w-xl shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={!sending ? closeCompose : undefined} />
+          <div className="relative bg-white w-full max-w-2xl shadow-2xl flex flex-col max-h-[92vh]">
 
             {/* Modal header */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-stone-100 sticky top-0 bg-white z-10">
-              <div>
-                <h2 className="text-base font-light text-stone-900">Compose Campaign</h2>
-                <p className="text-[10px] tracking-widests uppercase text-stone-400 mt-0.5">
-                  {activeSubscribers.length} recipient{activeSubscribers.length !== 1 ? "s" : ""}
-                </p>
-              </div>
-              <button onClick={closeCompose} className="p-1 text-stone-400 hover:text-stone-900">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100 shrink-0">
+              <h2 className="text-base font-light text-stone-900">Compose Campaign</h2>
+              <button onClick={closeCompose} disabled={sending} className="p-1 text-stone-400 hover:text-stone-900 disabled:opacity-40">
                 <X size={18} />
               </button>
             </div>
 
-            <div className="p-6 space-y-6">
-              {/* No subscribers warning */}
-              {activeSubscribers.length === 0 && (
-                <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-100">
-                  <AlertCircle size={16} className="text-amber-500 shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-700">
-                    No subscribers yet. Share your newsletter signup form to grow your list.
-                  </p>
-                </div>
-              )}
+            <div className="overflow-y-auto flex-1 p-6 space-y-7">
 
-              {/* Type selector */}
-              <div>
-                <p className="text-[10px] tracking-widests uppercase text-stone-400 mb-3">Campaign Type</p>
-                <div className="grid grid-cols-2 gap-2">
+              {/* ── Section 1: Recipients ── */}
+              <section>
+                <p className="text-[10px] tracking-widests uppercase text-stone-400 mb-3 flex items-center gap-2">
+                  <Users size={11} /> Recipients
+                  {finalEmails.length > 0 && (
+                    <span className="bg-stone-900 text-white text-[9px] px-1.5 py-0.5 rounded-full">
+                      {finalEmails.length}
+                    </span>
+                  )}
+                </p>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+                  {recipientModes.map(({ mode, icon: Icon, label, sub, count }) => (
+                    <button
+                      key={mode}
+                      onClick={() => setRecipientMode(mode)}
+                      className={cn(
+                        "flex flex-col items-start p-3 border text-left transition-all",
+                        recipientMode === mode
+                          ? "border-stone-900 bg-stone-900 text-white"
+                          : "border-stone-200 hover:border-stone-400"
+                      )}
+                    >
+                      <Icon size={13} className="mb-1.5" />
+                      <p className="text-xs font-medium leading-tight">{label}</p>
+                      <p className={cn("text-[10px] mt-0.5", recipientMode === mode ? "text-stone-300" : "text-stone-400")}>
+                        {mode === "custom" ? (count > 0 ? `${count} selected` : sub) : `${count} ${sub}`}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Custom selection */}
+                {recipientMode === "custom" && (
+                  <div className="border border-stone-200">
+                    {/* Tabs */}
+                    <div className="flex border-b border-stone-100">
+                      {(["subscribers", "customers"] as const).map((tab) => (
+                        <button
+                          key={tab}
+                          onClick={() => setCustomTab(tab)}
+                          className={cn(
+                            "flex-1 py-2.5 text-[10px] tracking-widests uppercase transition-colors",
+                            customTab === tab
+                              ? "bg-stone-900 text-white"
+                              : "text-stone-500 hover:bg-stone-50"
+                          )}
+                        >
+                          {tab === "subscribers"
+                            ? `Subscribers (${subscribers.length})`
+                            : `Customers (${customers.length})`}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Search */}
+                    <div className="relative border-b border-stone-100">
+                      <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                      <input
+                        value={recipientSearch}
+                        onChange={(e) => setRecipientSearch(e.target.value)}
+                        placeholder="Search..."
+                        className="w-full pl-8 pr-3 py-2 text-xs focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Select all row */}
+                    {filteredCustomList.length > 0 && (
+                      <button
+                        onClick={toggleAllInCustomTab}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-stone-500 hover:bg-stone-50 border-b border-stone-50 transition-colors"
+                      >
+                        {filteredCustomList.every((r) => customEmails.has(r.email))
+                          ? <SquareCheck size={13} className="text-stone-700" />
+                          : <Square size={13} />
+                        }
+                        Select all ({filteredCustomList.length})
+                      </button>
+                    )}
+
+                    {/* List */}
+                    <div className="max-h-44 overflow-y-auto divide-y divide-stone-50">
+                      {filteredCustomList.length === 0 ? (
+                        <p className="text-xs text-stone-400 text-center py-6">No recipients found</p>
+                      ) : filteredCustomList.map((r) => (
+                        <button
+                          key={r.email}
+                          onClick={() => toggleCustomEmail(r.email)}
+                          className={cn(
+                            "w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors",
+                            customEmails.has(r.email) ? "bg-stone-50" : "hover:bg-stone-50/50"
+                          )}
+                        >
+                          {customEmails.has(r.email)
+                            ? <SquareCheck size={13} className="text-stone-700 shrink-0" />
+                            : <Square size={13} className="text-stone-300 shrink-0" />
+                          }
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-stone-800 truncate">{r.source !== "subscriber" ? r.name : r.email}</p>
+                            {r.source !== "subscriber" && (
+                              <p className="text-[10px] text-stone-400 truncate">{r.email}</p>
+                            )}
+                          </div>
+                          <span className={cn(
+                            "text-[9px] tracking-widests uppercase px-1.5 py-0.5 shrink-0",
+                            r.source === "both"       ? "bg-purple-50 text-purple-500" :
+                            r.source === "customer"   ? "bg-blue-50 text-blue-500" :
+                            "bg-stone-100 text-stone-400"
+                          )}>
+                            {r.source === "both" ? "sub+cust" : r.source}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {customEmails.size > 0 && (
+                      <div className="px-3 py-2 bg-stone-50 border-t border-stone-100 flex items-center justify-between">
+                        <p className="text-[10px] text-stone-500">{customEmails.size} selected</p>
+                        <button onClick={() => setCustomEmails(new Set())} className="text-[10px] text-stone-400 hover:text-stone-700">
+                          Clear all
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+
+              {/* ── Section 2: Content Type ── */}
+              <section>
+                <p className="text-[10px] tracking-widests uppercase text-stone-400 mb-3 flex items-center gap-2">
+                  <Mail size={11} /> Content
+                </p>
+                <div className="grid grid-cols-2 gap-2 mb-4">
                   {(["new_product", "custom"] as const).map((t) => (
                     <button
                       key={t}
                       onClick={() => setComposeType(t)}
                       className={cn(
-                        "flex items-center gap-2 p-3.5 border text-xs transition-all text-left",
+                        "flex items-center gap-2 p-3 border text-xs text-left transition-all",
                         composeType === t
                           ? "border-stone-900 bg-stone-900 text-white"
                           : "border-stone-200 text-stone-600 hover:border-stone-400"
                       )}
                     >
                       {t === "new_product" ? <Package size={13} /> : <Mail size={13} />}
-                      {t === "new_product" ? "New Arrival" : "Custom Email"}
+                      {t === "new_product" ? "New Arrivals" : "Custom Email"}
                     </button>
                   ))}
                 </div>
-              </div>
 
-              {/* New product type */}
-              {composeType === "new_product" && (
-                <div>
-                  <p className="text-[10px] tracking-widests uppercase text-stone-400 mb-3">Select Product</p>
-                  <select
-                    value={selectedProductId}
-                    onChange={(e) => setSelectedProductId(e.target.value)}
-                    className="w-full border border-stone-200 px-3 py-2.5 text-sm focus:outline-none focus:border-stone-900 transition-colors bg-white"
-                  >
-                    <option value="">— Choose a product —</option>
-                    {products.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} {p.isNew ? "✦ New" : ""}
-                      </option>
-                    ))}
-                  </select>
-
-                  {selectedProduct && (
-                    <div className="mt-3 flex items-center gap-3 p-3 border border-stone-100 bg-stone-50">
-                      {selectedProduct.images[0] && (
-                        <div
-                          className="w-12 h-12 shrink-0 bg-stone-200"
-                          style={{ backgroundImage: `url(${selectedProduct.images[0]})`, backgroundSize: "cover", backgroundPosition: "center" }}
+                {/* ── New Product: multi-select grid ── */}
+                {composeType === "new_product" && (
+                  <div className="border border-stone-200">
+                    {/* Search + count */}
+                    <div className="flex items-center border-b border-stone-100">
+                      <div className="relative flex-1">
+                        <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                        <input
+                          value={productSearch}
+                          onChange={(e) => setProductSearch(e.target.value)}
+                          placeholder="Search products..."
+                          className="w-full pl-8 pr-3 py-2 text-xs focus:outline-none"
                         />
-                      )}
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium text-stone-900 truncate">{selectedProduct.name}</p>
-                        <p className="text-[11px] text-stone-400 mt-0.5">
-                          CAD ${selectedProduct.salePrice?.toFixed(2) ?? selectedProduct.price.toFixed(2)}
-                          {selectedProduct.salePrice && (
-                            <span className="line-through text-stone-300 ml-1.5">${selectedProduct.price.toFixed(2)}</span>
-                          )}
-                        </p>
                       </div>
-                      <ChevronRight size={14} className="text-stone-300 ml-auto shrink-0" />
+                      {selectedProductIds.length > 0 && (
+                        <span className="px-3 text-[10px] text-stone-400 shrink-0">
+                          {selectedProductIds.length} selected
+                        </span>
+                      )}
                     </div>
-                  )}
 
-                  {selectedProduct && (
-                    <p className="text-[11px] text-stone-400 mt-3">
-                      Subject: <span className="text-stone-700 font-medium">New Arrival: {selectedProduct.name}</span>
-                    </p>
-                  )}
-                </div>
-              )}
+                    {/* Product list */}
+                    <div className="max-h-56 overflow-y-auto divide-y divide-stone-50">
+                      {filteredProducts.length === 0 ? (
+                        <p className="text-xs text-stone-400 text-center py-8">No products found</p>
+                      ) : filteredProducts.map((p) => {
+                        const checked = selectedProductIds.includes(p.id);
+                        return (
+                          <button
+                            key={p.id}
+                            onClick={() => toggleProduct(p.id)}
+                            className={cn(
+                              "w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors",
+                              checked ? "bg-stone-50" : "hover:bg-stone-50/50"
+                            )}
+                          >
+                            {checked
+                              ? <SquareCheck size={14} className="text-stone-800 shrink-0" />
+                              : <Square size={14} className="text-stone-300 shrink-0" />
+                            }
+                            {p.images[0] ? (
+                              <div className="w-9 h-9 shrink-0 bg-stone-100" style={{ backgroundImage: `url(${p.images[0]})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+                            ) : (
+                              <div className="w-9 h-9 shrink-0 bg-stone-100 flex items-center justify-center">
+                                <Package size={12} className="text-stone-400" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-stone-800 truncate">{p.name}</p>
+                              <p className="text-[10px] text-stone-400 mt-0.5">
+                                CAD ${(p.salePriceCAD ?? p.priceCAD ?? p.salePrice ?? p.price).toFixed(2)}
+                                {p.isNew && <span className="ml-1.5 text-emerald-500">✦ New</span>}
+                              </p>
+                            </div>
+                            <span className="text-[10px] text-stone-300 capitalize shrink-0">{p.category}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
-              {/* Custom type */}
-              {composeType === "custom" && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-[10px] tracking-widests uppercase text-stone-400 block mb-2">Subject</label>
+                {/* ── Custom type ── */}
+                {composeType === "custom" && (
+                  <div className="space-y-3">
                     <input
                       value={customSubject}
                       onChange={(e) => setCustomSubject(e.target.value)}
-                      placeholder="Your email subject..."
+                      placeholder="Email subject..."
                       className="w-full border border-stone-200 px-3 py-2.5 text-sm focus:outline-none focus:border-stone-900 transition-colors"
                     />
-                  </div>
-                  <div>
-                    <label className="text-[10px] tracking-widests uppercase text-stone-400 block mb-2">
-                      Body <span className="normal-case text-[10px] text-stone-300">(HTML or plain text)</span>
-                    </label>
                     <textarea
                       value={customBody}
                       onChange={(e) => setCustomBody(e.target.value)}
-                      placeholder="Write your email content here..."
-                      rows={8}
+                      placeholder="Email body (HTML or plain text)..."
+                      rows={6}
                       className="w-full border border-stone-200 px-3 py-2.5 text-sm focus:outline-none focus:border-stone-900 transition-colors resize-y font-mono"
                     />
                   </div>
+                )}
+              </section>
+
+              {/* ── Preview summary ── */}
+              {(autoSubject || finalEmails.length > 0) && !sendResult && (
+                <div className="bg-stone-50 border border-stone-100 p-4 space-y-2 text-xs">
+                  <p className="text-[10px] tracking-widests uppercase text-stone-400 mb-2">Preview</p>
+                  {autoSubject && (
+                    <div className="flex items-start gap-2">
+                      <span className="text-stone-400 shrink-0">Subject:</span>
+                      <span className="text-stone-700 font-medium">{autoSubject}</span>
+                    </div>
+                  )}
+                  <div className="flex items-start gap-2">
+                    <span className="text-stone-400 shrink-0">To:</span>
+                    <span className="text-stone-700">
+                      {finalEmails.length} recipient{finalEmails.length !== 1 ? "s" : ""}
+                      {" "}
+                      <span className="text-stone-400">
+                        ({recipientMode === "custom" ? "custom selection" : recipientMode.replace("_", " ")})
+                      </span>
+                    </span>
+                  </div>
+                  {composeType === "new_product" && selectedProducts.length > 0 && (
+                    <div className="flex items-start gap-2">
+                      <span className="text-stone-400 shrink-0">Products:</span>
+                      <span className="text-stone-700">{selectedProducts.map((p) => p.name).join(", ")}</span>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Send result */}
+              {/* ── Send result ── */}
               {sendResult && (
                 <div className={cn(
                   "flex items-start gap-3 p-4 border",
-                  sendResult.ok
-                    ? "bg-emerald-50 border-emerald-100"
-                    : "bg-red-50 border-red-100"
+                  sendResult.ok ? "bg-emerald-50 border-emerald-100" : "bg-red-50 border-red-100"
                 )}>
                   {sendResult.ok
                     ? <CheckCircle size={16} className="text-emerald-500 shrink-0 mt-0.5" />
@@ -406,92 +658,83 @@ export default function AdminEmailsPage() {
                   }
                   <div>
                     {sendResult.ok ? (
-                      <>
-                        <p className="text-xs font-medium text-emerald-700">
-                          Campaign sent — {sendResult.successCount} of {sendResult.recipientCount} delivered
-                        </p>
-                        {sendResult.status === "partial" && (
-                          <p className="text-[11px] text-emerald-600 mt-0.5">
-                            Some emails failed. Check SMTP logs.
-                          </p>
-                        )}
-                      </>
+                      <p className="text-xs font-medium text-emerald-700">
+                        Campaign sent — {sendResult.successCount} of {sendResult.recipientCount} delivered
+                        {sendResult.status === "partial" && <span className="font-normal text-emerald-600 ml-1">(some failed)</span>}
+                      </p>
                     ) : (
-                      <p className="text-xs text-red-600">{sendResult.error ?? "Send failed. Check SMTP configuration."}</p>
+                      <p className="text-xs text-red-600">{sendResult.error ?? "Send failed. Check SMTP settings."}</p>
                     )}
                   </div>
                 </div>
               )}
+            </div>
 
-              {/* Actions */}
-              <div className="flex gap-3 pt-2">
+            {/* Modal footer */}
+            <div className="flex gap-3 px-6 py-4 border-t border-stone-100 shrink-0">
+              <button
+                onClick={closeCompose}
+                disabled={sending}
+                className="flex-1 border border-stone-200 text-stone-600 text-xs tracking-widests uppercase py-3 hover:bg-stone-50 transition-colors disabled:opacity-40"
+              >
+                {sendResult?.ok ? "Close" : "Cancel"}
+              </button>
+              {!sendResult?.ok && (
                 <button
-                  onClick={closeCompose}
-                  className="flex-1 border border-stone-200 text-stone-600 text-xs tracking-widests uppercase py-3 hover:bg-stone-50 transition-colors"
+                  onClick={handleSend}
+                  disabled={sending || !canSend}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2 bg-stone-900 text-white text-xs tracking-widests uppercase py-3 transition-colors",
+                    sending || !canSend ? "opacity-40 cursor-not-allowed" : "hover:bg-stone-700"
+                  )}
                 >
-                  {sendResult?.ok ? "Close" : "Cancel"}
+                  {sending
+                    ? <><Loader2 size={13} className="animate-spin" /> Sending...</>
+                    : <><Send size={13} /> Send to {finalEmails.length} recipient{finalEmails.length !== 1 ? "s" : ""}</>
+                  }
                 </button>
-                {!sendResult?.ok && (
-                  <button
-                    onClick={handleSend}
-                    disabled={sending || !canSend}
-                    className={cn(
-                      "flex-1 flex items-center justify-center gap-2 bg-stone-900 text-white text-xs tracking-widests uppercase py-3 transition-colors",
-                      sending || !canSend ? "opacity-40 cursor-not-allowed" : "hover:bg-stone-700"
-                    )}
-                  >
-                    {sending ? (
-                      <><Loader2 size={13} className="animate-spin" /> Sending...</>
-                    ) : (
-                      <><Send size={13} /> Send to {activeSubscribers.length} subscribers</>
-                    )}
-                  </button>
-                )}
-              </div>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Campaign detail preview ── */}
+      {/* ── Campaign detail ────────────────────────────────────────────────── */}
       {previewCampaign && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setPreviewCampaign(null)} />
           <div className="relative bg-white w-full max-w-sm shadow-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-5">
               <h3 className="text-sm font-medium text-stone-900">Campaign Details</h3>
               <button onClick={() => setPreviewCampaign(null)} className="p-1 text-stone-400 hover:text-stone-900">
                 <X size={16} />
               </button>
             </div>
             <div className="space-y-3 text-xs">
-              <div className="flex justify-between">
-                <span className="text-stone-400">Subject</span>
-                <span className="text-stone-800 font-medium text-right max-w-[60%] truncate">{previewCampaign.subject}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-stone-400">Type</span>
-                <span className="text-stone-700 capitalize">{previewCampaign.type.replace("_", " ")}</span>
-              </div>
-              {previewCampaign.productName && (
-                <div className="flex justify-between">
-                  <span className="text-stone-400">Product</span>
-                  <span className="text-stone-700">{previewCampaign.productName}</span>
+              {[
+                ["Subject",    previewCampaign.subject],
+                ["Type",       previewCampaign.type.replace("_", " ")],
+                ["Recipients", previewCampaign.recipientSource ?? "—"],
+                ["Sent at",    formatDate(previewCampaign.sentAt)],
+                ["Total",      String(previewCampaign.recipientCount)],
+                ["Delivered",  String(previewCampaign.successCount)],
+              ].map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-3">
+                  <span className="text-stone-400 shrink-0">{k}</span>
+                  <span className="text-stone-800 text-right capitalize truncate max-w-[60%]">{v}</span>
+                </div>
+              ))}
+              {previewCampaign.productNames && previewCampaign.productNames.length > 0 && (
+                <div>
+                  <span className="text-stone-400 block mb-1.5">Products</span>
+                  <div className="space-y-1">
+                    {previewCampaign.productNames.map((name) => (
+                      <p key={name} className="text-stone-700 text-xs">· {name}</p>
+                    ))}
+                  </div>
                 </div>
               )}
-              <div className="flex justify-between">
-                <span className="text-stone-400">Sent at</span>
-                <span className="text-stone-700">{formatDate(previewCampaign.sentAt)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-stone-400">Recipients</span>
-                <span className="text-stone-700">{previewCampaign.recipientCount}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-stone-400">Delivered</span>
-                <span className="text-emerald-600 font-medium">{previewCampaign.successCount}</span>
-              </div>
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center pt-1 border-t border-stone-50">
                 <span className="text-stone-400">Status</span>
                 <StatusBadge status={previewCampaign.status} />
               </div>

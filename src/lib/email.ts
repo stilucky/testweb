@@ -93,6 +93,98 @@ export async function sendOTPEmail({
   });
 }
 
+export async function sendMultiProductAnnouncementEmail({
+  to,
+  subject,
+  products,
+}: {
+  to: string;
+  subject: string;
+  products: Array<{
+    name: string;
+    slug: string;
+    price: number;
+    salePrice?: number;
+    image: string;
+    shortDescription?: string;
+    currency?: string;
+  }>;
+}): Promise<void> {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://lunellestory.ca";
+
+  const productCards = products
+    .map((p) => {
+      const currency = p.currency ?? "CAD";
+      const displayPrice = p.salePrice ?? p.price;
+      const productUrl = `${appUrl}/products/${p.slug}`;
+
+      return `
+      <div style="border:1px solid #e7e5e4;margin-bottom:16px;overflow:hidden;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+          <tr>
+            ${p.image
+              ? `<td width="120" valign="top" style="padding:0;">
+                   <a href="${productUrl}">
+                     <img src="${p.image}" alt="${p.name}"
+                          width="120" height="140"
+                          style="display:block;width:120px;height:140px;object-fit:cover;" />
+                   </a>
+                 </td>`
+              : `<td width="120" valign="top" style="padding:0;background:#f5f5f4;width:120px;height:140px;text-align:center;">
+                   <span style="font-size:10px;color:#a8a29e;letter-spacing:0.2em;text-transform:uppercase;line-height:140px;display:block;">Lunelle</span>
+                 </td>`
+            }
+            <td valign="top" style="padding:20px 20px 20px 16px;">
+              <p style="margin:0 0 4px;font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:#a8a29e;">New Arrival</p>
+              <a href="${productUrl}" style="text-decoration:none;">
+                <h3 style="margin:0 0 8px;font-size:16px;font-weight:300;color:#1c1917;font-family:Georgia,serif;">${p.name}</h3>
+              </a>
+              ${p.shortDescription ? `<p style="margin:0 0 12px;font-size:12px;color:#78716c;line-height:1.5;">${p.shortDescription.slice(0, 80)}${p.shortDescription.length > 80 ? "…" : ""}</p>` : ""}
+              <p style="margin:0 0 14px;">
+                ${p.salePrice
+                  ? `<span style="text-decoration:line-through;color:#a8a29e;font-size:12px;">${currency} $${p.price.toFixed(2)}</span>&nbsp;<span style="color:#1c1917;font-size:15px;font-weight:400;">${currency} $${displayPrice.toFixed(2)}</span>`
+                  : `<span style="color:#1c1917;font-size:15px;font-weight:400;">${currency} $${displayPrice.toFixed(2)}</span>`
+                }
+              </p>
+              <a href="${productUrl}"
+                 style="display:inline-block;padding:8px 18px;background:#1c1917;color:#fff;text-decoration:none;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;">
+                Shop Now
+              </a>
+            </td>
+          </tr>
+        </table>
+      </div>`;
+    })
+    .join("");
+
+  const bodyHtml = `
+    <p style="margin:0 0 24px;color:#78716c;font-size:14px;line-height:1.7;">
+      Discover our latest arrivals — each piece crafted for those who appreciate refined simplicity.
+    </p>
+
+    ${productCards}
+
+    <div style="text-align:center;margin:28px 0;">
+      <a href="${appUrl}/products?filter=new"
+         style="display:inline-block;padding:14px 40px;background:#1c1917;color:#fff;text-decoration:none;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;">
+        Shop All New Arrivals
+      </a>
+    </div>
+
+    <p style="margin:0;color:#a8a29e;font-size:11px;line-height:1.7;text-align:center;">
+      You're receiving this because you subscribed to Lunelle updates.<br>
+      <a href="${appUrl}/unsubscribe" style="color:#a8a29e;">Unsubscribe</a>
+    </p>
+  `;
+
+  await transporter.sendMail({
+    from: `"Lunelle" <${process.env.SMTP_USER}>`,
+    to,
+    subject,
+    html: emailTemplate(subject, bodyHtml),
+  });
+}
+
 export async function sendProductAnnouncementEmail({
   to,
   productName,
