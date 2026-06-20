@@ -26,9 +26,10 @@ export async function POST(req: NextRequest) {
         console.log(`[DEV] OTP for ${email}: ${otp}`);
         return NextResponse.json({ success: true, devOTP: otp });
       }
-      console.error("Email send error:", emailErr);
+      const detail = emailErr instanceof Error ? emailErr.message : String(emailErr);
+      console.error("[SMTP] Send OTP failed:", detail);
       return NextResponse.json(
-        { error: "Failed to send email. Please check SMTP configuration." },
+        { error: `Email error: ${detail}` },
         { status: 500 }
       );
     }
