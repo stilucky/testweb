@@ -237,15 +237,19 @@ export default function HeroAdminPage() {
                 <button
                   onClick={() => toggleSlideEnabled(slide.id)}
                   title={slide.enabled === false ? "Bật slide" : "Tắt slide"}
-                  className={cn(
-                    "relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0",
-                    slide.enabled === false ? "bg-stone-200" : "bg-stone-900"
-                  )}
+                  style={{ width: 40, height: 22, borderRadius: 999, flexShrink: 0, position: "relative", transition: "background 0.2s", background: slide.enabled === false ? "#d6d3d1" : "#1c1917" }}
                 >
-                  <span className={cn(
-                    "absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200",
-                    slide.enabled === false ? "translate-x-1" : "translate-x-6"
-                  )} />
+                  <span style={{
+                    position: "absolute",
+                    top: 2,
+                    left: slide.enabled === false ? 2 : 20,
+                    width: 18,
+                    height: 18,
+                    borderRadius: "50%",
+                    background: "white",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+                    transition: "left 0.2s ease",
+                  }} />
                 </button>
                 <button onClick={() => setPreview(preview?.id === slide.id ? null : slide)}
                   className="p-2 text-stone-400 hover:text-stone-900 transition-colors" title="Preview">
