@@ -16,8 +16,10 @@ export interface HeroSlide {
 
 interface HeroStore {
   slides: HeroSlide[];
+  enabled: boolean;
   maxSlides: number;
   autoplayInterval: number; // seconds
+  setEnabled: (v: boolean) => void;
   addSlide: (slide: Omit<HeroSlide, "id">) => void;
   removeSlide: (id: string) => void;
   updateSlide: (id: string, updates: Partial<Omit<HeroSlide, "id">>) => void;
@@ -63,8 +65,10 @@ export const useHeroStore = create<HeroStore>()(
   persist(
     (set, get) => ({
       slides: DEFAULT_SLIDES,
+      enabled: true,
       maxSlides: 5,
       autoplayInterval: 5,
+      setEnabled: (v) => set({ enabled: v }),
 
       addSlide: (slideData) => {
         const { slides, maxSlides } = get();

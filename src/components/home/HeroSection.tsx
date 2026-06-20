@@ -21,7 +21,7 @@ function getYouTubeId(url: string): string | null {
 }
 
 export default function HeroSection() {
-  const { slides, autoplayInterval } = useHeroStore();
+  const { slides, enabled, autoplayInterval } = useHeroStore();
   const [current, setCurrent] = useState(0);
   const [muted, setMuted] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -53,7 +53,7 @@ export default function HeroSection() {
     }
   }, [muted, slides, current]);
 
-  if (slides.length === 0) return null;
+  if (!enabled || slides.length === 0) return null;
 
   const prev = () => setCurrent((c) => (c - 1 + slides.length) % slides.length);
   const next = () => setCurrent((c) => (c + 1) % slides.length);

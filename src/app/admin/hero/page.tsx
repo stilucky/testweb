@@ -71,8 +71,8 @@ function SlideThumbnail({ slide }: { slide: HeroSlide }) {
 
 export default function HeroAdminPage() {
   const {
-    slides, maxSlides, autoplayInterval,
-    addSlide, removeSlide, updateSlide, moveSlide,
+    slides, enabled, maxSlides, autoplayInterval,
+    setEnabled, addSlide, removeSlide, updateSlide, moveSlide,
     setMaxSlides, setAutoplayInterval,
   } = useHeroStore();
 
@@ -149,6 +149,26 @@ export default function HeroAdminPage() {
             </button>
           )}
         </div>
+      </div>
+
+      {/* ── Enabled toggle ── */}
+      <div className="flex items-center justify-between p-5 border border-stone-200 mb-6">
+        <div>
+          <p className="text-sm font-medium text-stone-800">Hiển thị Hero Slider</p>
+          <p className="text-xs text-stone-400 mt-0.5">Bật/tắt toàn bộ phần hero trên trang chủ</p>
+        </div>
+        <button
+          onClick={() => setEnabled(!enabled)}
+          className={cn(
+            "relative w-11 h-6 rounded-full transition-colors duration-200",
+            enabled ? "bg-stone-900" : "bg-stone-200"
+          )}
+        >
+          <span className={cn(
+            "absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200",
+            enabled ? "translate-x-6" : "translate-x-1"
+          )} />
+        </button>
       </div>
 
       {/* ── Global settings ── */}
