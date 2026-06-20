@@ -238,13 +238,13 @@ export default function HeroAdminPage() {
                   onClick={() => toggleSlideEnabled(slide.id)}
                   title={slide.enabled === false ? "Bật slide" : "Tắt slide"}
                   className={cn(
-                    "relative w-9 h-5 rounded-full transition-colors duration-200 shrink-0 mt-1",
+                    "relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0",
                     slide.enabled === false ? "bg-stone-200" : "bg-stone-900"
                   )}
                 >
                   <span className={cn(
-                    "absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200",
-                    slide.enabled === false ? "translate-x-0.5" : "translate-x-4"
+                    "absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200",
+                    slide.enabled === false ? "translate-x-1" : "translate-x-6"
                   )} />
                 </button>
                 <button onClick={() => setPreview(preview?.id === slide.id ? null : slide)}
