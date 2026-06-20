@@ -3,7 +3,7 @@
 import { useState, use } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Heart, RotateCcw, Shield, ChevronDown, ChevronUp, Play } from "lucide-react";
+import { Heart, RotateCcw, Shield, ChevronDown, ChevronUp, Play, Film } from "lucide-react";
 import { useProductStore } from "@/store/productStore";
 import { useCartStore } from "@/store/cartStore";
 import { cn } from "@/lib/utils";
@@ -49,6 +49,7 @@ export default function ProductDetailPage({ params }: Props) {
   };
 
   const videoId = product.videoUrl ? getYouTubeId(product.videoUrl) : null;
+  const isNativeVideo = !!product.videoUrl && !videoId;
 
   const activeColor = product.colors.find((c) => c.name === selectedColor);
   const displayImages =
@@ -130,7 +131,7 @@ export default function ProductDetailPage({ params }: Props) {
             ))}
 
             {/* Video thumbnail */}
-            {videoId && (
+            {(videoId || isNativeVideo) && (
               <button
                 onClick={() => setShowVideo(true)}
                 className={cn(
@@ -139,19 +140,23 @@ export default function ProductDetailPage({ params }: Props) {
                 )}
                 title="Watch video"
               >
-                <Image
-                  src={`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`}
-                  alt="Video preview"
-                  fill
-                  sizes="64px"
-                  className="object-cover opacity-50"
-                />
+                {videoId ? (
+                  <Image
+                    src={`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`}
+                    alt="Video preview"
+                    fill
+                    sizes="64px"
+                    className="object-cover opacity-50"
+                  />
+                ) : (
+                  <Film size={18} className="text-white/60" />
+                )}
                 <Play size={18} className="relative z-10 text-white fill-white" />
               </button>
             )}
           </div>
 
-          {/* Main display: image or YouTube embed */}
+          {/* Main display: image, YouTube embed, or native video */}
           <div className="flex-1 relative aspect-[3/4] bg-stone-900 overflow-hidden">
             {showVideo && videoId ? (
               <iframe
@@ -160,6 +165,14 @@ export default function ProductDetailPage({ params }: Props) {
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
                 className="absolute inset-0 w-full h-full border-0"
+              />
+            ) : showVideo && isNativeVideo ? (
+              <video
+                src={product.videoUrl!}
+                autoPlay
+                controls
+                playsInline
+                className="absolute inset-0 w-full h-full object-contain bg-black"
               />
             ) : (
               <>
@@ -176,7 +189,7 @@ export default function ProductDetailPage({ params }: Props) {
                     New
                   </span>
                 )}
-                {videoId && (
+                {(videoId || isNativeVideo) && (
                   <button
                     onClick={() => setShowVideo(true)}
                     className="absolute bottom-4 right-4 flex items-center gap-2 bg-black/60 hover:bg-black/80 text-white text-[10px] tracking-widest uppercase px-3 py-2 transition-colors backdrop-blur-sm"

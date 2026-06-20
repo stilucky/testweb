@@ -8,6 +8,13 @@ APP_NAME="lunelle"
 
 echo "━━━ Lunelle Deploy ━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
+# Source env files so ecosystem.config.cjs inherits SMTP vars via process.env
+# Next.js standalone (node server.js) does NOT load .env files automatically
+set -o allexport
+[ -f "$APP_DIR/.env.production" ]       && source "$APP_DIR/.env.production"
+[ -f "$APP_DIR/.env.production.local" ] && source "$APP_DIR/.env.production.local"
+set +o allexport
+
 # Pull latest code
 echo "▸ Pulling latest code..."
 git pull origin main
@@ -20,14 +27,18 @@ npm ci --omit=dev=false
 echo "▸ Building..."
 npm run build
 
-# Restart / start with PM2
+# Restart / start with PM2 using ecosystem config (carries env vars)
 echo "▸ Restarting app with PM2..."
-if pm2 list | grep -q "$APP_NAME"; then
-  pm2 restart "$APP_NAME"
+if [ -f "$APP_DIR/ecosystem.config.cjs" ]; then
+  pm2 startOrRestart "$APP_DIR/ecosystem.config.cjs" --update-env
 else
-  pm2 start npm --name "$APP_NAME" -- start
-  pm2 save
+  if pm2 list | grep -q "$APP_NAME"; then
+    pm2 restart "$APP_NAME"
+  else
+    pm2 start npm --name "$APP_NAME" -- start
+  fi
 fi
+pm2 save
 
 echo ""
 echo "✓ Deploy complete → https://lunellestory.ca"

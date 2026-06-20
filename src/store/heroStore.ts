@@ -3,7 +3,9 @@ import { persist } from "zustand/middleware";
 
 export interface HeroSlide {
   id: string;
-  image: string;
+  image: string;           // background image (empty string OK for pure video slides)
+  videoUrl?: string;       // YouTube URL or native video base64/URL
+  videoType?: "youtube" | "native";
   tag: string;
   title: string;
   subtitle: string;

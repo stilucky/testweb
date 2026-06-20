@@ -5,7 +5,7 @@ import Image from "next/image";
 import {
   Search, Plus, Edit, Trash2, Eye, ChevronDown,
   Package, X, Save, RefreshCw, Cloud, CloudOff,
-  AlertCircle, CheckCircle, Loader2, ImagePlus, Trash,
+  AlertCircle, CheckCircle, Loader2, ImagePlus, Trash, Video,
 } from "lucide-react";
 import { Product } from "@/types";
 import { formatPrice, cn } from "@/lib/utils";
@@ -81,7 +81,9 @@ export default function AdminProductsPage() {
   const [errors, setErrors]               = useState<Partial<Record<keyof FormData, string>>>({});
   const [saving, setSaving]               = useState(false);
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [uploadedVideoUrl, setUploadedVideoUrl] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   // ── toasts ────────────────────────────────────────────────────────────────
   const addToast = useCallback((type: ToastType, message: string) => {
@@ -115,6 +117,17 @@ export default function AdminProductsPage() {
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   // ── modal helpers ─────────────────────────────────────────────────────────
+  const handleProductVideoUpload = (file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("video/")) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      if (result) setUploadedVideoUrl(result);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleImageUpload = (files: FileList | null) => {
     if (!files) return;
     Array.from(files).forEach((file) => {
@@ -133,12 +146,14 @@ export default function AdminProductsPage() {
     setForm(emptyForm);
     setErrors({});
     setUploadedImages([]);
+    setUploadedVideoUrl("");
     setModalOpen(true);
   };
 
   const openEdit = (product: Product) => {
     setEditingProduct(product);
     setUploadedImages([]);
+    setUploadedVideoUrl("");
     setForm({
       name: product.name,
       slug: product.slug,
@@ -173,6 +188,7 @@ export default function AdminProductsPage() {
     setForm(emptyForm);
     setErrors({});
     setUploadedImages([]);
+    setUploadedVideoUrl("");
   };
 
   const validate = (): boolean => {
@@ -219,7 +235,7 @@ export default function AdminProductsPage() {
       isBestSeller: form.isBestSeller,
       featured: form.featured,
       tags: [],
-      videoUrl: form.videoUrl.trim() || undefined,
+      videoUrl: uploadedVideoUrl || form.videoUrl.trim() || undefined,
       priceCAD: form.priceCAD ? Number(form.priceCAD) : undefined,
       salePriceCAD: form.salePriceCAD ? Number(form.salePriceCAD) : undefined,
     };
@@ -894,34 +910,63 @@ export default function AdminProductsPage() {
                     errors.images ? "border-red-400" : "border-stone-200 focus:border-stone-800")} />
               </Field>
 
-              {/* YouTube Video URL */}
-              <Field label="YouTube Video URL">
+              {/* Product Video */}
+              <Field label="Product Video">
                 <input
-                  type="url"
-                  value={form.videoUrl}
-                  onChange={(e) => setForm((f) => ({ ...f, videoUrl: e.target.value }))}
-                  placeholder="https://www.youtube.com/watch?v=... hoặc https://youtu.be/..."
-                  className={inputCls(false)}
+                  ref={videoInputRef}
+                  type="file"
+                  accept="video/*"
+                  className="hidden"
+                  onChange={(e) => handleProductVideoUpload(e.target.files?.[0] ?? null)}
                 />
-                {form.videoUrl && (() => {
+
+                {/* Upload or YouTube tabs */}
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <button
+                    type="button"
+                    onClick={() => videoInputRef.current?.click()}
+                    className="flex items-center justify-center gap-2 border border-dashed border-stone-200 hover:border-stone-400 py-3 text-xs text-stone-500 hover:text-stone-800 transition-colors"
+                  >
+                    <Video size={14} /> Upload file (MP4/WebM)
+                  </button>
+                  <div className="relative">
+                    <input
+                      type="url"
+                      value={form.videoUrl}
+                      onChange={(e) => { setForm((f) => ({ ...f, videoUrl: e.target.value })); setUploadedVideoUrl(""); }}
+                      placeholder="YouTube URL..."
+                      className="w-full px-3 py-3 border border-stone-200 text-xs focus:outline-none focus:border-stone-800 transition-colors"
+                    />
+                  </div>
+                </div>
+
+                {/* Uploaded video preview */}
+                {uploadedVideoUrl && (
+                  <div className="mt-2 space-y-1">
+                    <video src={uploadedVideoUrl} controls className="w-full rounded border border-stone-200" style={{ maxHeight: 200 }} />
+                    <button type="button" onClick={() => { setUploadedVideoUrl(""); if (videoInputRef.current) videoInputRef.current.value = ""; }}
+                      className="flex items-center gap-1 text-[11px] text-red-500 hover:text-red-700">
+                      <Trash size={10} /> Xoá video
+                    </button>
+                  </div>
+                )}
+
+                {/* YouTube preview */}
+                {!uploadedVideoUrl && form.videoUrl && (() => {
                   const patterns = [/youtube\.com\/watch\?v=([^&]+)/, /youtu\.be\/([^?/]+)/, /youtube\.com\/embed\/([^?]+)/];
                   const id = patterns.reduce<string | null>((acc, p) => acc ?? (form.videoUrl.match(p)?.[1] ?? null), null);
                   return id ? (
                     <div className="mt-2 relative aspect-video bg-stone-900 overflow-hidden rounded">
-                      <img
-                        src={`https://img.youtube.com/vi/${id}/mqdefault.jpg`}
-                        alt="Video preview"
-                        className="w-full h-full object-cover opacity-70"
-                      />
+                      <img src={`https://img.youtube.com/vi/${id}/mqdefault.jpg`} alt="Video preview"
+                        className="w-full h-full object-cover opacity-70" />
                       <div className="absolute inset-0 flex items-center justify-center">
                         <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center">
                           <svg viewBox="0 0 24 24" fill="white" className="w-4 h-4 ml-0.5"><path d="M8 5v14l11-7z"/></svg>
                         </div>
                       </div>
-                      <p className="absolute bottom-2 left-2 text-[10px] text-white/70 tracking-widest uppercase">ID: {id}</p>
                     </div>
                   ) : (
-                    <p className="mt-1.5 text-[11px] text-amber-500">URL không hợp lệ — hỗ trợ youtube.com/watch?v= hoặc youtu.be/</p>
+                    <p className="mt-1.5 text-[11px] text-amber-500">URL YouTube không hợp lệ</p>
                   );
                 })()}
               </Field>

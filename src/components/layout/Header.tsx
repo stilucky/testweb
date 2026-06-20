@@ -135,7 +135,7 @@ export default function Header() {
         <div className="px-6 md:px-12 xl:px-20">
 
           {/* ── Desktop single row ── */}
-          <div className="hidden md:grid md:grid-cols-[1fr_auto_1fr] items-center h-16">
+          <div className="hidden md:grid md:grid-cols-[1fr_auto_1fr] items-center h-20">
 
             {/* LEFT — nav items */}
             <nav className="flex items-center gap-7">
@@ -148,91 +148,102 @@ export default function Header() {
                 >
                   <Link
                     href={item.href}
-                    className={cn("type-nav transition-colors py-4 inline-block", textColor, hoverColor)}
+                    className={cn(
+                      "type-nav transition-all py-1.5 px-3 inline-block rounded-full",
+                      activeDropdown === item.label
+                        ? isTransparent ? "bg-white/15 text-white" : "bg-stone-100 text-stone-900"
+                        : cn(textColor, hoverColor, isTransparent ? "hover:bg-white/10" : "hover:bg-stone-100")
+                    )}
                   >
                     {item.label}
                   </Link>
 
-                  {/* Mega menu — vertical */}
+                  {/* Mega menu — vertical
+                      Outer wrapper starts at top-full with pt-2 transparent padding
+                      so mouse stays in hover zone while crossing the visual gap */}
                   {item.groups && activeDropdown === item.label && (
                     <div
-                      className="absolute top-full left-0 bg-white shadow-lg border-t border-stone-100 z-50 py-4 min-w-[200px]"
+                      className="absolute top-full left-0 z-50 pt-2 min-w-[220px]"
                       onMouseLeave={() => setHoveredGroup(null)}
                     >
-                      {item.groups.map((group, gi) => {
-                        const isFlyout = !!group.flyout;
-                        return (
-                          <div
-                            key={gi}
-                            className="relative"
-                            onMouseEnter={() => isFlyout ? setHoveredGroup(gi) : setHoveredGroup(null)}
-                          >
-                            {gi > 0 && <div className="mx-5 my-3 border-t border-stone-100" />}
+                      <div className="bg-white rounded-2xl shadow-xl border border-stone-100/80 py-3 overflow-hidden">
+                        {item.groups.map((group, gi) => {
+                          const isFlyout = !!group.flyout;
+                          return (
+                            <div
+                              key={gi}
+                              className="relative"
+                              onMouseEnter={() => isFlyout ? setHoveredGroup(gi) : setHoveredGroup(null)}
+                            >
+                              {gi > 0 && <div className="mx-4 my-2 border-t border-stone-100" />}
 
-                            {group.title && isFlyout ? (
-                              /* Flyout trigger */
-                              <Link
-                                href="/products"
-                                className="flex items-center justify-between px-5 py-2 text-sm font-light text-stone-600 hover:text-black hover:bg-stone-50 transition-colors"
-                              >
-                                <span>{group.title}</span>
-                                <ChevronRight size={12} className="text-stone-300 ml-3" />
-                              </Link>
-                            ) : group.title ? (
-                              <p className="px-5 text-[9px] tracking-[0.2em] uppercase text-stone-400 mb-2">
-                                {group.title}
-                              </p>
-                            ) : null}
+                              {group.title && isFlyout ? (
+                                <Link
+                                  href="/products"
+                                  className="flex items-center justify-between mx-2 px-3 py-2.5 text-[15px] font-light text-stone-600 hover:text-black hover:bg-stone-50 rounded-xl transition-all duration-150"
+                                >
+                                  <span>{group.title}</span>
+                                  <ChevronRight size={13} className="text-stone-300 ml-3" />
+                                </Link>
+                              ) : group.title ? (
+                                <p className="px-5 pt-1 pb-1 text-[10px] tracking-[0.2em] uppercase text-stone-400">
+                                  {group.title}
+                                </p>
+                              ) : null}
 
-                            {/* Items: shown inline for non-flyout groups */}
-                            {!isFlyout && (
-                              <ul>
-                                {group.items.map((child) => (
-                                  <li key={child.label}>
-                                    <Link
-                                      href={child.href}
-                                      className="block px-5 py-2 text-sm font-light text-stone-600 hover:text-black hover:bg-stone-50 transition-colors"
-                                    >
-                                      {child.label}
-                                    </Link>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
+                              {!isFlyout && (
+                                <ul className="px-2">
+                                  {group.items.map((child) => (
+                                    <li key={child.label}>
+                                      <Link
+                                        href={child.href}
+                                        className="block px-3 py-2.5 text-[15px] font-light text-stone-700 hover:text-black hover:bg-stone-50 rounded-xl transition-all duration-150"
+                                      >
+                                        {child.label}
+                                      </Link>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
 
-                            {/* Flyout panel for Ready to Wear */}
-                            {isFlyout && hoveredGroup === gi && (
-                              <div
-                                className="absolute left-full top-0 -mt-1 bg-white shadow-lg border border-stone-100 min-w-[160px] py-2 z-50"
-                                onMouseEnter={() => setHoveredGroup(gi)}
-                                onMouseLeave={() => setHoveredGroup(null)}
-                              >
-                                {group.items.map((child) => (
-                                  <Link
-                                    key={child.label}
-                                    href={child.href}
-                                    className="block px-5 py-2 text-sm font-light text-stone-600 hover:text-black hover:bg-stone-50 transition-colors"
-                                  >
-                                    {child.label}
-                                  </Link>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                              {/* Flyout panel — pl-2 bridges the gap to the sub-panel */}
+                              {isFlyout && hoveredGroup === gi && (
+                                <div
+                                  className="absolute left-full top-0 z-50 pl-2"
+                                  onMouseEnter={() => setHoveredGroup(gi)}
+                                  onMouseLeave={() => setHoveredGroup(null)}
+                                >
+                                  <div className="bg-white rounded-2xl shadow-xl border border-stone-100/80 min-w-[180px] py-3 px-2 overflow-hidden">
+                                    {group.items.map((child) => (
+                                      <Link
+                                        key={child.label}
+                                        href={child.href}
+                                        className="block px-3 py-2.5 text-[15px] font-light text-stone-700 hover:text-black hover:bg-stone-50 rounded-xl transition-all duration-150"
+                                      >
+                                        {child.label}
+                                      </Link>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
 
-                  {/* Simple dropdown */}
+                  {/* Simple dropdown — same pt-2 bridge trick */}
                   {item.children && item.children.length > 0 && activeDropdown === item.label && (
-                    <div className="absolute top-full left-0 bg-white shadow-lg border-t border-stone-100 min-w-40 py-3 z-50">
-                      {item.children.map((child) => (
-                        <Link key={child.label} href={child.href}
-                          className="block px-5 py-2 text-sm font-light text-stone-600 hover:text-black hover:bg-stone-50 transition-colors">
-                          {child.label}
-                        </Link>
-                      ))}
+                    <div className="absolute top-full left-0 z-50 pt-2 min-w-[180px]">
+                      <div className="bg-white rounded-2xl shadow-xl border border-stone-100/80 py-3 px-2 overflow-hidden">
+                        {item.children.map((child) => (
+                          <Link key={child.label} href={child.href}
+                            className="block px-3 py-2.5 text-[15px] font-light text-stone-700 hover:text-black hover:bg-stone-50 rounded-xl transition-all duration-150">
+                            {child.label}
+                          </Link>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -243,7 +254,7 @@ export default function Header() {
             <Link href="/" className="flex items-center justify-center px-10">
               <span
                 className={cn("type-logo transition-colors duration-300", logoColor)}
-                style={{ fontSize: "clamp(19px, 2vw, 52px)" }}
+                style={{ fontSize: "clamp(22px, 2.2vw, 56px)" }}
               >
                 Lunelle
               </span>
@@ -254,9 +265,9 @@ export default function Header() {
               {/* Search */}
               <button
                 onClick={() => setSearchOpen(!searchOpen)}
-                className={cn("flex items-center gap-1.5 px-3 py-2 text-sm font-light transition-colors", iconColor, hoverColor)}
+                className={cn("flex items-center gap-1.5 px-3 py-2 text-base font-light transition-colors", iconColor, hoverColor)}
               >
-                <Search size={16} strokeWidth={1.5} />
+                <Search size={18} strokeWidth={1.5} />
                 <span className="hidden lg:block">Search</span>
               </button>
 
@@ -265,7 +276,7 @@ export default function Header() {
                 <div className="relative">
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className={cn("flex items-center gap-1.5 px-3 py-2 text-sm font-light transition-colors", iconColor, hoverColor)}
+                    className={cn("flex items-center gap-1.5 px-3 py-2 text-base font-light transition-colors", iconColor, hoverColor)}
                   >
                     <div className={cn(
                       "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-medium",
@@ -301,8 +312,8 @@ export default function Header() {
                 </div>
               ) : (
                 <Link href="/auth"
-                  className={cn("flex items-center gap-1.5 px-3 py-2 text-sm font-light transition-colors", iconColor, hoverColor)}>
-                  <User size={16} strokeWidth={1.5} />
+                  className={cn("flex items-center gap-1.5 px-3 py-2 text-base font-light transition-colors", iconColor, hoverColor)}>
+                  <User size={18} strokeWidth={1.5} />
                   <span className="hidden lg:block">{t("signIn")}</span>
                 </Link>
               )}
@@ -310,7 +321,7 @@ export default function Header() {
               {/* Wishlist */}
               <Link href="/wishlist"
                 className={cn("relative px-3 py-2 transition-colors", iconColor, hoverColor)}>
-                <Heart size={16} strokeWidth={1.5} />
+                <Heart size={18} strokeWidth={1.5} />
                 {wishlistCount() > 0 && (
                   <span className={cn(
                     "absolute top-1 right-1 text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center",
@@ -324,7 +335,7 @@ export default function Header() {
               {/* Cart */}
               <button onClick={toggleCart}
                 className={cn("relative px-3 py-2 transition-colors", iconColor, hoverColor)}>
-                <ShoppingBag size={16} strokeWidth={1.5} />
+                <ShoppingBag size={18} strokeWidth={1.5} />
                 {itemCount() > 0 && (
                   <span className={cn(
                     "absolute top-1 right-1 text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center",
