@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, Volume2, VolumeX } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useHeroStore } from "@/store/heroStore";
 
@@ -24,9 +24,6 @@ export default function HeroSection() {
   const { slides: allSlides, autoplayInterval } = useHeroStore();
   const slides = allSlides.filter((s) => s.enabled !== false);
   const [current, setCurrent] = useState(0);
-  const [muted, setMuted] = useState(true);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     if (slides.length > 0 && current >= slides.length) setCurrent(slides.length - 1);
@@ -39,28 +36,12 @@ export default function HeroSection() {
     return () => clearInterval(timer);
   }, [slides.length, autoplayInterval]);
 
-  const toggleMute = useCallback(() => {
-    const next = !muted;
-    setMuted(next);
-    const s = slides[current];
-    if (s?.videoType === "native" && videoRef.current) {
-      videoRef.current.muted = next;
-    }
-    if (s?.videoType === "youtube" && iframeRef.current?.contentWindow) {
-      iframeRef.current.contentWindow.postMessage(
-        JSON.stringify({ event: "command", func: next ? "mute" : "unMute", args: "" }),
-        "*"
-      );
-    }
-  }, [muted, slides, current]);
-
   if (slides.length === 0) return null;
 
   const prev = () => setCurrent((c) => (c - 1 + slides.length) % slides.length);
   const next = () => setCurrent((c) => (c + 1) % slides.length);
 
   const activeSlide = slides[current];
-  const isVideoSlide = !!activeSlide?.videoUrl;
 
   return (
     <section className="relative w-full h-screen overflow-hidden bg-stone-900">
@@ -83,7 +64,6 @@ export default function HeroSection() {
                 {/* YouTube — only rendered when active so autoplay triggers on slide change */}
                 {s.videoType === "youtube" && ytId && isActive && (
                   <iframe
-                    ref={iframeRef}
                     src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}&controls=0&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&showinfo=0`}
                     allow="autoplay; encrypted-media; fullscreen"
                     title="Hero video"
@@ -99,7 +79,6 @@ export default function HeroSection() {
                 {/* Native video — only active */}
                 {s.videoType === "native" && isActive && (
                   <video
-                    ref={videoRef}
                     src={s.videoUrl}
                     autoPlay
                     loop
@@ -130,7 +109,7 @@ export default function HeroSection() {
       {/* ── Gradient veils ── */}
       <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/55 to-transparent pointer-events-none z-10" />
       <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/60 to-transparent pointer-events-none z-10" />
-      {isVideoSlide && (
+      {activeSlide?.videoUrl && (
         <div
           className="absolute inset-0 pointer-events-none z-10"
           style={{ background: "radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,0.42) 100%)" }}
@@ -147,38 +126,22 @@ export default function HeroSection() {
           <span className="group-hover:tracking-[0.28em] transition-all duration-300">Shop All</span>
         </Link>
 
-        <div className="flex items-center gap-5">
-          {/* Mute toggle — video slides only */}
-          {isVideoSlide && (
-            <button
-              onClick={toggleMute}
-              aria-label={muted ? "Unmute" : "Mute"}
-              className="flex items-center gap-2 text-white/60 hover:text-white text-[10px] tracking-widest uppercase transition-colors duration-200"
-            >
-              {muted
-                ? <><VolumeX size={14} strokeWidth={1.5} /><span className="hidden sm:block">Sound off</span></>
-                : <><Volume2 size={14} strokeWidth={1.5} /><span className="hidden sm:block">Sound on</span></>
-              }
-            </button>
-          )}
-
-          {/* Slide dots */}
-          {slides.length > 1 && (
-            <div className="flex items-center gap-2 shrink-0">
-              {slides.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrent(i)}
-                  aria-label={`Slide ${i + 1}`}
-                  className={cn(
-                    "h-px transition-all duration-300",
-                    i === current ? "w-8 bg-white" : "w-4 bg-white/40"
-                  )}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Slide dots */}
+        {slides.length > 1 && (
+          <div className="flex items-center gap-2 shrink-0">
+            {slides.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrent(i)}
+                aria-label={`Slide ${i + 1}`}
+                className={cn(
+                  "h-px transition-all duration-300",
+                  i === current ? "w-8 bg-white" : "w-4 bg-white/40"
+                )}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Arrows ── */}
