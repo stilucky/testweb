@@ -23,7 +23,7 @@ export default function WelcomePopup() {
     if (currentUser || pathname !== "/") return;
 
     // Completely off on mobile / tablet small
-    if (window.innerWidth < 300) return;
+    if (window.innerWidth < 768) return;
 
     // Show popup immediately
     setMounted(true);
