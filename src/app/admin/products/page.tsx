@@ -700,7 +700,7 @@ export default function AdminProductsPage() {
       {/* ─── Add / Edit slide-over ─── */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex">
-          <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={closeModal} />
+          <button className="flex-1 bg-black/40 backdrop-blur-sm cursor-default" onClick={closeModal} aria-label="Close" />
           <div className="w-full max-w-xl bg-white h-full flex flex-col shadow-2xl overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-stone-100 shrink-0">
@@ -1217,7 +1217,11 @@ export default function AdminProductsPage() {
       {/* ── Announce new product modal ─────────────────────────────────────── */}
       {announceProduct && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={() => { setAnnounceProduct(null); setAnnounceResult(null); }} />
+          <button
+            className="absolute inset-0 w-full h-full bg-black/50 cursor-default"
+            onClick={() => { setAnnounceProduct(null); setAnnounceResult(null); }}
+            aria-label="Close"
+          />
           <div className="relative bg-white w-full max-w-sm shadow-2xl p-6">
             {/* Icon */}
             <div className="w-10 h-10 bg-stone-100 rounded-full flex items-center justify-center mb-4">

@@ -727,7 +727,7 @@ export default function AdminEmailsPage() {
       {/* ── Campaign detail ────────────────────────────────────────────────── */}
       {previewCampaign && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setPreviewCampaign(null)} />
+          <button className="absolute inset-0 w-full h-full bg-black/40 cursor-default" onClick={() => setPreviewCampaign(null)} aria-label="Close" />
           <div className="relative bg-white w-full max-w-sm shadow-2xl p-6">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-sm font-medium text-stone-900">Campaign Details</h3>

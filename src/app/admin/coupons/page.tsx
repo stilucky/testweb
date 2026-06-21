@@ -88,7 +88,7 @@ function CouponModal({ form, onChange, onSave, onClose, errors, isEdit }: ModalP
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <button className="absolute inset-0 w-full h-full bg-black/40 cursor-default" onClick={onClose} aria-label="Close" />
       <div className="relative bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-stone-100">
@@ -642,7 +642,7 @@ export default function AdminCouponsPage() {
       {/* Delete confirm */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setDeleteConfirm(null)} />
+          <button className="absolute inset-0 w-full h-full bg-black/40 cursor-default" onClick={() => setDeleteConfirm(null)} aria-label="Close" />
           <div className="relative bg-white p-6 max-w-sm w-full shadow-2xl">
             <h3 className="text-sm font-medium mb-2">Delete coupon?</h3>
             <p className="text-xs text-stone-500 mb-5">

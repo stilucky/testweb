@@ -363,7 +363,7 @@ export default function AdminTailoredOrdersPage() {
       {/* Delete confirm */}
       {deleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setDeleteId(null)} />
+          <button className="absolute inset-0 w-full h-full bg-black/50 cursor-default" onClick={() => setDeleteId(null)} aria-label="Close" />
           <div className="relative bg-white p-8 max-w-sm w-full mx-4 shadow-2xl">
             <h3 className="text-sm font-medium text-stone-900 mb-2">Delete Order?</h3>
             <p className="text-xs text-stone-500 mb-6 leading-relaxed">

@@ -31,7 +31,7 @@ export default function AdminSidebar() {
       {/* ── Mobile drawer ── */}
       {open && (
         <div className="md:hidden fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
+          <button className="absolute inset-0 w-full h-full bg-black/40 cursor-default" onClick={() => setOpen(false)} aria-label="Close" />
           <div className="relative w-72 max-w-[85vw] bg-white h-full flex flex-col shadow-2xl">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-stone-100 shrink-0">

@@ -15,7 +15,7 @@ export default function CartDrawer() {
 
   return (
     <>
-      {isOpen && <div className="fixed inset-0 bg-black/40 z-50 transition-opacity" onClick={closeCart} />}
+      {isOpen && <button className="fixed inset-0 w-full h-full bg-black/40 z-50 transition-opacity cursor-default" onClick={closeCart} aria-label="Close cart" />}
 
       <div className={`fixed top-0 right-0 h-full w-full max-w-md bg-white z-50 flex flex-col shadow-2xl transition-transform duration-300 ${isOpen ? "translate-x-0" : "translate-x-full"}`}>
 

@@ -207,7 +207,7 @@ export default function AdminSubscribersPage() {
       {/* Delete confirm */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setDeleteConfirm(null)} />
+          <button className="absolute inset-0 w-full h-full bg-black/40 cursor-default" onClick={() => setDeleteConfirm(null)} aria-label="Close" />
           <div className="relative bg-white p-6 max-w-sm w-full shadow-2xl">
             <h3 className="text-sm font-medium mb-2">Remove subscriber?</h3>
             <p className="text-xs text-stone-500 mb-5">
