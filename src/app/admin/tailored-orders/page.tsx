@@ -6,6 +6,7 @@ import {
   Scissors, X, Ruler, CheckCircle,
   Clock, Truck, XCircle, Search, Trash2, Tag,
 } from "lucide-react";
+import { ToastContainer, useToast } from "@/components/ui/Toast";
 import { useTailoredOrderStore, TailoredOrder } from "@/store/tailoredOrderStore";
 import { cn } from "@/lib/utils";
 
@@ -32,26 +33,20 @@ const MEASURE_LABELS: Record<string, string> = {
   height: "Height",
 };
 
-type Toast = { id: number; message: string };
-
 export default function AdminTailoredOrdersPage() {
   const { orders, updateStatus, removeOrder } = useTailoredOrderStore();
   const [search, setSearch]       = useState("");
   const [filterStatus, setFilterStatus] = useState<TailoredOrder["status"] | "all">("all");
   const [selected, setSelected]   = useState<TailoredOrder | null>(null);
   const [deleteId, setDeleteId]   = useState<string | null>(null);
-  const [toasts, setToasts]       = useState<Toast[]>([]);
+  const { toasts, addToast, removeToast } = useToast(3000);
 
-  const addToast = (msg: string) => {
-    const id = Date.now();
-    setToasts((p) => [...p, { id, message: msg }]);
-    setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), 3200);
-  };
+  const addMsg = (msg: string) => addToast("success", msg);
 
   const handleStatusChange = (id: string, status: TailoredOrder["status"]) => {
     updateStatus(id, status);
     if (selected?.id === id) setSelected((s) => s ? { ...s, status } : null);
-    addToast(`Order status updated to "${STATUS_META[status].label}"`);
+    addMsg(`Order status updated to "${STATUS_META[status].label}"`);
   };
 
   const handleDelete = () => {
@@ -59,7 +54,7 @@ export default function AdminTailoredOrdersPage() {
     const o = orders.find((x) => x.id === deleteId);
     removeOrder(deleteId);
     if (selected?.id === deleteId) setSelected(null);
-    addToast(`Order from "${o?.designName}" deleted`);
+    addMsg(`Order from "${o?.designName}" deleted`);
     setDeleteId(null);
   };
 
@@ -77,15 +72,7 @@ export default function AdminTailoredOrdersPage() {
   return (
     <div className="min-h-screen bg-stone-50 flex flex-col">
 
-      {/* Toasts */}
-      <div className="fixed top-5 right-5 z-[100] space-y-2 pointer-events-none">
-        {toasts.map((t) => (
-          <div key={t.id} className="flex items-center gap-2 bg-stone-900 text-white px-4 py-3 text-sm shadow-lg min-w-[240px]">
-            <CheckCircle size={13} className="shrink-0" />
-            {t.message}
-          </div>
-        ))}
-      </div>
+      <ToastContainer toasts={toasts} onClose={removeToast} />
 
       {/* Header */}
       <div className="bg-white border-b border-stone-100 px-6 md:px-10 py-5 shrink-0">

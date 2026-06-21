@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Mail, Send, Plus, CheckCircle, AlertCircle, Loader2,
   Users, MailCheck, Clock, X, Package,
@@ -257,6 +257,14 @@ export default function AdminEmailsPage() {
     setComposeType("new_product");
   };
 
+  // Auto-close modal 3s after a successful send
+  useEffect(() => {
+    if (!sendResult?.ok) return;
+    const t = setTimeout(() => closeCompose(), 3000);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sendResult?.ok]);
+
   // ── Recipient mode cards ────────────────────────────────────────────────────
   const recipientModes: { mode: RecipientMode; icon: React.ElementType; label: string; sub: string; count: number }[] = [
     { mode: "subscribers", icon: Mail,      label: "Subscribers",     sub: "Newsletter signups",    count: subscribers.length },
@@ -379,8 +387,13 @@ export default function AdminEmailsPage() {
       ════════════════════════════════════════════════════════════════════════ */}
       {composeOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={!sending ? closeCompose : undefined} />
-          <div className="relative bg-white w-full sm:max-w-2xl shadow-2xl flex flex-col max-h-[92vh] sm:rounded-none rounded-t-2xl overflow-hidden">
+          <button
+            className="absolute inset-0 w-full h-full bg-black/40 cursor-default"
+            onClick={!sending ? closeCompose : undefined}
+            aria-label="Close"
+            tabIndex={-1}
+          />
+          <div className="relative bg-white w-full sm:max-w-2xl shadow-2xl flex flex-col max-h-[75vh] sm:max-h-[92vh] sm:rounded-none rounded-t-2xl overflow-hidden">
 
             {/* Drag handle — mobile only */}
             <div className="sm:hidden flex justify-center pt-3 pb-1 shrink-0">

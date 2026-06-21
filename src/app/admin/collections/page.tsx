@@ -4,11 +4,12 @@ import { useState } from "react";
 import Image from "next/image";
 import {
   Plus, Trash2, Edit, X, Save, Eye, EyeOff, Star, StarOff,
-  Image as ImageIcon, Calendar, Layers, CheckCircle, AlertCircle,
+  Image as ImageIcon, Calendar, Layers,
 } from "lucide-react";
 import { useCollectionStore, Collection } from "@/store/collectionStore";
 import { useProductStore } from "@/store/productStore";
 import { cn } from "@/lib/utils";
+import { ToastContainer, useToast } from "@/components/ui/Toast";
 
 type FormData = {
   name: string;
@@ -36,10 +37,6 @@ function toSlug(text: string) {
   return text.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-");
 }
 
-/* ── Toast ── */
-type ToastType = "success" | "error";
-interface Toast { id: number; type: ToastType; message: string }
-
 export default function AdminCollectionsPage() {
   const { collections, addCollection, updateCollection, removeCollection } = useCollectionStore();
   const { products } = useProductStore();
@@ -50,14 +47,8 @@ export default function AdminCollectionsPage() {
   const [errors, setErrors]       = useState<Partial<Record<keyof FormData, string>>>({});
   const [saving, setSaving]       = useState(false);
   const [deleteId, setDeleteId]   = useState<string | null>(null);
-  const [toasts, setToasts]       = useState<Toast[]>([]);
   const [productSearch, setProductSearch] = useState("");
-
-  const addToast = (type: ToastType, message: string) => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, type, message }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
-  };
+  const { toasts, addToast, removeToast } = useToast(3000);
 
   const openAdd = () => {
     setEditing(null);
@@ -162,24 +153,7 @@ export default function AdminCollectionsPage() {
   return (
     <div className="min-h-screen bg-stone-50">
 
-      {/* ── Toasts ── */}
-      <div className="fixed top-5 right-5 z-[100] space-y-2 pointer-events-none">
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            className={cn(
-              "flex items-center gap-2.5 px-4 py-3 shadow-lg text-sm min-w-[260px] pointer-events-auto",
-              t.type === "success" ? "bg-stone-900 text-white" : "bg-red-600 text-white"
-            )}
-          >
-            {t.type === "success"
-              ? <CheckCircle size={14} className="shrink-0" />
-              : <AlertCircle size={14} className="shrink-0" />
-            }
-            {t.message}
-          </div>
-        ))}
-      </div>
+      <ToastContainer toasts={toasts} onClose={removeToast} />
 
       {/* ── Header ── */}
       <div className="bg-white border-b border-stone-100 px-6 md:px-10 py-5">
