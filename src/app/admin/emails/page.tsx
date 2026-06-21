@@ -11,6 +11,7 @@ import { useSubscriberStore, EmailCampaign } from "@/store/subscriberStore";
 import { useProductStore } from "@/store/productStore";
 import { useAuthStore } from "@/store/authStore";
 import { cn } from "@/lib/utils";
+import { ToastContainer, useToast } from "@/components/ui/Toast";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", {
@@ -76,6 +77,7 @@ export default function AdminEmailsPage() {
   const [sending, setSending]                 = useState(false);
   const [sendResult, setSendResult]           = useState<SendResult | null>(null);
   const [previewCampaign, setPreviewCampaign] = useState<EmailCampaign | null>(null);
+  const { toasts, addToast, removeToast } = useToast(3000);
 
   // ── Computed recipient lists ────────────────────────────────────────────────
   const allEmailsUnique = useMemo(() => {
@@ -231,6 +233,9 @@ export default function AdminEmailsPage() {
           successCount:   data.successCount ?? 0,
           status: data.status ?? "sent",
         });
+        addToast("success", `Sent to ${data.successCount ?? finalEmails.length} recipients`);
+      } else {
+        addToast("error", data.error ?? "Send failed");
       }
     } catch {
       setSendResult({ ok: false, error: "Network error. Please try again." });
@@ -262,6 +267,8 @@ export default function AdminEmailsPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
+      <ToastContainer toasts={toasts} onClose={removeToast} />
+
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -307,8 +314,8 @@ export default function AdminEmailsPage() {
           <p className="text-xs text-stone-300">Compose your first campaign to get started</p>
         </div>
       ) : (
-        <div className="border border-stone-100 overflow-x-auto bg-white">
-          <table className="w-full text-sm">
+        <div className="border border-stone-100 bg-white overflow-x-auto">
+          <table className="w-full text-sm min-w-[640px]">
             <thead>
               <tr className="border-b border-stone-100 bg-stone-50">
                 {["Subject", "Type", "Recipients", "Delivered", "Status", "Sent At", ""].map((h) => (
@@ -371,19 +378,24 @@ export default function AdminEmailsPage() {
           Compose Modal
       ════════════════════════════════════════════════════════════════════════ */}
       {composeOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
           <div className="absolute inset-0 bg-black/40" onClick={!sending ? closeCompose : undefined} />
-          <div className="relative bg-white w-full max-w-2xl shadow-2xl flex flex-col max-h-[92vh]">
+          <div className="relative bg-white w-full sm:max-w-2xl shadow-2xl flex flex-col max-h-[92vh] sm:rounded-none rounded-t-2xl overflow-hidden">
+
+            {/* Drag handle — mobile only */}
+            <div className="sm:hidden flex justify-center pt-3 pb-1 shrink-0">
+              <div className="w-10 h-1 bg-stone-200 rounded-full" />
+            </div>
 
             {/* Modal header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100 shrink-0">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-stone-100 shrink-0">
               <h2 className="text-base font-light text-stone-900">Compose Campaign</h2>
               <button onClick={closeCompose} disabled={sending} className="p-1 text-stone-400 hover:text-stone-900 disabled:opacity-40">
                 <X size={18} />
               </button>
             </div>
 
-            <div className="overflow-y-auto flex-1 p-6 space-y-7">
+            <div className="overflow-y-auto flex-1 p-4 sm:p-6 space-y-6 sm:space-y-7">
 
               {/* ── Section 1: Recipients ── */}
               <section>
@@ -671,7 +683,7 @@ export default function AdminEmailsPage() {
             </div>
 
             {/* Modal footer */}
-            <div className="flex gap-3 px-6 py-4 border-t border-stone-100 shrink-0">
+            <div className="flex gap-3 px-4 sm:px-6 py-4 border-t border-stone-100 shrink-0 pb-safe">
               <button
                 onClick={closeCompose}
                 disabled={sending}

@@ -12,6 +12,7 @@ import { formatPrice, cn } from "@/lib/utils";
 import { useProductStore } from "@/store/productStore";
 import { useCollectionStore } from "@/store/collectionStore";
 import { useSubscriberStore } from "@/store/subscriberStore";
+import { ToastContainer, useToast } from "@/components/ui/Toast";
 
 const categoryOptions = ["all", "dresses", "tops", "bottoms", "outerwear", "accessories"];
 const allSizes = ["XS", "S", "M", "L", "XL", "XXL"];
@@ -62,8 +63,6 @@ function toSlug(text: string) {
   return text.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-");
 }
 
-type ToastType = "success" | "error" | "loading";
-type Toast = { id: number; type: ToastType; message: string };
 
 export default function AdminProductsPage() {
   const [productList, setProductList]   = useState<Product[]>([]);
@@ -71,13 +70,13 @@ export default function AdminProductsPage() {
   const { addProduct, updateProduct, removeProduct, setProducts } = useProductStore();
   const { collections, updateCollection } = useCollectionStore();
   const { subscribers, addCampaign } = useSubscriberStore();
+  const { toasts, addToast, removeToast } = useToast(3000);
 
   // Announce modal state — shown after creating a new product
   const [announceProduct, setAnnounceProduct] = useState<Product | null>(null);
   const [announcing, setAnnouncing] = useState(false);
   const [announceResult, setAnnounceResult] = useState<{ ok: boolean; sent?: number } | null>(null);
-  const [syncing, setSyncing]           = useState(false);
-  const [toasts, setToasts]             = useState<Toast[]>([]);
+  const [syncing, setSyncing] = useState(false);
 
   const [search, setSearch]     = useState("");
   const [filterCat, setFilterCat] = useState("all");
@@ -97,18 +96,6 @@ export default function AdminProductsPage() {
   const [uploadedVideoUrl, setUploadedVideoUrl] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
-
-  // ── toasts ────────────────────────────────────────────────────────────────
-  const addToast = useCallback((type: ToastType, message: string) => {
-    const id = Date.now();
-    setToasts((t) => [...t, { id, type, message }]);
-    if (type !== "loading") setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4000);
-    return id;
-  }, []);
-
-  const removeToast = useCallback((id: number) => {
-    setToasts((t) => t.filter((x) => x.id !== id));
-  }, []);
 
   // ── fetch from Shopify ────────────────────────────────────────────────────
   const fetchProducts = useCallback(async () => {
@@ -464,33 +451,12 @@ export default function AdminProductsPage() {
 
   // ── render ────────────────────────────────────────────────────────────────
   return (
-    <div className="p-8 relative">
+    <div className="p-4 md:p-8 relative">
 
-      {/* Toast notifications */}
-      <div className="fixed top-6 right-6 z-[100] flex flex-col gap-2 pointer-events-none">
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            className={cn(
-              "flex items-center gap-3 px-4 py-3 shadow-lg text-sm max-w-sm pointer-events-auto",
-              t.type === "success" && "bg-white border border-emerald-200 text-emerald-800",
-              t.type === "error"   && "bg-white border border-red-200 text-red-700",
-              t.type === "loading" && "bg-white border border-stone-200 text-stone-600"
-            )}
-          >
-            {t.type === "success" && <CheckCircle size={15} className="text-emerald-500 shrink-0" />}
-            {t.type === "error"   && <AlertCircle size={15} className="text-red-500 shrink-0" />}
-            {t.type === "loading" && <Loader2 size={15} className="animate-spin text-stone-400 shrink-0" />}
-            <span className="flex-1">{t.message}</span>
-            <button onClick={() => removeToast(t.id)} className="text-stone-300 hover:text-stone-600 ml-2">
-              <X size={13} />
-            </button>
-          </div>
-        ))}
-      </div>
+      <ToastContainer toasts={toasts} onClose={removeToast} />
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6 md:mb-8">
         <div>
           <div className="flex items-center gap-3 mb-1">
             <p className="type-label text-stone-400">Catalog</p>
@@ -499,24 +465,24 @@ export default function AdminProductsPage() {
               : <span className="flex items-center gap-1 text-[10px] text-emerald-500 tracking-widest uppercase"><Cloud size={10} /> Shopify Live</span>
             }
           </div>
-          <h1 className="text-4xl text-stone-900" style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}>
+          <h1 className="text-3xl md:text-4xl text-stone-900" style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}>
             Products
           </h1>
           <p className="text-stone-400 text-sm mt-1">{productList.length} total products</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={fetchProducts}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-3 border border-stone-200 text-xs tracking-widest uppercase hover:bg-stone-50 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-3 py-2.5 border border-stone-200 text-xs tracking-widest uppercase hover:bg-stone-50 transition-colors disabled:opacity-50"
             title="Sync from Shopify"
           >
             <RefreshCw size={13} className={cn(loading && "animate-spin")} />
-            Sync
+            <span className="hidden sm:inline">Sync</span>
           </button>
           <button
             onClick={openAdd}
-            className="flex items-center gap-2 px-5 py-3 bg-stone-900 text-white text-xs tracking-widest uppercase hover:bg-stone-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 bg-stone-900 text-white text-xs tracking-widest uppercase hover:bg-stone-700 transition-colors"
           >
             <Plus size={14} />
             Add Product
@@ -583,7 +549,9 @@ export default function AdminProductsPage() {
 
       {/* Table */}
       <div className="bg-white border border-stone-100 overflow-hidden">
-        <div className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-stone-100 bg-stone-50">
+        <div className="overflow-x-auto">
+        <div className="min-w-[640px]">
+        <div className="grid grid-cols-12 gap-4 px-4 md:px-6 py-3 border-b border-stone-100 bg-stone-50">
           <p className="col-span-4 text-[10px] tracking-widest uppercase text-stone-400">Product</p>
           <p className="col-span-1 text-[10px] tracking-widest uppercase text-stone-400">Category</p>
           <p className="col-span-2 text-[10px] tracking-widest uppercase text-stone-400">Labels</p>
@@ -610,7 +578,7 @@ export default function AdminProductsPage() {
             {filtered.map((product) => {
               const { cls: stockCls, label: stockLabel } = stockBadge(product.stock);
               return (
-                <div key={product.id} className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-stone-50/50 transition-colors group">
+                <div key={product.id} className="grid grid-cols-12 gap-4 px-4 md:px-6 py-3 md:py-4 items-center hover:bg-stone-50/50 transition-colors group">
                   {/* Product name + image */}
                   <div className="col-span-4 flex items-center gap-4 min-w-0">
                     <div className="relative w-12 h-16 bg-stone-100 shrink-0 overflow-hidden">
@@ -713,6 +681,8 @@ export default function AdminProductsPage() {
             })}
           </div>
         )}
+        </div>{/* min-w */}
+        </div>{/* overflow-x-auto */}
       </div>
 
       {/* Stats */}
