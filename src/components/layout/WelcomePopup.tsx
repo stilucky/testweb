@@ -15,8 +15,8 @@ export default function WelcomePopup() {
   const [visible, setVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  const hideTimerRef = useRef(null);
-  const unmountTimerRef = useRef(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const unmountTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     // Only show on homepage, desktop, and when not logged in
