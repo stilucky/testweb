@@ -39,7 +39,7 @@ export default function WelcomePopup() {
       unmountTimerRef.current = setTimeout(() => {
         setMounted(false);
       }, 400);
-    }, 2000);
+    }, 3000);
 
     return () => {
       if (hideTimerRef.current) {
