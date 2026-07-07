@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { updateTotalStock, updateVariantInventory } from "@/lib/shopify-admin";
+import { updateTotalStock, updateVariantInventories, updateVariantInventory } from "@/lib/shopify-admin";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -11,7 +11,13 @@ type Params = { params: Promise<{ id: string }> };
 export async function PUT(req: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
-    const body: { stock: number; size?: string } = await req.json();
+    const body: { stock?: number; size?: string; inventoryBySize?: Record<string, number> } = await req.json();
+
+    if (body.inventoryBySize) {
+      await updateVariantInventories(id, body.inventoryBySize);
+      const stock = Object.values(body.inventoryBySize).reduce((sum, qty) => sum + qty, 0);
+      return NextResponse.json({ success: true, stock, inventoryBySize: body.inventoryBySize });
+    }
 
     if (typeof body.stock !== "number") {
       return NextResponse.json({ error: "stock (number) is required" }, { status: 400 });

@@ -41,11 +41,12 @@ type FormData = {
   description: string; descriptionFR: string;
   price: string; salePrice: string;
   priceCAD: string; salePriceCAD: string;
-  stock: string; category: string;
-  gender: "women" | "men" | "unisex"; sizes: string[]; colors: FormColor[];
+  category: string;
+  gender: "women" | "men" | "unisex"; sizes: string[]; inventoryBySize: Record<string, string>; colors: FormColor[];
   images: string; videoUrl: string; isNew: boolean; isBestSeller: boolean; featured: boolean;
   collections: string[];
 };
+type FormErrors = Partial<Record<keyof FormData | "stock", string>>;
 
 const emptyForm: FormData = {
   name: "", slug: "",
@@ -53,14 +54,25 @@ const emptyForm: FormData = {
   description: "", descriptionFR: "",
   price: "", salePrice: "",
   priceCAD: "", salePriceCAD: "",
-  stock: "", category: "dresses",
-  gender: "women", sizes: [], colors: [], images: "", videoUrl: "",
+  category: "dresses",
+  gender: "women", sizes: [], inventoryBySize: {}, colors: [], images: "", videoUrl: "",
   isNew: false, isBestSeller: false, featured: false,
   collections: [],
 };
 
 function toSlug(text: string) {
   return text.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-");
+}
+
+function normalizeInventoryBySize(sizes: string[], values: Record<string, string>): Record<string, number> {
+  return sizes.reduce<Record<string, number>>((acc, size) => {
+    acc[size] = Math.max(0, Math.floor(Number(values[size] || 0)));
+    return acc;
+  }, {});
+}
+
+function totalInventory(values: Record<string, number>) {
+  return Object.values(values).reduce((sum, qty) => sum + qty, 0);
 }
 
 
@@ -88,7 +100,7 @@ export default function AdminProductsPage() {
   const [modalOpen, setModalOpen]         = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [form, setForm]                   = useState<FormData>(emptyForm);
-  const [errors, setErrors]               = useState<Partial<Record<keyof FormData, string>>>({});
+  const [errors, setErrors]               = useState<FormErrors>({});
   const [saving, setSaving]               = useState(false);
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
@@ -166,6 +178,10 @@ export default function AdminProductsPage() {
   };
 
   const openEdit = (product: Product) => {
+    const inventoryBySize = product.sizes.reduce<Record<string, string>>((acc, size) => {
+      acc[size] = String(product.inventoryBySize?.[size] ?? 0);
+      return acc;
+    }, {});
     setEditingProduct(product);
     setUploadedImages([]);
     setUploadedVideoUrl("");
@@ -178,10 +194,10 @@ export default function AdminProductsPage() {
       descriptionFR: product.descriptionFR ?? "",
       price: String(product.price),
       salePrice: product.salePrice ? String(product.salePrice) : "",
-      stock: String(product.stock),
       category: product.category,
       gender: product.gender,
       sizes: [...product.sizes],
+      inventoryBySize,
       colors: product.colors.map((c, i) => ({
         name: c.name, hex: c.hex, isPrimary: i === 0,
       })),
@@ -212,13 +228,17 @@ export default function AdminProductsPage() {
   };
 
   const validate = (): boolean => {
-    const e: Partial<Record<keyof FormData, string>> = {};
+    const e: FormErrors = {};
     if (!form.name.trim()) e.name = "Name is required";
     if (!form.price || isNaN(Number(form.price)) || Number(form.price) <= 0) e.price = "Valid price required";
     if (form.salePrice && (isNaN(Number(form.salePrice)) || Number(form.salePrice) <= 0)) e.salePrice = "Invalid sale price";
-    if (!form.stock || isNaN(Number(form.stock)) || Number(form.stock) < 0) e.stock = "Valid stock required";
     if (!form.shortDescription.trim()) e.shortDescription = "Required";
     if (form.sizes.length === 0) e.sizes = "Select at least one size";
+    const invalidSizeStock = form.sizes.some((size) => {
+      const qty = form.inventoryBySize[size];
+      return qty === undefined || qty === "" || isNaN(Number(qty)) || Number(qty) < 0;
+    });
+    if (invalidSizeStock) e.stock = "Enter a valid quantity for each selected size";
     if (!form.images.trim() && uploadedImages.length === 0) e.images = "At least one image required";
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -246,6 +266,8 @@ export default function AdminProductsPage() {
     const builtColors = sortedColors.map((c) => ({
       name: c.name, hex: c.hex, images: [],
     }));
+    const inventoryBySize = normalizeInventoryBySize(form.sizes, form.inventoryBySize);
+    const stock = totalInventory(inventoryBySize);
 
     const payload: Omit<Product, "id"> = {
       name: form.name,
@@ -256,7 +278,8 @@ export default function AdminProductsPage() {
       descriptionFR: form.descriptionFR.trim() || undefined,
       price: Number(form.price),
       salePrice: form.salePrice ? Number(form.salePrice) : undefined,
-      stock: Number(form.stock),
+      stock,
+      inventoryBySize,
       category: form.category,
       gender: form.gender,
       sizes: form.sizes,
@@ -282,17 +305,17 @@ export default function AdminProductsPage() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Update failed");
 
-        // Update inventory separately if stock changed
-        if (Number(form.stock) !== editingProduct.stock) {
-          await fetch(`/api/shopify/products/${editingProduct.id}/inventory`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ stock: Number(form.stock) }),
-          });
-        }
+        const inventoryRes = await fetch(`/api/shopify/products/${editingProduct.id}/inventory`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ inventoryBySize }),
+        });
+        const inventoryData = await inventoryRes.json();
+        if (!inventoryRes.ok) throw new Error(inventoryData.error ?? "Inventory update failed");
 
-        setProductList((prev) => prev.map((p) => p.id === editingProduct.id ? data.product : p));
-        updateProduct(data.product); // sync store
+        const updatedProduct = { ...data.product, stock, inventoryBySize };
+        setProductList((prev) => prev.map((p) => p.id === editingProduct.id ? updatedProduct : p));
+        updateProduct(updatedProduct); // sync store
         syncCollections(data.product.id, form.collections);
         addToast("success", `"${data.product.name}" updated on Shopify`);
       } else {
@@ -409,7 +432,18 @@ export default function AdminProductsPage() {
     }
   };
 
-  const toggleSize  = (size: string) => setForm((f) => ({ ...f, sizes: f.sizes.includes(size) ? f.sizes.filter((s) => s !== size) : [...f.sizes, size] }));
+  const toggleSize = (size: string) => setForm((f) => {
+    if (f.sizes.includes(size)) {
+      const inventoryBySize = { ...f.inventoryBySize };
+      delete inventoryBySize[size];
+      return { ...f, sizes: f.sizes.filter((s) => s !== size), inventoryBySize };
+    }
+    return {
+      ...f,
+      sizes: [...f.sizes, size],
+      inventoryBySize: { ...f.inventoryBySize, [size]: f.inventoryBySize[size] ?? "0" },
+    };
+  });
   const toggleColor = (color: { name: string; hex: string }) => setForm((f) => {
     const exists = f.colors.some((c) => c.name === color.name);
     if (exists) {
@@ -829,12 +863,6 @@ export default function AdminProductsPage() {
                   If CAD is left empty, price will be auto-converted from USD × 1.38.
                 </p>
 
-                {/* Stock */}
-                <Field label="Stock" required error={errors.stock}>
-                  <input type="number" min="0" value={form.stock}
-                    onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
-                    placeholder="0" className={inputCls(!!errors.stock)} />
-                </Field>
               </div>
 
               {/* Category & Gender */}
@@ -859,14 +887,51 @@ export default function AdminProductsPage() {
 
               {/* Sizes */}
               <Field label="Sizes" required error={errors.sizes}>
-                <div className="flex gap-2 flex-wrap">
-                  {allSizes.map((size) => (
-                    <button key={size} type="button" onClick={() => toggleSize(size)}
-                      className={cn("w-12 h-12 border text-xs transition-all",
-                        form.sizes.includes(size) ? "border-stone-900 bg-stone-900 text-white" : "border-stone-200 text-stone-600 hover:border-stone-400")}>
-                      {size}
-                    </button>
-                  ))}
+                <div className="space-y-3">
+                  <div className="flex gap-2 flex-wrap">
+                    {allSizes.map((size) => (
+                      <button key={size} type="button" onClick={() => toggleSize(size)}
+                        className={cn("w-12 h-12 border text-xs transition-all",
+                          form.sizes.includes(size) ? "border-stone-900 bg-stone-900 text-white" : "border-stone-200 text-stone-600 hover:border-stone-400")}>
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+
+                  {form.sizes.length > 0 && (
+                    <div className="border border-stone-100 divide-y divide-stone-100">
+                      <div className="grid grid-cols-[80px_1fr] gap-3 px-3 py-2 bg-stone-50">
+                        <span className="text-[10px] tracking-widest uppercase text-stone-400">Size</span>
+                        <span className="text-[10px] tracking-widest uppercase text-stone-400">Quantity</span>
+                      </div>
+                      {form.sizes.map((size) => (
+                        <div key={size} className="grid grid-cols-[80px_1fr] gap-3 items-center px-3 py-2">
+                          <span className="text-xs font-medium text-stone-700">{size}</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={form.inventoryBySize[size] ?? "0"}
+                            onChange={(e) => setForm((f) => ({
+                              ...f,
+                              inventoryBySize: { ...f.inventoryBySize, [size]: e.target.value },
+                            }))}
+                            className={cn(
+                              "w-full px-3 py-2 border text-sm focus:outline-none transition-colors",
+                              errors.stock ? "border-red-400 focus:border-red-500" : "border-stone-200 focus:border-stone-800"
+                            )}
+                          />
+                        </div>
+                      ))}
+                      <div className="flex items-center justify-between px-3 py-2 bg-stone-50">
+                        <span className="text-[10px] tracking-widest uppercase text-stone-400">Total Stock</span>
+                        <span className="text-xs font-medium text-stone-700">
+                          {totalInventory(normalizeInventoryBySize(form.sizes, form.inventoryBySize))}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {errors.stock && <p className="text-xs text-red-500">{errors.stock}</p>}
                 </div>
               </Field>
 
@@ -1108,10 +1173,10 @@ export default function AdminProductsPage() {
               </Field>
 
               {/* Collections */}
-              {collections.filter((c) => c.status === "active").length > 0 && (
+              {collections.length > 0 && (
                 <Field label="Collections">
                   <div className="space-y-2">
-                    {collections.filter((c) => c.status === "active").map((col) => (
+                    {collections.map((col) => (
                       <label key={col.id} className="flex items-center gap-2.5 cursor-pointer select-none group">
                         <input
                           type="checkbox"
@@ -1128,6 +1193,11 @@ export default function AdminProductsPage() {
                           <span className="text-sm text-stone-700 group-hover:text-stone-900 transition-colors truncate">
                             {col.name}
                           </span>
+                          {col.status === "draft" && (
+                            <span className="text-[9px] bg-stone-100 text-stone-500 px-1.5 py-0.5 rounded tracking-widest uppercase shrink-0">
+                              Draft
+                            </span>
+                          )}
                           {col.membersOnly && (
                             <span className="text-[9px] bg-stone-100 text-stone-500 px-1.5 py-0.5 rounded tracking-widest uppercase shrink-0">
                               Members Only

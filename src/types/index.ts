@@ -18,6 +18,7 @@ export interface Product {
   isNew: boolean;
   isBestSeller: boolean;
   stock: number;
+  inventoryBySize?: Record<string, number>;
   tags: string[];
   videoUrl?: string;
   priceCAD?: number;

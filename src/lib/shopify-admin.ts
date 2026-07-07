@@ -177,6 +177,10 @@ export function shopifyToProduct(sp: ShopifyProduct): Product {
 
   // Total inventory across all variants
   const stock = sp.variants.reduce((s, v) => s + (v.inventory_quantity ?? 0), 0);
+  const inventoryBySize = sp.variants.reduce<Record<string, number>>((acc, v) => {
+    if (v.option1) acc[v.option1] = v.inventory_quantity ?? 0;
+    return acc;
+  }, {});
 
   return {
     id: String(sp.id),
@@ -197,6 +201,7 @@ export function shopifyToProduct(sp: ShopifyProduct): Product {
     isNew: "isNew" in tagMap,
     isBestSeller: "isBestSeller" in tagMap,
     stock,
+    inventoryBySize,
     tags: sp.tags.split(",").map((t) => t.trim()).filter((t) => !t.startsWith("color:") && !t.startsWith("gender:") && !t.startsWith("cat:")),
     createdAt: sp.created_at,
   };
@@ -212,7 +217,7 @@ async function productToShopify(p: Partial<Product> & { name: string; price: num
     price: String(isOnSale ? p.salePrice! : p.price),
     compare_at_price: isOnSale ? String(p.price) : null,
     inventory_management: "shopify",
-    inventory_quantity: Math.round((p.stock ?? 0) / Math.max(1, p.sizes?.length ?? 1)),
+    inventory_quantity: p.inventoryBySize?.[size] ?? 0,
   }));
 
   const tags = buildTags(
@@ -364,8 +369,7 @@ export async function updateShopifyProduct(id: string, p: Partial<Product>): Pro
       price: String(isOnSale ? salePrice! : price),
       compare_at_price: isOnSale ? String(price) : null,
       inventory_management: "shopify",
-      // Only update stock if explicitly provided
-      ...(p.stock !== undefined && !existing ? { inventory_quantity: Math.round(p.stock / Math.max(1, sizes.length)) } : {}),
+      ...(p.inventoryBySize && !existing ? { inventory_quantity: p.inventoryBySize[size] ?? 0 } : {}),
     };
   });
 
@@ -434,6 +438,18 @@ export async function updateVariantInventory(
           available: newQuantity,
         }),
       })
+    )
+  );
+}
+
+/** Update inventory for multiple size variants */
+export async function updateVariantInventories(
+  productId: string,
+  inventoryBySize: Record<string, number>
+): Promise<void> {
+  await Promise.all(
+    Object.entries(inventoryBySize).map(([size, quantity]) =>
+      updateVariantInventory(productId, size, quantity)
     )
   );
 }
