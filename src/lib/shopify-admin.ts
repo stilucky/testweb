@@ -11,6 +11,9 @@ const DOMAIN  = process.env.SHOPIFY_SHOP_DOMAIN!;
 const TOKEN   = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN!;
 const API_VER = "2024-01";
 const BASE    = `https://${DOMAIN}/admin/api/${API_VER}`;
+const CONFIGURED_LOCATION_ID = process.env.SHOPIFY_LOCATION_ID
+  ? Number(process.env.SHOPIFY_LOCATION_ID)
+  : null;
 const HEADERS = {
   "Content-Type": "application/json",
   "X-Shopify-Access-Token": TOKEN,
@@ -259,6 +262,17 @@ async function shopifyFetch(path: string, init?: RequestInit) {
   return text ? JSON.parse(text) : {};
 }
 
+async function getInventoryLocationId(): Promise<number> {
+  if (CONFIGURED_LOCATION_ID && Number.isFinite(CONFIGURED_LOCATION_ID)) {
+    return CONFIGURED_LOCATION_ID;
+  }
+
+  const locData = await shopifyFetch("/locations.json");
+  const locationId: number | undefined = locData.locations?.[0]?.id;
+  if (!locationId) throw new Error("No Shopify location found. Set SHOPIFY_LOCATION_ID in your environment.");
+  return locationId;
+}
+
 async function getProductMetafields(productId: string): Promise<ShopifyMetafield[]> {
   try {
     const data = await shopifyFetch(`/products/${productId}/metafields.json`);
@@ -422,10 +436,7 @@ export async function updateVariantInventory(
 
   if (targets.length === 0) throw new Error(`No variant found for size "${sizeLabel}"`);
 
-  // Get store's primary location
-  const locData = await shopifyFetch("/locations.json");
-  const locationId: number = locData.locations?.[0]?.id;
-  if (!locationId) throw new Error("No location found");
+  const locationId = await getInventoryLocationId();
 
   // Set inventory level for each matching variant
   await Promise.all(
@@ -460,9 +471,7 @@ export async function updateTotalStock(productId: string, totalStock: number): P
   const perVariant = Math.floor(totalStock / Math.max(1, raw.variants.length));
   const remainder  = totalStock % Math.max(1, raw.variants.length);
 
-  const locData = await shopifyFetch("/locations.json");
-  const locationId: number = locData.locations?.[0]?.id;
-  if (!locationId) throw new Error("No location found");
+  const locationId = await getInventoryLocationId();
 
   await Promise.all(
     raw.variants.map((v, i) =>

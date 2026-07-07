@@ -312,8 +312,9 @@ export default function AdminProductsPage() {
         });
         const inventoryData = await inventoryRes.json();
         if (!inventoryRes.ok) throw new Error(inventoryData.error ?? "Inventory update failed");
+        if (inventoryData.warning) addToast("success", inventoryData.warning);
 
-        const updatedProduct = { ...data.product, stock, inventoryBySize };
+        const updatedProduct = inventoryData.warning ? data.product : { ...data.product, stock, inventoryBySize };
         setProductList((prev) => prev.map((p) => p.id === editingProduct.id ? updatedProduct : p));
         updateProduct(updatedProduct); // sync store
         syncCollections(data.product.id, form.collections);
@@ -423,7 +424,12 @@ export default function AdminProductsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stock: newStock }),
       });
-      if (!res.ok) throw new Error("Inventory update failed");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Inventory update failed");
+      if (data.warning) {
+        addToast("success", data.warning);
+        return;
+      }
       setProductList((prev) => prev.map((p) => p.id === id ? { ...p, stock: newStock } : p));
     } catch (err) {
       addToast("error", String(err));

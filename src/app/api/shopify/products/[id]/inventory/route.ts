@@ -3,6 +3,10 @@ import { updateTotalStock, updateVariantInventories, updateVariantInventory } fr
 
 type Params = { params: Promise<{ id: string }> };
 
+function isLocationScopeError(err: unknown) {
+  return String(err).includes("read_locations scope");
+}
+
 /**
  * PUT /api/shopify/products/[id]/inventory
  * Body: { stock: number }              → update total stock (distributed across variants)
@@ -32,6 +36,16 @@ export async function PUT(req: NextRequest, { params }: Params) {
     return NextResponse.json({ success: true, stock: body.stock });
   } catch (err) {
     console.error("[PUT /api/shopify/products/[id]/inventory]", err);
+    if (isLocationScopeError(err)) {
+      return NextResponse.json(
+        {
+          success: false,
+          warning:
+            "Product saved, but inventory was not synced because Shopify requires read_locations scope or SHOPIFY_LOCATION_ID.",
+        },
+        { status: 202 }
+      );
+    }
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }
