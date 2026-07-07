@@ -44,13 +44,12 @@ interface Props {
   open: boolean;
   onClose: () => void;
   gender?: "women" | "men" | "unisex";
+  customNote?: string;
 }
 
-export default function SizeChart({ open, onClose, gender = "women" }: Props) {
+export default function SizeChart({ open, onClose, gender = "women", customNote }: Props) {
   const [unit, setUnit] = useState<"in" | "cm">("in");
   const [tab, setTab] = useState<"chart" | "how">("chart");
-
-  const sizes = gender === "men" ? menSizes : womenSizes;
 
   return (
     <>
@@ -200,6 +199,13 @@ export default function SizeChart({ open, onClose, gender = "women" }: Props) {
               <p className="text-[11px] text-stone-400 mt-6 leading-relaxed">
                 Measurements are body measurements, not garment measurements. For the best fit, measure yourself and compare to the chart above.
               </p>
+
+              {customNote && (
+                <div className="mt-6 border border-stone-200 bg-stone-50 p-4">
+                  <p className="text-xs tracking-widests uppercase text-stone-400 mb-2">Product Fit Note</p>
+                  <p className="text-xs text-stone-600 leading-relaxed whitespace-pre-line">{customNote}</p>
+                </div>
+              )}
 
               {/* Fit note */}
               <div className="mt-6 border border-stone-100 p-4 space-y-2">

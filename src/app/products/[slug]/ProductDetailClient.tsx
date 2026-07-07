@@ -57,6 +57,12 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
   const currency = useLocaleStore((s) => s.currency);
   const language = useLocaleStore((s) => s.language);
   const t = useTranslations(language);
+  const returnPolicy = (language === "FR" && product.returnPolicyFR)
+    ? product.returnPolicyFR
+    : product.returnPolicy;
+  const sizeChartNote = (language === "FR" && product.sizeChartNoteFR)
+    ? product.sizeChartNoteFR
+    : product.sizeChartNote;
 
   const related = relatedProducts;
 
@@ -85,9 +91,9 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
     {
       id: "returns",
       label: t("shippingReturns"),
-      content: language === "FR"
+      content: returnPolicy || (language === "FR"
         ? "Retours gratuits sous 30 jours pour articles non portés avec étiquettes d'origine."
-        : "Free returns within 30 days for unworn items with original tags attached.",
+        : "Free returns within 30 days for unworn items with original tags attached."),
     },
   ];
 
@@ -151,7 +157,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
           </div>
 
           {/* Main display: image, YouTube embed, or native video */}
-          <div className="flex-1 relative aspect-[3/4] bg-stone-900 overflow-hidden">
+          <div className="flex-1 relative aspect-[3/4] bg-stone-100 overflow-hidden">
             {showVideo && videoId ? (
               <iframe
                 src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`}
@@ -170,14 +176,23 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
               />
             ) : (
               <>
-                <Image
-                  src={displayImages[selectedImage] ?? displayImages[0]}
+                {displayImages.map((img, i) => (
+                  <Image
+                  key={`${selectedColor}-${img}`}
+                  src={img}
                   alt={`${product.name} — ${selectedColor}`}
                   fill
-                  priority
-                  className="object-cover transition-opacity duration-300"
+                  priority={i === 0}
+                  loading={i === 0 ? undefined : "eager"}
+                  className={cn(
+                    "object-cover transition-[opacity,transform] duration-500 ease-out",
+                    i === selectedImage
+                      ? "opacity-100 scale-100"
+                      : "opacity-0 scale-[1.015] pointer-events-none"
+                  )}
                   sizes="(max-width: 768px) 100vw, 50vw"
-                />
+                  />
+                ))}
                 {product.isNew && (
                   <span className="absolute top-4 left-4 bg-stone-900 text-white text-[10px] tracking-widest uppercase px-2 py-1">
                     New
@@ -351,7 +366,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
                   )}
                 </button>
                 {expandedSection === section.id && (
-                  <p className="pb-5 text-sm text-stone-500 leading-relaxed pr-4">
+                  <p className="pb-5 text-sm text-stone-500 leading-relaxed pr-4 whitespace-pre-line">
                     {section.content}
                   </p>
                 )}
@@ -365,6 +380,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
         open={sizeChartOpen}
         onClose={() => setSizeChartOpen(false)}
         gender={product.gender}
+        customNote={sizeChartNote}
       />
 
       {/* Related products */}

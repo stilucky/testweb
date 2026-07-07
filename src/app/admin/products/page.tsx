@@ -39,6 +39,8 @@ type FormData = {
   name: string; slug: string;
   shortDescription: string; shortDescriptionFR: string;
   description: string; descriptionFR: string;
+  returnPolicy: string; returnPolicyFR: string;
+  sizeChartNote: string; sizeChartNoteFR: string;
   price: string; salePrice: string;
   priceCAD: string; salePriceCAD: string;
   category: string;
@@ -52,6 +54,8 @@ const emptyForm: FormData = {
   name: "", slug: "",
   shortDescription: "", shortDescriptionFR: "",
   description: "", descriptionFR: "",
+  returnPolicy: "", returnPolicyFR: "",
+  sizeChartNote: "", sizeChartNoteFR: "",
   price: "", salePrice: "",
   priceCAD: "", salePriceCAD: "",
   category: "dresses",
@@ -192,6 +196,10 @@ export default function AdminProductsPage() {
       shortDescriptionFR: product.shortDescriptionFR ?? "",
       description: product.description,
       descriptionFR: product.descriptionFR ?? "",
+      returnPolicy: product.returnPolicy ?? "",
+      returnPolicyFR: product.returnPolicyFR ?? "",
+      sizeChartNote: product.sizeChartNote ?? "",
+      sizeChartNoteFR: product.sizeChartNoteFR ?? "",
       price: String(product.price),
       salePrice: product.salePrice ? String(product.salePrice) : "",
       category: product.category,
@@ -276,6 +284,10 @@ export default function AdminProductsPage() {
       shortDescriptionFR: form.shortDescriptionFR.trim() || undefined,
       description: form.description,
       descriptionFR: form.descriptionFR.trim() || undefined,
+      returnPolicy: form.returnPolicy.trim() || undefined,
+      returnPolicyFR: form.returnPolicyFR.trim() || undefined,
+      sizeChartNote: form.sizeChartNote.trim() || undefined,
+      sizeChartNoteFR: form.sizeChartNoteFR.trim() || undefined,
       price: Number(form.price),
       salePrice: form.salePrice ? Number(form.salePrice) : undefined,
       stock,
@@ -812,6 +824,43 @@ export default function AdminProductsPage() {
                 <Field label="Full Description — FR">
                   <textarea value={form.descriptionFR} onChange={(e) => setForm((f) => ({ ...f, descriptionFR: e.target.value }))}
                     placeholder="Description détaillée du produit (Français)..." rows={4}
+                    className="w-full px-4 py-3 border border-stone-200 text-sm focus:outline-none focus:border-stone-800 transition-colors resize-none" />
+                </Field>
+              </div>
+
+              {/* Product-specific policies */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="h-px flex-1 bg-stone-100" />
+                  <span className="text-[10px] tracking-widest uppercase text-stone-400">Returns</span>
+                  <div className="h-px flex-1 bg-stone-100" />
+                </div>
+                <Field label="Return Policy — EN">
+                  <textarea value={form.returnPolicy} onChange={(e) => setForm((f) => ({ ...f, returnPolicy: e.target.value }))}
+                    placeholder="Leave empty to use the default return policy..." rows={3}
+                    className="w-full px-4 py-3 border border-stone-200 text-sm focus:outline-none focus:border-stone-800 transition-colors resize-none" />
+                </Field>
+                <Field label="Return Policy — FR">
+                  <textarea value={form.returnPolicyFR} onChange={(e) => setForm((f) => ({ ...f, returnPolicyFR: e.target.value }))}
+                    placeholder="Laisser vide pour utiliser la politique de retour par défaut..." rows={3}
+                    className="w-full px-4 py-3 border border-stone-200 text-sm focus:outline-none focus:border-stone-800 transition-colors resize-none" />
+                </Field>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="h-px flex-1 bg-stone-100" />
+                  <span className="text-[10px] tracking-widest uppercase text-stone-400">Size Chart Notes</span>
+                  <div className="h-px flex-1 bg-stone-100" />
+                </div>
+                <Field label="Size Chart Note — EN">
+                  <textarea value={form.sizeChartNote} onChange={(e) => setForm((f) => ({ ...f, sizeChartNote: e.target.value }))}
+                    placeholder="Fit notes for this product, e.g. size up if between sizes..." rows={3}
+                    className="w-full px-4 py-3 border border-stone-200 text-sm focus:outline-none focus:border-stone-800 transition-colors resize-none" />
+                </Field>
+                <Field label="Size Chart Note — FR">
+                  <textarea value={form.sizeChartNoteFR} onChange={(e) => setForm((f) => ({ ...f, sizeChartNoteFR: e.target.value }))}
+                    placeholder="Notes de coupe pour ce produit..." rows={3}
                     className="w-full px-4 py-3 border border-stone-200 text-sm focus:outline-none focus:border-stone-800 transition-colors resize-none" />
                 </Field>
               </div>
