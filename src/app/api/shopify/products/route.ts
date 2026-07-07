@@ -5,12 +5,24 @@ import { join } from "path";
 
 async function deleteLocalUploads(imageUrls: string[]) {
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
-  if (!appUrl) return;
-  const prefix = `${appUrl}/uploads/`;
-  const temps = imageUrls.filter((u) => typeof u === "string" && u.startsWith(prefix));
+  const prefix = appUrl ? `${appUrl}/uploads/` : "";
+  const uploadFilename = (url: string) => {
+    if (prefix && url.startsWith(prefix)) return url.slice(prefix.length);
+    try {
+      const parsed = new URL(url);
+      if (parsed.pathname.startsWith("/uploads/")) {
+        return decodeURIComponent(parsed.pathname.slice("/uploads/".length));
+      }
+    } catch {
+      if (url.startsWith("/uploads/")) return url.slice("/uploads/".length);
+    }
+    return null;
+  };
+  const temps = imageUrls
+    .map((u) => typeof u === "string" ? uploadFilename(u) : null)
+    .filter((filename): filename is string => !!filename);
   await Promise.allSettled(
-    temps.map((url) => {
-      const filename = url.slice(prefix.length);
+    temps.map((filename) => {
       if (!filename || filename.includes("..") || filename.includes("/")) return Promise.resolve();
       return unlink(join(process.cwd(), "public", "uploads", filename)).catch(() => {});
     })

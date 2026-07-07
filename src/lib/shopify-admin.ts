@@ -4,6 +4,8 @@
  */
 
 import { Product, Color } from "@/types";
+import { readFile } from "fs/promises";
+import { basename, join } from "path";
 
 const DOMAIN  = process.env.SHOPIFY_SHOP_DOMAIN!;
 const TOKEN   = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN!;
@@ -32,6 +34,13 @@ interface ShopifyVariant {
 
 interface ShopifyImage { id: number; src: string; position: number }
 interface ShopifyOption { id: number; name: string; values: string[] }
+interface ShopifyMetafield {
+  id: number;
+  namespace: string;
+  key: string;
+  value: string;
+  type?: string;
+}
 
 export interface ShopifyProduct {
   id: number;
@@ -45,6 +54,7 @@ export interface ShopifyProduct {
   variants: ShopifyVariant[];
   options: ShopifyOption[];
   images: ShopifyImage[];
+  metafields?: ShopifyMetafield[];
   created_at: string;
   updated_at: string;
 }
@@ -84,9 +94,63 @@ function buildTags(
   return tags.join(",");
 }
 
+const METAFIELD_NAMESPACE = "lunelle";
+const METAFIELD_KEYS = {
+  shortDescription: "short_description",
+  shortDescriptionFR: "short_description_fr",
+  descriptionFR: "description_fr",
+} as const;
+
+function metafieldValue(sp: ShopifyProduct, key: string): string | undefined {
+  const value = sp.metafields?.find(
+    (m) => m.namespace === METAFIELD_NAMESPACE && m.key === key
+  )?.value;
+  return value?.trim() || undefined;
+}
+
+function localUploadFilename(src: string): string | null {
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  const prefix = `${appUrl}/uploads/`;
+
+  if (src.startsWith(prefix)) {
+    return src.slice(prefix.length);
+  }
+
+  try {
+    const url = new URL(src);
+    if (url.pathname.startsWith("/uploads/")) {
+      return decodeURIComponent(url.pathname.slice("/uploads/".length));
+    }
+  } catch {
+    if (src.startsWith("/uploads/")) return src.slice("/uploads/".length);
+  }
+
+  return null;
+}
+
+async function imageInput(src: string) {
+  const filename = localUploadFilename(src);
+  if (!filename || filename.includes("..") || filename.includes("/") || filename.includes("\\")) {
+    return { src };
+  }
+
+  const buffer = await readFile(join(process.cwd(), "public", "uploads", filename));
+  return {
+    attachment: buffer.toString("base64"),
+    filename: basename(filename),
+  };
+}
+
+async function imageInputs(images: string[] = []) {
+  return Promise.all(images.map(imageInput));
+}
+
 /** Convert Shopify product to our Product type */
 export function shopifyToProduct(sp: ShopifyProduct): Product {
   const tagMap = parseTags(sp.tags);
+  const shortDescription = metafieldValue(sp, METAFIELD_KEYS.shortDescription);
+  const shortDescriptionFR = metafieldValue(sp, METAFIELD_KEYS.shortDescriptionFR);
+  const descriptionFR = metafieldValue(sp, METAFIELD_KEYS.descriptionFR);
 
   // Parse colors from tags: "color:Black:000000"
   const colors: Color[] = sp.tags
@@ -119,7 +183,9 @@ export function shopifyToProduct(sp: ShopifyProduct): Product {
     name: sp.title,
     slug: sp.handle,
     description: sp.body_html ? stripHtml(sp.body_html) : "",
-    shortDescription: sp.body_html ? stripHtml(sp.body_html).slice(0, 120) : "",
+    descriptionFR,
+    shortDescription: shortDescription ?? (sp.body_html ? stripHtml(sp.body_html).slice(0, 120) : ""),
+    shortDescriptionFR,
     price,
     salePrice,
     images: sp.images.map((i) => i.src),
@@ -137,7 +203,7 @@ export function shopifyToProduct(sp: ShopifyProduct): Product {
 }
 
 /** Convert our Product to Shopify product payload */
-function productToShopify(p: Partial<Product> & { name: string; price: number; sizes: string[] }) {
+async function productToShopify(p: Partial<Product> & { name: string; price: number; sizes: string[] }) {
   const isOnSale = p.salePrice !== undefined && p.salePrice > 0 && p.salePrice < p.price;
 
   // Each size → one variant
@@ -168,7 +234,7 @@ function productToShopify(p: Partial<Product> & { name: string; price: number; s
     status: "active",
     options: [{ name: "Size", values: p.sizes ?? ["One Size"] }],
     variants,
-    images: (p.images ?? []).map((src) => ({ src })),
+    images: await imageInputs(p.images),
   };
 }
 
@@ -184,19 +250,81 @@ async function shopifyFetch(path: string, init?: RequestInit) {
     const body = await res.text();
     throw new Error(`Shopify ${res.status}: ${body.slice(0, 300)}`);
   }
-  return res.json();
+  const text = await res.text();
+  return text ? JSON.parse(text) : {};
+}
+
+async function getProductMetafields(productId: string): Promise<ShopifyMetafield[]> {
+  try {
+    const data = await shopifyFetch(`/products/${productId}/metafields.json`);
+    return data.metafields as ShopifyMetafield[];
+  } catch {
+    return [];
+  }
+}
+
+async function productWithMetafields(sp: ShopifyProduct): Promise<ShopifyProduct> {
+  const metafields = await getProductMetafields(String(sp.id));
+  return { ...sp, metafields };
+}
+
+async function upsertProductMetafield(
+  productId: string,
+  existing: ShopifyMetafield[],
+  key: string,
+  value: string | undefined,
+  type: "single_line_text_field" | "multi_line_text_field"
+) {
+  const current = existing.find((m) => m.namespace === METAFIELD_NAMESPACE && m.key === key);
+  const cleanValue = value?.trim();
+
+  if (!cleanValue) {
+    if (current) {
+      await shopifyFetch(`/products/${productId}/metafields/${current.id}.json`, { method: "DELETE" });
+    }
+    return;
+  }
+
+  const metafield = {
+    namespace: METAFIELD_NAMESPACE,
+    key,
+    value: cleanValue,
+    type,
+  };
+
+  if (current) {
+    await shopifyFetch(`/metafields/${current.id}.json`, {
+      method: "PUT",
+      body: JSON.stringify({ metafield: { id: current.id, value: cleanValue, type } }),
+    });
+  } else {
+    await shopifyFetch(`/products/${productId}/metafields.json`, {
+      method: "POST",
+      body: JSON.stringify({ metafield }),
+    });
+  }
+}
+
+async function syncProductMetafields(productId: string, p: Partial<Product>) {
+  const existing = await getProductMetafields(productId);
+  await Promise.all([
+    upsertProductMetafield(productId, existing, METAFIELD_KEYS.shortDescription, p.shortDescription, "single_line_text_field"),
+    upsertProductMetafield(productId, existing, METAFIELD_KEYS.shortDescriptionFR, p.shortDescriptionFR, "single_line_text_field"),
+    upsertProductMetafield(productId, existing, METAFIELD_KEYS.descriptionFR, p.descriptionFR, "multi_line_text_field"),
+  ]);
 }
 
 /** List all products (up to 250) */
 export async function listShopifyProducts(limit = 50): Promise<Product[]> {
   const data = await shopifyFetch(`/products.json?limit=${limit}&status=active`);
-  return (data.products as ShopifyProduct[]).map(shopifyToProduct);
+  const products = await Promise.all((data.products as ShopifyProduct[]).map(productWithMetafields));
+  return products.map(shopifyToProduct);
 }
 
 /** Get single product by Shopify ID */
 export async function getShopifyProduct(id: string): Promise<Product> {
   const data = await shopifyFetch(`/products/${id}.json`);
-  return shopifyToProduct(data.product as ShopifyProduct);
+  return shopifyToProduct(await productWithMetafields(data.product as ShopifyProduct));
 }
 
 /** Get raw Shopify product (with variants, for inventory editing) */
@@ -207,12 +335,14 @@ export async function getRawShopifyProduct(id: string): Promise<ShopifyProduct> 
 
 /** Create product on Shopify, return our Product type */
 export async function createShopifyProduct(p: Omit<Product, "id">): Promise<Product> {
-  const payload = productToShopify(p as Product);
+  const payload = await productToShopify(p as Product);
   const data = await shopifyFetch("/products.json", {
     method: "POST",
     body: JSON.stringify({ product: payload }),
   });
-  return shopifyToProduct(data.product as ShopifyProduct);
+  const id = String((data.product as ShopifyProduct).id);
+  await syncProductMetafields(id, p);
+  return getShopifyProduct(id);
 }
 
 /** Update product on Shopify */
@@ -256,7 +386,7 @@ export async function updateShopifyProduct(id: string, p: Partial<Product>): Pro
     ...(p.category    ? { product_type: p.category }        : {}),
     tags,
     variants: updatedVariants,
-    ...(p.images ? { images: p.images.map((src) => ({ src })) } : {}),
+    ...(p.images ? { images: await imageInputs(p.images) } : {}),
     ...(sizes.length  ? { options: [{ name: "Size", values: sizes }] } : {}),
   };
 
@@ -264,7 +394,8 @@ export async function updateShopifyProduct(id: string, p: Partial<Product>): Pro
     method: "PUT",
     body: JSON.stringify({ product: payload }),
   });
-  return shopifyToProduct(data.product as ShopifyProduct);
+  await syncProductMetafields(id, p);
+  return getShopifyProduct(String((data.product as ShopifyProduct).id));
 }
 
 /** Delete product from Shopify */
