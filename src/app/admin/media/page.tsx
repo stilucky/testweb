@@ -5,6 +5,7 @@ import { Image as ImageIcon, Trash2, Upload } from "lucide-react";
 import {
   deleteServerMediaAsset,
   fetchServerMediaAssets,
+  getMediaAssetFilename,
   normalizeMediaUrl,
   uploadImageFiles,
   useMediaLibraryStore,
@@ -19,7 +20,7 @@ function formatSize(size: number) {
 export default function AdminMediaPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const { assets, addAssets, setAssets } = useMediaLibraryStore();
+  const { assets, addAssets, removeAsset, setAssets } = useMediaLibraryStore();
 
   useEffect(() => {
     fetchServerMediaAssets()
@@ -40,8 +41,14 @@ export default function AdminMediaPage() {
   };
 
   const handleRemove = async (asset: MediaAsset) => {
-    const nextAssets = await deleteServerMediaAsset(asset.id);
-    setAssets(nextAssets);
+    removeAsset(asset.id);
+    removeAsset(getMediaAssetFilename(asset));
+    try {
+      const nextAssets = await deleteServerMediaAsset(asset);
+      setAssets(nextAssets);
+    } catch {
+      fetchServerMediaAssets().then(setAssets).catch(() => undefined);
+    }
   };
 
   return (

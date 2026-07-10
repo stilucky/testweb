@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import {
   deleteServerMediaAsset,
   fetchServerMediaAssets,
+  getMediaAssetFilename,
   normalizeMediaUrl,
   uploadImageFiles,
   useMediaLibraryStore,
@@ -27,7 +28,7 @@ function formatSize(size: number) {
 export default function MediaPicker({ open, title = "Media Library", onClose, onSelect }: MediaPickerProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const { assets, addAssets, setAssets } = useMediaLibraryStore();
+  const { assets, addAssets, removeAsset, setAssets } = useMediaLibraryStore();
 
   useEffect(() => {
     if (!open) return;
@@ -49,8 +50,14 @@ export default function MediaPicker({ open, title = "Media Library", onClose, on
   };
 
   const handleRemove = async (asset: MediaAsset) => {
-    const nextAssets = await deleteServerMediaAsset(asset.id);
-    setAssets(nextAssets);
+    removeAsset(asset.id);
+    removeAsset(getMediaAssetFilename(asset));
+    try {
+      const nextAssets = await deleteServerMediaAsset(asset);
+      setAssets(nextAssets);
+    } catch {
+      fetchServerMediaAssets().then(setAssets).catch(() => undefined);
+    }
   };
 
   if (!open) return null;
@@ -116,7 +123,10 @@ export default function MediaPicker({ open, title = "Media Library", onClose, on
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleRemove(asset)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleRemove(asset);
+                    }}
                     className={cn(
                       "mx-3 mb-3 inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widests text-red-400 transition-colors hover:text-red-600"
                     )}

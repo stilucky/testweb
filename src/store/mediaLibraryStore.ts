@@ -63,7 +63,10 @@ export const useMediaLibraryStore = create<MediaLibraryStore>()(
         })),
       removeAsset: (id) =>
         set((state) => ({
-          assets: state.assets.filter((asset) => asset.id !== id),
+          assets: state.assets.filter((asset) => {
+            const filename = normalizeMediaUrl(asset.url).split("?")[0]?.split("/").filter(Boolean).pop();
+            return asset.id !== id && filename !== id;
+          }),
         })),
     }),
     {
@@ -256,7 +259,14 @@ export async function fetchServerMediaAssets(): Promise<MediaAsset[]> {
   }));
 }
 
-export async function deleteServerMediaAsset(id: string): Promise<MediaAsset[]> {
+export function getMediaAssetFilename(asset: Pick<MediaAsset, "id" | "url">) {
+  const normalizedUrl = normalizeMediaUrl(asset.url);
+  const filename = normalizedUrl.split("?")[0]?.split("/").filter(Boolean).pop();
+  return filename || asset.id;
+}
+
+export async function deleteServerMediaAsset(asset: MediaAsset | string): Promise<MediaAsset[]> {
+  const id = typeof asset === "string" ? asset : getMediaAssetFilename(asset);
   const res = await fetch("/api/media", {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
