@@ -34,7 +34,9 @@ export interface User {
 }
 
 interface StoredUser extends User {
-  password?: string; // undefined for Google-only accounts
+  password?: string; // legacy only; migrated to passwordHash
+  passwordHash?: string; // undefined for Google-only accounts
+  passwordSalt?: string;
 }
 
 interface AuthStore {
@@ -67,11 +69,83 @@ const defaultUsers: StoredUser[] = [
     firstName: "Admin",
     lastName: "Lunelle",
     email: "admin@lunellestory.ca",
-    password: "R748Mc7SeY~8#\\=",
+    passwordHash: "0f05e05d1f372583",
+    passwordSalt: "admin1",
     role: "admin",
     createdAt: "2024-01-01",
   },
 ];
+
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+function passwordDigest(password: string, salt: string) {
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  const input = `${salt}:${password}`;
+  for (let i = 0; i < input.length; i += 1) {
+    const ch = input.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return `${(h2 >>> 0).toString(16).padStart(8, "0")}${(h1 >>> 0).toString(16).padStart(8, "0")}`;
+}
+
+function passwordSalt(userId: string) {
+  return `${userId}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function withPasswordHash<T extends StoredUser>(user: T, password: string): T {
+  const salt = user.passwordSalt ?? passwordSalt(user.id);
+  const cleanUser = { ...user };
+  delete cleanUser.password;
+  return {
+    ...cleanUser,
+    passwordSalt: salt,
+    passwordHash: passwordDigest(password, salt),
+  } as T;
+}
+
+function verifyPassword(user: StoredUser, password: string) {
+  if (user.passwordHash && user.passwordSalt) {
+    return passwordDigest(password, user.passwordSalt) === user.passwordHash;
+  }
+  return !!user.password && user.password === password;
+}
+
+function migrateUsersToPasswordHash(users: StoredUser[] = defaultUsers) {
+  return users.map((user) => {
+    if (user.password && (!user.passwordHash || !user.passwordSalt)) {
+      return withPasswordHash(user, user.password);
+    }
+    const cleanUser = { ...user };
+    delete cleanUser.password;
+    return cleanUser;
+  }) as StoredUser[];
+}
+
+function publicUser(user: StoredUser): User {
+  return {
+    id: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    email: user.email,
+    phone: user.phone,
+    role: user.role,
+    createdAt: user.createdAt,
+    passwordChangedAt: user.passwordChangedAt,
+    personalCode: user.personalCode,
+    googleId: user.googleId,
+    avatar: user.avatar,
+  };
+}
+
+function isStrongPassword(password: string) {
+  return password.length >= 10 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password);
+}
 
 export const useAuthStore = create<AuthStore>()(
   persist(
@@ -83,22 +157,30 @@ export const useAuthStore = create<AuthStore>()(
 
       login: (email, password) => {
         const found = get().users.find(
-          (u) => u.email.toLowerCase() === email.toLowerCase()
+          (u) => normalizeEmail(u.email) === normalizeEmail(email)
         );
-        if (!found || !found.password || found.password !== password) {
+        if (!found || !verifyPassword(found, password)) {
           return { success: false, error: "Email or password is incorrect" };
         }
-        const { password: _pw, ...user } = found;
-        set({ currentUser: user, loginAt: Date.now() });
+        const upgraded = found.password ? withPasswordHash(found, password) : found;
+        const user = publicUser(upgraded);
+        set((s) => ({
+          users: s.users.map((u) => (u.id === upgraded.id ? upgraded : u)),
+          currentUser: user,
+          loginAt: Date.now(),
+        }));
         return { success: true };
       },
 
       register: ({ firstName, lastName, email, password }) => {
         const exists = get().users.some(
-          (u) => u.email.toLowerCase() === email.toLowerCase()
+          (u) => normalizeEmail(u.email) === normalizeEmail(email)
         );
         if (exists) {
           return { success: false, error: "An account with this email already exists" };
+        }
+        if (!isStrongPassword(password)) {
+          return { success: false, error: "Password must be at least 10 characters and include uppercase, lowercase, and a number" };
         }
 
         /* Generate unique personal 10% discount code */
@@ -121,17 +203,17 @@ export const useAuthStore = create<AuthStore>()(
           isActive: true,
         });
 
-        const newUser: StoredUser = {
-          id: `u${Date.now()}`,
+        const userId = `u${Date.now()}`;
+        const newUser: StoredUser = withPasswordHash({
+          id: userId,
           firstName,
           lastName,
-          email,
-          password,
+          email: email.trim(),
           role: "customer",
           createdAt: new Date().toISOString().split("T")[0],
           personalCode,
-        };
-        const { password: _pw, ...user } = newUser;
+        }, password);
+        const user = publicUser(newUser);
         set((s) => ({ users: [...s.users, newUser], currentUser: user, loginAt: Date.now() }));
         return { success: true, user };
       },
@@ -157,20 +239,23 @@ export const useAuthStore = create<AuthStore>()(
 
       resetPassword: (email, newPassword) => {
         const exists = get().users.some(
-          (u) => u.email.toLowerCase() === email.toLowerCase()
+          (u) => normalizeEmail(u.email) === normalizeEmail(email)
         );
         if (!exists) {
           return { success: false, error: "No account found with this email" };
         }
+        if (!isStrongPassword(newPassword)) {
+          return { success: false, error: "Password must be at least 10 characters and include uppercase, lowercase, and a number" };
+        }
         const changedAt = new Date().toISOString();
         set((s) => ({
           users: s.users.map((u) =>
-            u.email.toLowerCase() === email.toLowerCase()
-              ? { ...u, password: newPassword, passwordChangedAt: changedAt }
+            normalizeEmail(u.email) === normalizeEmail(email)
+              ? { ...withPasswordHash(u, newPassword), passwordChangedAt: changedAt }
               : u
           ),
           currentUser:
-            s.currentUser?.email.toLowerCase() === email.toLowerCase()
+            s.currentUser && normalizeEmail(s.currentUser.email) === normalizeEmail(email)
               ? { ...s.currentUser, passwordChangedAt: changedAt }
               : s.currentUser,
         }));
@@ -192,7 +277,7 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       emailExists: (email) =>
-        get().users.some((u) => u.email.toLowerCase() === email.toLowerCase()),
+        get().users.some((u) => normalizeEmail(u.email) === normalizeEmail(email)),
 
       getAddresses: () => {
         const uid = get().currentUser?.id;
@@ -245,7 +330,7 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: "Lunelle-auth",
-      version: 5,
+      version: 6,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as {
           users?: StoredUser[];
@@ -263,6 +348,11 @@ export const useAuthStore = create<AuthStore>()(
           state.userAddresses = {};
           state.loginAt = null;
         }
+        if (version < 6) {
+          state.users = migrateUsersToPasswordHash(state.users ?? defaultUsers);
+          state.currentUser = state.currentUser ?? null;
+        }
+        state.users = migrateUsersToPasswordHash(state.users ?? defaultUsers);
         return state;
       },
     }

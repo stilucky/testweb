@@ -236,10 +236,10 @@ function ProductsContent() {
         </div>
       </div>
 
-      <div className="flex gap-8">
+      <div className="flex flex-col gap-6 md:flex-row md:gap-8">
         {/* Filters sidebar */}
         {filtersOpen && (
-          <div className="w-56 shrink-0 space-y-8">
+          <div className="w-full shrink-0 space-y-6 border-b border-stone-100 pb-6 md:w-56 md:space-y-8 md:border-b-0 md:pb-0">
             {/* Category */}
             <div>
               <p className="text-xs tracking-widest uppercase mb-4 font-medium">{t("categoryLabel")}</p>
@@ -283,13 +283,13 @@ function ProductsContent() {
             {/* Price */}
             <div>
               <p className="text-xs tracking-widest uppercase mb-4 font-medium">{t("priceLabel")}</p>
-              <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2 md:block md:space-y-2">
                 {priceRanges.map((range, i) => (
                   <button
                     key={i}
                     onClick={() => setSelectedPrice(selectedPrice === i ? null : i)}
                     className={cn(
-                      "block text-sm transition-colors hover:text-stone-900",
+                      "block text-left text-sm transition-colors hover:text-stone-900",
                       selectedPrice === i ? "text-stone-900 font-medium" : "text-stone-400"
                     )}
                   >
@@ -332,7 +332,7 @@ function ProductsContent() {
               className={cn(
                 "grid gap-4 md:gap-6",
                 filtersOpen
-                  ? "grid-cols-2 lg:grid-cols-3"
+                  ? "grid-cols-2 md:grid-cols-2 lg:grid-cols-3"
                   : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
               )}
             >

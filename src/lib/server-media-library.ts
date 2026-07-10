@@ -10,7 +10,7 @@ export type ServerMediaAsset = {
   createdAt: string;
 };
 
-export const UPLOAD_DIR = process.env.LUNELLE_UPLOAD_DIR || join(process.cwd(), "public", "uploads");
+export const UPLOAD_DIR = process.env.LUNELLE_UPLOAD_DIR || join(/*turbopackIgnore: true*/ process.cwd(), "public", "uploads");
 export const MEDIA_MANIFEST = join(UPLOAD_DIR, "media-library.json");
 
 export const CONTENT_TYPES: Record<string, string> = {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -85,14 +86,28 @@ export default function HeroSection() {
                 )}
                 {/* Thumbnail fallback when this slide is not active */}
                 {!isActive && s.image && (
-                  <img src={s.image} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
+                  <Image
+                    src={s.image}
+                    alt=""
+                    fill
+                    sizes="100vw"
+                    className="object-cover object-center"
+                    style={{ objectPosition: s.imagePosition ?? "50% 50%" }}
+                    priority={i === 0}
+                    unoptimized={s.image.startsWith("data:")}
+                  />
                 )}
               </>
             ) : (
-              <img
+              <Image
                 src={s.image}
                 alt=""
-                className="absolute inset-0 h-full w-full object-cover object-center"
+                fill
+                sizes="100vw"
+                priority={i === 0}
+                className="object-cover object-center"
+                style={{ objectPosition: s.imagePosition ?? "50% 50%" }}
+                unoptimized={s.image.startsWith("data:")}
               />
             )}
           </div>

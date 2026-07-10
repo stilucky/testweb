@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Heart } from "lucide-react";
@@ -16,7 +15,6 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, priority = false }: ProductCardProps) {
-  const [hovered, setHovered] = useState(false);
   const { toggleItem, isWishlisted } = useWishlistStore();
   const wishlisted = isWishlisted(product.id);
   const currency = useLocaleStore((s) => s.currency);
@@ -27,11 +25,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
   const hasDiscount = product.salePrice !== undefined;
 
   return (
-    <div
-      className="group relative"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
+    <div className="group relative">
       {/* Image container */}
       <Link href={`/products/${product.slug}`} className="block relative overflow-hidden bg-stone-50 aspect-[3/4]">
         <Image
@@ -41,7 +35,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
           priority={priority}
           className={cn(
             "object-cover transition-all duration-700",
-            hovered && product.images[1] ? "opacity-0" : "opacity-100"
+            product.images[1] && "md:group-hover:opacity-0"
           )}
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
         />
@@ -52,7 +46,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
             fill
             className={cn(
               "object-cover transition-all duration-700",
-              hovered ? "opacity-100" : "opacity-0"
+              "opacity-0 md:group-hover:opacity-100"
             )}
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
           />
@@ -92,7 +86,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
         <div className={cn(
           "absolute bottom-0 left-0 right-0 bg-white/95 py-3 text-center text-xs tracking-widest uppercase transition-all duration-300",
           "hidden md:block",
-          hovered ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
+          "translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100"
         )}>
           <span className="hover:text-stone-500 transition-colors">
             {t("addToBag")}

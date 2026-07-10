@@ -23,8 +23,88 @@ function getYouTubeId(url: string): string | null {
   return null;
 }
 
+function FocalPicker({
+  src,
+  position,
+  onChange,
+}: {
+  src: string;
+  position: string;
+  onChange: (value: string) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+
+  const setFromPointer = (clientX: number, clientY: number) => {
+    const rect = ref.current?.getBoundingClientRect();
+    if (!rect) return;
+    const x = Math.max(0, Math.min(100, Math.round(((clientX - rect.left) / rect.width) * 100)));
+    const y = Math.max(0, Math.min(100, Math.round(((clientY - rect.top) / rect.height) * 100)));
+    onChange(`${x}% ${y}%`);
+  };
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    dragging.current = true;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setFromPointer(event.clientX, event.clientY);
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging.current) return;
+    setFromPointer(event.clientX, event.clientY);
+  };
+
+  const handlePointerUp = () => {
+    dragging.current = false;
+  };
+
+  const [x = "50", y = "50"] = position.replace(/%/g, "").split(" ");
+
+  return (
+    <div className="space-y-2">
+      <div
+        ref={ref}
+        role="button"
+        tabIndex={0}
+        aria-label="Hero image focal point"
+        className="relative aspect-video cursor-crosshair overflow-hidden border border-stone-200 bg-stone-100 touch-none"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      >
+        {src ? (
+          <img
+            src={src}
+            alt=""
+            className="h-full w-full object-cover pointer-events-none select-none"
+            style={{ objectPosition: position }}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-stone-300">
+            <ImageIcon size={22} />
+          </div>
+        )}
+        {src && (
+          <span
+            className="absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1.5px_rgba(0,0,0,0.55)]"
+            style={{ left: `${parseFloat(x)}%`, top: `${parseFloat(y)}%` }}
+          >
+            <span className="absolute left-1/2 top-1/2 h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" />
+          </span>
+        )}
+        <span className="absolute bottom-2 left-2 bg-black/55 px-2 py-1 text-[9px] uppercase tracking-widest text-white">
+          Drag focal point
+        </span>
+      </div>
+      <p className="text-[10px] font-mono text-stone-400">{position}</p>
+    </div>
+  );
+}
+
 const BLANK_SLIDE: Omit<HeroSlide, "id"> = {
   image: "",
+  imagePosition: "50% 50%",
   videoUrl: "",
   videoType: undefined,
   tag: "New Collection",
@@ -61,7 +141,14 @@ function SlideThumbnail({ slide }: { slide: HeroSlide }) {
     );
   }
   if (slide.image) {
-    return <img src={slide.image} alt={slide.title} className="h-full w-full object-cover" />;
+    return (
+      <img
+        src={slide.image}
+        alt={slide.title}
+        className="h-full w-full object-cover"
+        style={{ objectPosition: slide.imagePosition ?? "50% 50%" }}
+      />
+    );
   }
   return (
     <div className="flex items-center justify-center h-full">
@@ -90,7 +177,14 @@ function SlidePreviewMedia({ slide }: { slide: HeroSlide }) {
     );
   }
   if (slide.image) {
-    return <img src={slide.image} alt={slide.title} className="absolute inset-0 h-full w-full object-cover" />;
+    return (
+      <img
+        src={slide.image}
+        alt={slide.title}
+        className="absolute inset-0 h-full w-full object-cover"
+        style={{ objectPosition: slide.imagePosition ?? "50% 50%" }}
+      />
+    );
   }
   return null;
 }
@@ -115,6 +209,7 @@ export default function HeroAdminPage() {
     setAddingNew(false);
     setForm({
       image: slide.image,
+      imagePosition: slide.imagePosition ?? "50% 50%",
       videoUrl: slide.videoUrl ?? "",
       videoType: slide.videoType,
       tag: slide.tag,
@@ -490,12 +585,12 @@ function SlideForm({
             )}
           </div>
           {form.image && (
-            <div className="mt-2 relative h-24 w-40 overflow-hidden bg-stone-100">
-              <img
+            <div className="mt-3">
+              <label className={labelCls}>Image focal point</label>
+              <FocalPicker
                 src={form.image}
-                alt="preview"
-                className="h-full w-full object-cover"
-                onError={() => setForm((f) => ({ ...f, image: "" }))}
+                position={form.imagePosition ?? "50% 50%"}
+                onChange={(imagePosition) => setForm((f) => ({ ...f, imagePosition }))}
               />
             </div>
           )}
@@ -589,6 +684,16 @@ function SlideForm({
               <ImageIcon size={12} />
               Choose from Library
             </button>
+            {form.image && (
+              <div className="mt-3">
+                <label className={labelCls}>Thumbnail focal point</label>
+                <FocalPicker
+                  src={form.image}
+                  position={form.imagePosition ?? "50% 50%"}
+                  onChange={(imagePosition) => setForm((f) => ({ ...f, imagePosition }))}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -4,6 +4,7 @@ import { persist } from "zustand/middleware";
 export interface HeroSlide {
   id: string;
   image: string;           // background image (empty string OK for pure video slides)
+  imagePosition?: string;  // CSS object-position, e.g. "50% 35%"
   videoUrl?: string;       // YouTube URL or native video base64/URL
   videoType?: "youtube" | "native";
   enabled?: boolean;       // default true — hide slide without deleting
@@ -32,6 +33,7 @@ const DEFAULT_SLIDES: HeroSlide[] = [
   {
     id: "slide-1",
     image: "https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=1600&q=85",
+    imagePosition: "50% 50%",
     tag: "New Collection",
     title: "Solstice\nFever",
     subtitle: "Ethereal pieces for every occasion",
@@ -42,6 +44,7 @@ const DEFAULT_SLIDES: HeroSlide[] = [
   {
     id: "slide-2",
     image: "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=1600&q=85",
+    imagePosition: "50% 50%",
     tag: "Occasion Wear",
     title: "Dressed\nFor Every\nMoment",
     subtitle: "From pre-wedding to gala nights",
@@ -52,6 +55,7 @@ const DEFAULT_SLIDES: HeroSlide[] = [
   {
     id: "slide-3",
     image: "https://images.unsplash.com/photo-1519657337289-077653f724ed?w=1600&q=85",
+    imagePosition: "50% 50%",
     tag: "Best Sellers",
     title: "Timeless\nElegance",
     subtitle: "Our most-loved pieces, reimagined",

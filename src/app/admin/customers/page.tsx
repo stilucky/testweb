@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Search, Mail, ChevronDown, ChevronUp, Users, Trash2, X } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
+import { maskEmail, maskPhone } from "@/lib/privacy";
 import { useAuthStore } from "@/store/authStore";
 import { useOrderStore } from "@/store/orderStore";
 
@@ -31,7 +32,9 @@ export default function CustomersPage() {
         id: u.id,
         name: `${u.firstName} ${u.lastName}`,
         email: u.email,
+        maskedEmail: maskEmail(u.email),
         phone: u.phone ?? "—",
+        maskedPhone: maskPhone(u.phone ?? "—"),
         joined: new Date(u.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
         joinedRaw: u.createdAt,
         orders: userOrders.length,
@@ -62,7 +65,7 @@ export default function CustomersPage() {
     else { setSortKey(key); setSortAsc(false); }
   };
 
-  const SortIcon = ({ k }: { k: SortKey }) =>
+  const renderSortIcon = (k: SortKey) =>
     sortKey === k
       ? sortAsc ? <ChevronUp size={12} className="text-stone-900" /> : <ChevronDown size={12} className="text-stone-900" />
       : <ChevronDown size={12} className="text-stone-300" />;
@@ -170,7 +173,7 @@ export default function CustomersPage() {
                             {c.status}
                           </span>
                         </div>
-                        <p className="text-xs text-stone-400 truncate">{c.email}</p>
+                        <p className="text-xs text-stone-400 truncate">{c.maskedEmail}</p>
                         <div className="flex items-center gap-3 mt-1">
                           <span className="text-xs text-stone-500">{c.orders} orders</span>
                           <span className="text-xs text-stone-500" style={{ fontFamily: "var(--font-cormorant), serif" }}>
@@ -199,12 +202,12 @@ export default function CustomersPage() {
                         </div>
                         <div>
                           <p className="text-[10px] tracking-widests uppercase text-stone-400 mb-0.5">Phone</p>
-                          <p className="text-stone-700">{c.phone}</p>
+                          <p className="text-stone-700">{c.maskedPhone}</p>
                         </div>
                       </div>
                       <div className="flex items-center justify-between">
                         <a href={`mailto:${c.email}`} className="flex items-center gap-1.5 text-xs text-stone-600 hover:text-stone-900">
-                          <Mail size={12} /> {c.email}
+                          <Mail size={12} /> {c.maskedEmail}
                         </a>
                         <button
                           onClick={(e) => { e.stopPropagation(); setDeleteError(null); setConfirmDelete({ id: c.id, name: c.name }); }}
@@ -228,23 +231,23 @@ export default function CustomersPage() {
                   <tr className="border-b border-stone-100">
                     <th className="text-left px-6 py-3">
                       <button onClick={() => toggleSort("name")} className="flex items-center gap-1 text-[10px] tracking-widests uppercase text-stone-400 font-normal hover:text-stone-700">
-                        Customer <SortIcon k="name" />
+                        Customer {renderSortIcon("name")}
                       </button>
                     </th>
                     <th className="text-left text-[10px] tracking-widests uppercase text-stone-400 font-normal px-6 py-3">Contact</th>
                     <th className="text-left px-6 py-3">
                       <button onClick={() => toggleSort("joined")} className="flex items-center gap-1 text-[10px] tracking-widests uppercase text-stone-400 font-normal hover:text-stone-700">
-                        Joined <SortIcon k="joined" />
+                        Joined {renderSortIcon("joined")}
                       </button>
                     </th>
                     <th className="text-right px-6 py-3">
                       <button onClick={() => toggleSort("orders")} className="flex items-center gap-1 text-[10px] tracking-widests uppercase text-stone-400 font-normal hover:text-stone-700 ml-auto">
-                        Orders <SortIcon k="orders" />
+                        Orders {renderSortIcon("orders")}
                       </button>
                     </th>
                     <th className="text-right px-6 py-3">
                       <button onClick={() => toggleSort("totalSpent")} className="flex items-center gap-1 text-[10px] tracking-widests uppercase text-stone-400 font-normal hover:text-stone-700 ml-auto">
-                        Spent <SortIcon k="totalSpent" />
+                        Spent {renderSortIcon("totalSpent")}
                       </button>
                     </th>
                     <th className="text-left text-[10px] tracking-widests uppercase text-stone-400 font-normal px-6 py-3">Status</th>
@@ -270,8 +273,8 @@ export default function CustomersPage() {
                             </div>
                           </td>
                           <td className="px-6 py-4">
-                            <p className="text-xs text-stone-600">{c.email}</p>
-                            <p className="text-xs text-stone-400 mt-0.5">{c.phone}</p>
+                            <p className="text-xs text-stone-600">{c.maskedEmail}</p>
+                            <p className="text-xs text-stone-400 mt-0.5">{c.maskedPhone}</p>
                           </td>
                           <td className="px-6 py-4 text-xs text-stone-500">{c.joined}</td>
                           <td className="px-6 py-4 text-sm text-right">{c.orders}</td>
@@ -309,7 +312,7 @@ export default function CustomersPage() {
                                 <div>
                                   <p className="text-[10px] tracking-widests uppercase text-stone-400 mb-1">Email</p>
                                   <a href={`mailto:${c.email}`} className="flex items-center gap-1.5 text-stone-700 hover:text-stone-900" onClick={(e) => e.stopPropagation()}>
-                                    <Mail size={12} /> {c.email}
+                                    <Mail size={12} /> {c.maskedEmail}
                                   </a>
                                 </div>
                               </div>

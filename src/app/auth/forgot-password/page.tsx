@@ -140,8 +140,8 @@ export default function ForgotPasswordPage() {
   const handleNewPassword = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (newPassword.length < 6) {
-      setError("Password must be at least 6 characters");
+    if (newPassword.length < 10 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/\d/.test(newPassword)) {
+      setError("Password must be at least 10 characters and include uppercase, lowercase, and a number");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -297,7 +297,7 @@ export default function ForgotPasswordPage() {
                 </button>
 
                 <div className="text-center">
-                  <span className="text-xs text-stone-400">Didn't receive the code? </span>
+                  <span className="text-xs text-stone-400">Didn&apos;t receive the code? </span>
                   <button
                     type="button"
                     onClick={handleResend}

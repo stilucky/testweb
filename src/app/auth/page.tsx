@@ -89,8 +89,8 @@ export default function AuthPage() {
       setLoading(false);
       return;
     }
-    if (form.password.length < 6) {
-      setError("Password must be at least 6 characters");
+    if (form.password.length < 10 || !/[A-Z]/.test(form.password) || !/[a-z]/.test(form.password) || !/\d/.test(form.password)) {
+      setError("Password must be at least 10 characters and include uppercase, lowercase, and a number");
       setLoading(false);
       return;
     }
@@ -289,7 +289,7 @@ export default function AuthPage() {
           </form>
 
           <div className="mt-4 text-center">
-            <span className="text-xs text-stone-400">Didn't receive the code? </span>
+            <span className="text-xs text-stone-400">Didn&apos;t receive the code? </span>
             <button
               type="button"
               onClick={handleResendOTP}

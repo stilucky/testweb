@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Search, Check, Truck, Clock, XCircle, Package, ChevronDown, ChevronUp } from "lucide-react";
 import { formatPrice, cn } from "@/lib/utils";
+import { maskAddress, maskEmail } from "@/lib/privacy";
 import { useOrderStore, type OrderStatus, type Order } from "@/store/orderStore";
 
 const orderStatusConfig: Record<OrderStatus, { label: string; icon: React.ElementType; cls: string }> = {
@@ -123,7 +124,7 @@ export default function AdminOrdersPage() {
                     <div className="min-w-0">
                       <p className="text-xs font-mono font-medium text-stone-900">{order.id}</p>
                       <p className="text-sm font-medium mt-0.5 truncate">{order.customer}</p>
-                      <p className="text-xs text-stone-400 truncate">{order.email}</p>
+                      <p className="text-xs text-stone-400 truncate">{maskEmail(order.email)}</p>
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="text-sm font-medium" style={{ fontFamily: "var(--font-cormorant), serif" }}>
@@ -154,7 +155,7 @@ export default function AdminOrdersPage() {
                   </div>
                   <div className="col-span-3 min-w-0">
                     <p className="text-sm font-medium truncate">{order.customer}</p>
-                    <p className="text-xs text-stone-400 truncate mt-0.5">{order.email}</p>
+                    <p className="text-xs text-stone-400 truncate mt-0.5">{maskEmail(order.email)}</p>
                   </div>
                   <div className="col-span-2">
                     <p className="text-xs text-stone-500">{order.date}</p>
@@ -195,7 +196,7 @@ export default function AdminOrdersPage() {
 
                         <div className="bg-white border border-stone-100 px-3 py-2.5">
                           <p className="text-xs tracking-widests uppercase text-stone-400 mb-1">Ship to</p>
-                          <p className="text-xs md:text-sm text-stone-600">{order.shippingAddress}</p>
+                          <p className="text-xs md:text-sm text-stone-600">{maskAddress(order.shippingAddress)}</p>
                           <p className="text-xs text-stone-400 mt-1 capitalize">{order.shippingMethod}</p>
                         </div>
 
