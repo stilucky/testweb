@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useRef } from "react";
-import Image from "next/image";
 import {
   Plus, Trash2, ChevronUp, ChevronDown,
   ImageIcon, Save, CheckCircle2, Eye, Settings2, Play, Video, Upload,
 } from "lucide-react";
 import { useHeroStore, HeroSlide } from "@/store/heroStore";
 import { cn } from "@/lib/utils";
+import MediaPicker from "@/components/admin/MediaPicker";
+import { uploadImageFiles } from "@/store/mediaLibraryStore";
 
 function getYouTubeId(url: string): string | null {
   const patterns = [
@@ -60,7 +61,7 @@ function SlideThumbnail({ slide }: { slide: HeroSlide }) {
     );
   }
   if (slide.image) {
-    return <Image src={slide.image} alt={slide.title} fill className="object-cover" sizes="112px" />;
+    return <img src={slide.image} alt={slide.title} className="h-full w-full object-cover" />;
   }
   return (
     <div className="flex items-center justify-center h-full">
@@ -89,7 +90,7 @@ function SlidePreviewMedia({ slide }: { slide: HeroSlide }) {
     );
   }
   if (slide.image) {
-    return <Image src={slide.image} alt={slide.title} fill className="object-cover" sizes="100vw" />;
+    return <img src={slide.image} alt={slide.title} className="absolute inset-0 h-full w-full object-cover" />;
   }
   return null;
 }
@@ -360,6 +361,9 @@ function SlideForm({
   const [videoTab, setVideoTab] = useState<"youtube" | "native">(
     form.videoType ?? "youtube"
   );
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+  const imageFileRef = useRef<HTMLInputElement>(null);
+  const thumbnailFileRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const set = (k: keyof typeof form) =>
@@ -395,6 +399,13 @@ function SlideForm({
     reader.readAsDataURL(file);
   };
 
+  const handleImageUpload = async (file: File | null) => {
+    if (!file || !file.type.startsWith("image/")) return;
+
+    const [asset] = await uploadImageFiles([file]);
+    if (asset) setForm((f) => ({ ...f, image: asset.url }));
+  };
+
   const ytId = slideMode === "video" && videoTab === "youtube" && form.videoUrl
     ? getYouTubeId(form.videoUrl)
     : null;
@@ -405,6 +416,12 @@ function SlideForm({
 
   return (
     <div className="p-5 space-y-5 border-t border-stone-100 bg-stone-50/50">
+      <MediaPicker
+        open={mediaPickerOpen}
+        title="Hero Images"
+        onClose={() => setMediaPickerOpen(false)}
+        onSelect={(asset) => setForm((f) => ({ ...f, image: asset.url }))}
+      />
 
       {/* ── Slide type ── */}
       <div>
@@ -431,10 +448,51 @@ function SlideForm({
           <label className={labelCls}>Image URL *</label>
           <input type="url" value={form.image} onChange={set("image")}
             placeholder="https://images.unsplash.com/..." className={inputCls} />
+          <input
+            ref={imageFileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => handleImageUpload(e.target.files?.[0] ?? null)}
+          />
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => imageFileRef.current?.click()}
+              className="inline-flex items-center gap-2 border border-stone-200 bg-white px-3 py-2 text-[10px] uppercase tracking-widests text-stone-600 transition-colors hover:border-stone-800 hover:text-stone-900"
+            >
+              <Upload size={12} />
+              Upload Image
+            </button>
+            <button
+              type="button"
+              onClick={() => setMediaPickerOpen(true)}
+              className="inline-flex items-center gap-2 border border-stone-200 bg-white px-3 py-2 text-[10px] uppercase tracking-widests text-stone-600 transition-colors hover:border-stone-800 hover:text-stone-900"
+            >
+              <ImageIcon size={12} />
+              Choose from Library
+            </button>
+            {form.image && (
+              <button
+                type="button"
+                onClick={() => {
+                  setForm((f) => ({ ...f, image: "" }));
+                  if (imageFileRef.current) imageFileRef.current.value = "";
+                }}
+                className="text-xs text-red-400 transition-colors hover:text-red-600"
+              >
+                Remove image
+              </button>
+            )}
+          </div>
           {form.image && (
             <div className="mt-2 relative h-24 w-40 overflow-hidden bg-stone-100">
-              <Image src={form.image} alt="preview" fill className="object-cover" sizes="160px"
-                onError={() => setForm((f) => ({ ...f, image: "" }))} />
+              <img
+                src={form.image}
+                alt="preview"
+                className="h-full w-full object-cover"
+                onError={() => setForm((f) => ({ ...f, image: "" }))}
+              />
             </div>
           )}
         </div>
@@ -504,6 +562,29 @@ function SlideForm({
             <label className={labelCls}>Thumbnail (optional — hiện khi slide không active)</label>
             <input type="url" value={form.image} onChange={set("image")}
               placeholder="https://images.unsplash.com/..." className={inputCls} />
+            <input
+              ref={thumbnailFileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => handleImageUpload(e.target.files?.[0] ?? null)}
+            />
+            <button
+              type="button"
+              onClick={() => thumbnailFileRef.current?.click()}
+              className="mt-2 inline-flex items-center gap-2 border border-stone-200 bg-white px-3 py-2 text-[10px] uppercase tracking-widests text-stone-600 transition-colors hover:border-stone-800 hover:text-stone-900"
+            >
+              <Upload size={12} />
+              Upload Thumbnail
+            </button>
+            <button
+              type="button"
+              onClick={() => setMediaPickerOpen(true)}
+              className="mt-2 ml-2 inline-flex items-center gap-2 border border-stone-200 bg-white px-3 py-2 text-[10px] uppercase tracking-widests text-stone-600 transition-colors hover:border-stone-800 hover:text-stone-900"
+            >
+              <ImageIcon size={12} />
+              Choose from Library
+            </button>
           </div>
         </div>
       )}

@@ -93,7 +93,7 @@ function PaymentForm({
               Processing...
             </>
           ) : (
-            `Pay · ${formatPrice(amount)}`
+            `Pay · ${formatPrice(amount, "CAD")}`
           )}
         </button>
       </div>

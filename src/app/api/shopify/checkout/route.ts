@@ -1,5 +1,6 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { createShopifyDraftOrder } from "@/lib/shopify";
+import { CAD_RATE } from "@/store/localeStore";
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,17 +14,24 @@ export async function POST(req: NextRequest) {
     };
 
     const lineItems = items.map((item: {
-      product: { name: string; salePrice?: number; price: number };
+      product: { name: string; salePrice?: number; price: number; salePriceCAD?: number; priceCAD?: number };
       selectedSize: string;
       selectedColor: string;
       quantity: number;
-    }) => ({
-      title: `${item.product.name} — ${item.selectedSize} / ${item.selectedColor}`,
-      price: String(item.product.salePrice ?? item.product.price),
-      quantity: item.quantity,
-      requires_shipping: true,
-      grams: 500,
-    }));
+    }) => {
+      const cadPrice =
+        item.product.salePriceCAD ??
+        item.product.priceCAD ??
+        Math.round((item.product.salePrice ?? item.product.price) * CAD_RATE * 100) / 100;
+
+      return {
+        title: `${item.product.name} — ${item.selectedSize} / ${item.selectedColor}`,
+        price: cadPrice.toFixed(2),
+        quantity: item.quantity,
+        requires_shipping: true,
+        grams: 500,
+      };
+    });
 
     const result = await createShopifyDraftOrder({
       email: info.email,

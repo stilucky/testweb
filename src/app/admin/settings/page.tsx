@@ -204,7 +204,7 @@ export default function SettingsPage() {
                 <p className="font-medium text-stone-700 mb-2">Gmail setup guide:</p>
                 <p>1. Enable 2-Step Verification on your Google Account</p>
                 <p>2. Go to Security → App Passwords</p>
-                <p>3. Generate a new App Password (select "Mail")</p>
+                <p>3. Generate a new App Password (select &quot;Mail&quot;)</p>
                 <p>4. Add to <span className="font-mono">.env.local</span>: SMTP_USER and SMTP_PASS</p>
               </div>
             </div>

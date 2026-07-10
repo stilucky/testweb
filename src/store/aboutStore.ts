@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type AboutKey = "our-story" | "our-world" | "lunelle-girl" | "our-mantra";
+export type AboutKey = "origin" | "universe" | "angels" | "mantra";
 
 export interface AboutSection {
   key: AboutKey;
@@ -38,40 +38,40 @@ interface AboutStore {
 
 const defaultSections: AboutSection[] = [
   {
-    key: "our-story",
+    key: "origin",
     label: "Origin",
-    subtitle: "Born from a love of quiet luxury",
+    subtitle: "Why Lunelle exists.",
     heroImage: "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=1600&q=90",
     heroImagePosition: "50% 30%",
   },
   {
-    key: "our-world",
+    key: "universe",
     label: "Universe",
-    subtitle: "A universe of refined detail",
+    subtitle: "The world we are building.",
     heroImage: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=1600&q=90",
     heroImagePosition: "50% 50%",
   },
   {
-    key: "lunelle-girl",
+    key: "angels",
     label: "Angels",
-    subtitle: "She knows exactly who she is",
+    subtitle: "The souls we design for.",
     heroImage: "https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=1600&q=90",
     heroImagePosition: "50% 20%",
   },
   {
-    key: "our-mantra",
+    key: "mantra",
     label: "Mantra",
-    subtitle: "Dress the life you imagine",
+    subtitle: "The words we live by.",
     heroImage: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1600&q=90",
     heroImagePosition: "50% 50%",
   },
 ];
 
 const defaultPosts: AboutPost[] = [
-  // Our Story posts
+  // Origin posts
   {
     id: "post-1",
-    sectionKey: "our-story",
+    sectionKey: "origin",
     title: "Where It Began",
     subtitle: "A small atelier with a singular vision",
     body: "Lunelle was born from a passion for fashion that transcends trends — pieces that carry meaning, crafted with intention. Founded in 2020, we set out to create a curated destination for women who appreciate the artistry behind every stitch.\n\nEach piece in our collection is thoughtfully selected for its quality, its ability to make a woman feel confident and beautiful, and its versatility across life's most memorable moments — from intimate celebrations to grand occasions.",
@@ -86,7 +86,7 @@ const defaultPosts: AboutPost[] = [
   },
   {
     id: "post-2",
-    sectionKey: "our-story",
+    sectionKey: "origin",
     title: "The Art of Curation",
     subtitle: "Fewer pieces, greater meaning",
     body: "We believe that exceptional fashion should feel personal. That's why we work with skilled artisans who share our commitment to craftsmanship, ensuring every piece meets our exacting standards before it reaches your wardrobe.\n\nWe curate with purpose — fewer, better pieces that stand the test of time and serve as anchors in your wardrobe.",
@@ -97,10 +97,10 @@ const defaultPosts: AboutPost[] = [
     createdAt: "2026-02-01T00:00:00.000Z",
     updatedAt: "2026-02-01T00:00:00.000Z",
   },
-  // Our World posts
+  // Universe posts
   {
     id: "post-3",
-    sectionKey: "our-world",
+    sectionKey: "universe",
     title: "Crafted with Provenance",
     subtitle: "Fashion with purpose and permanence",
     body: "Lunelle exists at the intersection of artisan heritage and contemporary vision. Our world is one of considered choices — where the weight of a fabric, the curve of a seam, and the fall of a silhouette all matter deeply.\n\nWe collaborate with ateliers across Europe and Canada who bring generations of craft to every piece. This is fashion with provenance, with purpose, and with permanence.",
@@ -111,10 +111,10 @@ const defaultPosts: AboutPost[] = [
     createdAt: "2026-01-20T00:00:00.000Z",
     updatedAt: "2026-01-20T00:00:00.000Z",
   },
-  // Lunelle Girl posts
+  // Angels posts
   {
     id: "post-4",
-    sectionKey: "lunelle-girl",
+    sectionKey: "angels",
     title: "She Moves With Intention",
     subtitle: "Quiet confidence in every step",
     body: "The Lunelle girl moves through the world with quiet confidence. She doesn't follow trends — she observes them, selects what resonates, and wears it as if it were always hers.\n\nShe is multi-dimensional: professional and playful, romantic and practical, private yet magnetic. Her wardrobe is not a performance — it is an extension of who she is, on every kind of day.",
@@ -125,10 +125,10 @@ const defaultPosts: AboutPost[] = [
     createdAt: "2026-01-25T00:00:00.000Z",
     updatedAt: "2026-01-25T00:00:00.000Z",
   },
-  // Our Mantra posts
+  // Mantra posts
   {
     id: "post-5",
-    sectionKey: "our-mantra",
+    sectionKey: "mantra",
     title: "Buy Less, Choose Well",
     subtitle: "The philosophy behind every piece",
     body: "We believe that how you dress is how you greet the world — a daily ritual of self-definition that deserves intention.\n\nOur mantra is simple: buy less, choose well, make it last. We curate so that you don't have to choose between beauty and integrity, between trend and timelessness.\n\nEvery season, every collection, every piece exists to serve one purpose: to make you feel extraordinary in the most ordinary moments of your life.",
@@ -140,6 +140,52 @@ const defaultPosts: AboutPost[] = [
     updatedAt: "2026-02-05T00:00:00.000Z",
   },
 ];
+
+const legacyKeyMap: Record<string, AboutKey> = {
+  "our-story": "origin",
+  "our-world": "universe",
+  "lunelle-girl": "angels",
+  "our-mantra": "mantra",
+  origin: "origin",
+  universe: "universe",
+  angels: "angels",
+  mantra: "mantra",
+};
+
+const sectionCopy: Record<AboutKey, Pick<AboutSection, "label" | "subtitle">> = {
+  origin: { label: "Origin", subtitle: "Why Lunelle exists." },
+  universe: { label: "Universe", subtitle: "The world we are building." },
+  angels: { label: "Angels", subtitle: "The souls we design for." },
+  mantra: { label: "Mantra", subtitle: "The words we live by." },
+};
+
+function normalizeAboutState(state: Partial<AboutStore>): Partial<AboutStore> {
+  const sections = Array.isArray(state.sections)
+    ? state.sections
+        .map((section) => {
+          const key = legacyKeyMap[section.key];
+          if (!key) return null;
+          return {
+            ...section,
+            key,
+            ...sectionCopy[key],
+          };
+        })
+        .filter(Boolean) as AboutSection[]
+    : defaultSections;
+
+  const posts = Array.isArray(state.posts)
+    ? state.posts
+        .map((post) => {
+          const sectionKey = legacyKeyMap[post.sectionKey];
+          if (!sectionKey) return null;
+          return { ...post, sectionKey };
+        })
+        .filter(Boolean) as AboutPost[]
+    : defaultPosts;
+
+  return { ...state, sections, posts };
+}
 
 export const useAboutStore = create<AboutStore>()(
   persist(
@@ -176,6 +222,10 @@ export const useAboutStore = create<AboutStore>()(
       deletePost: (id) =>
         set((s) => ({ posts: s.posts.filter((p) => p.id !== id) })),
     }),
-    { name: "lunelle-about-v2" }
+    {
+      name: "lunelle-about-v2",
+      version: 3,
+      migrate: (persisted) => normalizeAboutState(persisted as Partial<AboutStore>),
+    }
   )
 );

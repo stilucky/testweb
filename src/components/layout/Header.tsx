@@ -36,10 +36,10 @@ export default function Header() {
   const featuredCollections = activeCollections.filter((c) => c.featured);
   const otherCollections    = activeCollections.filter((c) => !c.featured);
   const aboutLinks = [
-    { label: "Origin",   href: "/about/our-story" },
-    { label: "Universe", href: "/about/our-world" },
-    { label: "Angels",   href: "/about/lunelle-girl" },
-    { label: "Mantra",   href: "/about/our-mantra" },
+    { label: "Origin",   href: "/about/origin" },
+    { label: "Universe", href: "/about/universe" },
+    { label: "Angels",   href: "/about/angels" },
+    { label: "Mantra",   href: "/about/mantra" },
   ];
 
   /* transparent only on homepage when not scrolled */

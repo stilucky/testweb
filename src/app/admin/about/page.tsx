@@ -5,12 +5,12 @@ import Link from "next/link";
 import { ExternalLink, ChevronRight } from "lucide-react";
 import { useAboutStore, type AboutKey } from "@/store/aboutStore";
 
-const SECTION_ORDER: AboutKey[] = ["our-story", "our-world", "lunelle-girl", "our-mantra"];
+const SECTION_ORDER: AboutKey[] = ["origin", "universe", "angels", "mantra"];
 const INDEX_LABEL: Record<AboutKey, string> = {
-  "our-story":    "01",
-  "our-world":    "02",
-  "lunelle-girl": "03",
-  "our-mantra":   "04",
+  origin:   "01",
+  universe: "02",
+  angels:   "03",
+  mantra:   "04",
 };
 
 export default function AdminAboutPage() {

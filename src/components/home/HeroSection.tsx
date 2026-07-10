@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useHeroStore } from "@/store/heroStore";
@@ -26,10 +25,6 @@ export default function HeroSection() {
   const [current, setCurrent] = useState(0);
 
   useEffect(() => {
-    if (slides.length > 0 && current >= slides.length) setCurrent(slides.length - 1);
-  }, [slides.length, current]);
-
-  useEffect(() => {
     if (slides.length <= 1) return;
     const ms = autoplayInterval * 1000;
     const timer = setInterval(() => setCurrent((c) => (c + 1) % slides.length), ms);
@@ -41,14 +36,15 @@ export default function HeroSection() {
   const prev = () => setCurrent((c) => (c - 1 + slides.length) % slides.length);
   const next = () => setCurrent((c) => (c + 1) % slides.length);
 
-  const activeSlide = slides[current];
+  const activeIndex = Math.min(current, slides.length - 1);
+  const activeSlide = slides[activeIndex];
 
   return (
     <section className="relative w-full h-screen overflow-hidden bg-stone-900">
 
       {/* ── Slides ── */}
       {slides.map((s, i) => {
-        const isActive = i === current;
+        const isActive = i === activeIndex;
         const ytId = s.videoUrl && s.videoType === "youtube" ? getYouTubeId(s.videoUrl) : null;
 
         return (
@@ -89,17 +85,14 @@ export default function HeroSection() {
                 )}
                 {/* Thumbnail fallback when this slide is not active */}
                 {!isActive && s.image && (
-                  <Image src={s.image} alt="" fill className="object-cover object-center" sizes="100vw" />
+                  <img src={s.image} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
                 )}
               </>
             ) : (
-              <Image
+              <img
                 src={s.image}
                 alt=""
-                fill
-                priority={i === 0}
-                className="object-cover object-center"
-                sizes="100vw"
+                className="absolute inset-0 h-full w-full object-cover object-center"
               />
             )}
           </div>
@@ -136,7 +129,7 @@ export default function HeroSection() {
                 aria-label={`Slide ${i + 1}`}
                 className={cn(
                   "h-px transition-all duration-300",
-                  i === current ? "w-8 bg-white" : "w-4 bg-white/40"
+                  i === activeIndex ? "w-8 bg-white" : "w-4 bg-white/40"
                 )}
               />
             ))}

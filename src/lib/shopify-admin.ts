@@ -6,6 +6,7 @@
 import { Product, Color } from "@/types";
 import { readFile } from "fs/promises";
 import { basename, join } from "path";
+import { CAD_RATE } from "@/store/localeStore";
 
 const DOMAIN  = process.env.SHOPIFY_SHOP_DOMAIN!;
 const TOKEN   = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN!;
@@ -181,14 +182,16 @@ export function shopifyToProduct(sp: ShopifyProduct): Product {
   const sizeOption = sp.options.find((o) => o.name.toLowerCase() === "size");
   const sizes = sizeOption?.values ?? (sp.variants.map((v) => v.option1).filter(Boolean) as string[]);
 
-  // Price logic: Shopify price = what customer pays, compare_at = original
+  // Price logic: Shopify price is the Canada storefront price (CAD).
   const firstVariant = sp.variants[0];
   const shopifyPrice = parseFloat(firstVariant?.price ?? "0");
   const compareAt = firstVariant?.compare_at_price ? parseFloat(firstVariant.compare_at_price) : null;
 
   // If compare_at_price > price, item is on sale
-  const price    = compareAt && compareAt > shopifyPrice ? compareAt : shopifyPrice;
-  const salePrice = compareAt && compareAt > shopifyPrice ? shopifyPrice : undefined;
+  const priceCAD = compareAt && compareAt > shopifyPrice ? compareAt : shopifyPrice;
+  const salePriceCAD = compareAt && compareAt > shopifyPrice ? shopifyPrice : undefined;
+  const price = Math.round((priceCAD / CAD_RATE) * 100) / 100;
+  const salePrice = salePriceCAD !== undefined ? Math.round((salePriceCAD / CAD_RATE) * 100) / 100 : undefined;
 
   // Total inventory across all variants
   const stock = sp.variants.reduce((s, v) => s + (v.inventory_quantity ?? 0), 0);
@@ -213,6 +216,8 @@ export function shopifyToProduct(sp: ShopifyProduct): Product {
     sizeChartFR,
     price,
     salePrice,
+    priceCAD,
+    salePriceCAD,
     images: sp.images.map((i) => i.src),
     category: sp.product_type || tagMap["cat"] || "dresses",
     gender: (tagMap["gender"] as Product["gender"]) || "women",
@@ -230,13 +235,15 @@ export function shopifyToProduct(sp: ShopifyProduct): Product {
 
 /** Convert our Product to Shopify product payload */
 async function productToShopify(p: Partial<Product> & { name: string; price: number; sizes: string[] }) {
-  const isOnSale = p.salePrice !== undefined && p.salePrice > 0 && p.salePrice < p.price;
+  const cadPrice = p.priceCAD ?? p.price;
+  const cadSalePrice = p.salePriceCAD;
+  const isOnSale = cadSalePrice !== undefined && cadSalePrice > 0 && cadSalePrice < cadPrice;
 
   // Each size → one variant
   const variants = (p.sizes ?? ["One Size"]).map((size) => ({
     option1: size,
-    price: String(isOnSale ? p.salePrice! : p.price),
-    compare_at_price: isOnSale ? String(p.price) : null,
+    price: String(isOnSale ? cadSalePrice! : cadPrice),
+    compare_at_price: isOnSale ? String(cadPrice) : null,
     inventory_management: "shopify",
     inventory_quantity: p.inventoryBySize?.[size] ?? 0,
   }));
@@ -394,9 +401,9 @@ export async function updateShopifyProduct(id: string, p: Partial<Product>): Pro
 
   // Merge sizes with existing variants
   const sizes = p.sizes ?? raw.options.find((o) => o.name === "Size")?.values ?? [];
-  const isOnSale = p.salePrice !== undefined && p.salePrice! > 0 && p.salePrice! < (p.price ?? parseFloat(raw.variants[0]?.price ?? "0"));
-  const price    = p.price ?? parseFloat(raw.variants[0]?.price ?? "0");
-  const salePrice = p.salePrice;
+  const price = p.priceCAD ?? p.price ?? parseFloat(raw.variants[0]?.price ?? "0");
+  const salePrice = p.salePriceCAD;
+  const isOnSale = salePrice !== undefined && salePrice > 0 && salePrice < price;
 
   // Match existing variants by size to preserve IDs
   const updatedVariants = sizes.map((size) => {

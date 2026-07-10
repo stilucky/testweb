@@ -4,7 +4,7 @@ import { persist } from "zustand/middleware";
 export type Language = "EN" | "FR";
 export type Currency = "USD" | "CAD";
 
-const CAD_RATE = 1.38; // 1 USD = 1.38 CAD (fixed reference rate)
+export const CAD_RATE = 1.38; // 1 USD = 1.38 CAD (fixed reference rate)
 
 interface LocaleState {
   language: Language;

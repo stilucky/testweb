@@ -3,6 +3,13 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { CartItem, Product } from "@/types";
+import { CAD_RATE } from "@/store/localeStore";
+
+export function productCadPrice(product: Product): number {
+  if (product.salePriceCAD !== undefined) return product.salePriceCAD;
+  if (product.priceCAD !== undefined) return product.priceCAD;
+  return Math.round((product.salePrice ?? product.price) * CAD_RATE * 100) / 100;
+}
 
 interface CartStore {
   items: CartItem[];
@@ -73,7 +80,7 @@ export const useCartStore = create<CartStore>()(
 
       total: () =>
         get().items.reduce(
-          (sum, item) => sum + (item.product.salePrice ?? item.product.price) * item.quantity,
+          (sum, item) => sum + productCadPrice(item.product) * item.quantity,
           0
         ),
 

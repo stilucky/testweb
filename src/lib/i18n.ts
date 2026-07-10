@@ -42,7 +42,7 @@ const t = {
     checkout:     "Checkout",
     remove:       "Remove",
     /* currency */
-    cadNote:      "Prices shown in CAD (estimated)",
+    cadNote:      "Prices shown in CAD",
     usdNote:      "Prices shown in USD",
     /* tailored */
     viewCollection:"View the Collection",
@@ -174,7 +174,7 @@ const t = {
     checkout:     "Commander",
     remove:       "Retirer",
     /* currency */
-    cadNote:      "Prix affichés en CAD (estimés)",
+    cadNote:      "Prix affichés en CAD",
     usdNote:      "Prix affichés en USD",
     /* tailored */
     viewCollection:"Voir la collection",

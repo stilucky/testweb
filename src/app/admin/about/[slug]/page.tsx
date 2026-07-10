@@ -6,11 +6,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   Check, Edit2, Trash2, Plus, X, ExternalLink, ArrowLeft,
-  ImagePlus, Move, Eye, EyeOff, GripVertical, ChevronUp, ChevronDown,
+  ImagePlus, Move, Eye, EyeOff, ChevronUp, ChevronDown,
 } from "lucide-react";
 import { useAboutStore, type AboutKey, type AboutPost } from "@/store/aboutStore";
 
-const VALID_SLUGS: AboutKey[] = ["our-story", "our-world", "lunelle-girl", "our-mantra"];
+const VALID_SLUGS: AboutKey[] = ["origin", "universe", "angels", "mantra"];
 
 /* ─────────────────────────────────────────────
    Focal point drag picker

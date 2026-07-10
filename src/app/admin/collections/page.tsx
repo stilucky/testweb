@@ -10,6 +10,7 @@ import { useCollectionStore, Collection } from "@/store/collectionStore";
 import { useProductStore } from "@/store/productStore";
 import { cn } from "@/lib/utils";
 import { ToastContainer, useToast } from "@/components/ui/Toast";
+import MediaPicker from "@/components/admin/MediaPicker";
 
 type FormData = {
   name: string;
@@ -48,6 +49,7 @@ export default function AdminCollectionsPage() {
   const [saving, setSaving]       = useState(false);
   const [deleteId, setDeleteId]   = useState<string | null>(null);
   const [productSearch, setProductSearch] = useState("");
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
   const { toasts, addToast, removeToast } = useToast(3000);
 
   const openAdd = () => {
@@ -153,6 +155,13 @@ export default function AdminCollectionsPage() {
   return (
     <div className="min-h-screen bg-stone-50">
 
+      <MediaPicker
+        open={mediaPickerOpen}
+        title="Collection Images"
+        onClose={() => setMediaPickerOpen(false)}
+        onSelect={(asset) => setField("image", asset.url)}
+      />
+
       <ToastContainer toasts={toasts} onClose={removeToast} />
 
       {/* ── Header ── */}
@@ -189,12 +198,10 @@ export default function AdminCollectionsPage() {
                 {/* Cover image */}
                 <div className="relative aspect-[16/9] bg-stone-100 overflow-hidden">
                   {col.image ? (
-                    <Image
+                    <img
                       src={col.image}
                       alt={col.name}
-                      fill
-                      sizes="(max-width: 768px) 100vw, 50vw"
-                      className="object-cover group-hover:scale-105 transition-transform duration-500"
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
@@ -378,9 +385,17 @@ export default function AdminCollectionsPage() {
                   placeholder="https://..."
                   className="w-full border border-stone-200 focus:border-stone-800 px-4 py-3 text-sm focus:outline-none transition-colors"
                 />
+                <button
+                  type="button"
+                  onClick={() => setMediaPickerOpen(true)}
+                  className="mt-2 inline-flex items-center gap-2 border border-stone-200 px-3 py-2 text-[10px] uppercase tracking-widests text-stone-600 transition-colors hover:border-stone-800 hover:text-stone-900"
+                >
+                  <ImageIcon size={12} />
+                  Choose from Library
+                </button>
                 {form.image && (
                   <div className="relative mt-2 h-28 bg-stone-100 overflow-hidden">
-                    <Image src={form.image} alt="Preview" fill sizes="400px" className="object-cover" />
+                    <img src={form.image} alt="Preview" className="h-full w-full object-cover" />
                   </div>
                 )}
               </div>

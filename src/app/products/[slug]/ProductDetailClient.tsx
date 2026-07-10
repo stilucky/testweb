@@ -249,7 +249,6 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
             )}
             <span className="text-[10px] tracking-widest uppercase text-stone-300 ml-1">
               {currency}
-              {currency === "CAD" && <span className="text-stone-300"> · est.</span>}
             </span>
           </div>
 

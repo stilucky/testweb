@@ -4,7 +4,7 @@ import { join } from "path";
 import { randomUUID } from "crypto";
 
 const UPLOAD_DIR = join(process.cwd(), "public", "uploads");
-const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15 MB per file
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB per file after client-side compression
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif", "image/avif"];
 
 export async function POST(req: NextRequest) {
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       }
       if (file.size > MAX_FILE_SIZE) {
         return NextResponse.json(
-          { error: `File too large: ${file.name} (max 15 MB)` },
+          { error: `File too large: ${file.name} (max 10 MB after compression)` },
           { status: 400 }
         );
       }

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Minus, Plus, X, ShoppingBag, ArrowLeft } from "lucide-react";
-import { useCartStore } from "@/store/cartStore";
+import { useCartStore, productCadPrice } from "@/store/cartStore";
 import { formatPrice } from "@/lib/utils";
 
 export default function CartPage() {
@@ -126,12 +126,13 @@ export default function CartPage() {
                   <div className="text-right">
                     <p className="font-medium">
                       {formatPrice(
-                        (item.product.salePrice ?? item.product.price) * item.quantity
+                        productCadPrice(item.product) * item.quantity,
+                        "CAD"
                       )}
                     </p>
                     {item.quantity > 1 && (
                       <p className="text-xs text-stone-400">
-                        {formatPrice(item.product.salePrice ?? item.product.price)} each
+                        {formatPrice(productCadPrice(item.product), "CAD")} each
                       </p>
                     )}
                   </div>
@@ -166,15 +167,15 @@ export default function CartPage() {
             <div className="space-y-3 text-sm border-t border-stone-200 pt-5">
               <div className="flex justify-between">
                 <span className="text-stone-500">Subtotal</span>
-                <span>{formatPrice(total())}</span>
+                <span>{formatPrice(total(), "CAD")}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-stone-500">Shipping</span>
-                <span>{shipping === 0 ? "Free" : formatPrice(shipping)}</span>
+                <span>{shipping === 0 ? "Free" : formatPrice(shipping, "CAD")}</span>
               </div>
               {shipping > 0 && (
                 <p className="text-xs text-stone-400">
-                  Add {formatPrice(200 - total())} more for free shipping
+                  Add {formatPrice(200 - total(), "CAD")} more for free shipping
                 </p>
               )}
               <div className="flex justify-between font-medium text-base pt-3 border-t border-stone-200">
@@ -183,7 +184,7 @@ export default function CartPage() {
                   style={{ fontFamily: "var(--font-cormorant), serif" }}
                   className="text-xl"
                 >
-                  {formatPrice(orderTotal)}
+                  {formatPrice(orderTotal, "CAD")}
                 </span>
               </div>
             </div>

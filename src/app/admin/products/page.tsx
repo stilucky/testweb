@@ -13,6 +13,9 @@ import { useProductStore } from "@/store/productStore";
 import { useCollectionStore } from "@/store/collectionStore";
 import { useSubscriberStore } from "@/store/subscriberStore";
 import { ToastContainer, useToast } from "@/components/ui/Toast";
+import { CAD_RATE } from "@/store/localeStore";
+import MediaPicker from "@/components/admin/MediaPicker";
+import { compressImageFiles } from "@/store/mediaLibraryStore";
 
 const categoryOptions = ["all", "dresses", "tops", "bottoms", "outerwear", "accessories"];
 const allSizes = ["XS", "S", "M", "L", "XL", "XXL"];
@@ -146,6 +149,7 @@ export default function AdminProductsPage() {
   const [uploadingImages, setUploadingImages] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [uploadedVideoUrl, setUploadedVideoUrl] = useState<string>("");
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -186,8 +190,9 @@ export default function AdminProductsPage() {
     if (imageFiles.length === 0) return;
     setUploadingImages(true);
     try {
+      const compressedImages = await compressImageFiles(imageFiles);
       const fd = new FormData();
-      imageFiles.forEach((f) => fd.append("files", f));
+      compressedImages.forEach((f) => fd.append("files", f));
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Upload failed");
@@ -205,6 +210,15 @@ export default function AdminProductsPage() {
   const removeUrlFromImages = (urlToRemove: string) => {
     const updated = parseUrls(form.images).filter((u) => u !== urlToRemove);
     setForm((f) => ({ ...f, images: updated.join("\n") }));
+  };
+
+  const addImageFromLibrary = (url: string) => {
+    const existing = parseUrls(form.images);
+    if (!existing.includes(url)) {
+      setForm((f) => ({ ...f, images: [...existing, url].join("\n") }));
+    }
+    setShowUrlInput(false);
+    if (errors.images) setErrors((prev) => ({ ...prev, images: undefined }));
   };
 
   const openAdd = () => {
@@ -238,7 +252,7 @@ export default function AdminProductsPage() {
       returnPolicyFR: product.returnPolicyFR ?? "",
       sizeChart: product.sizeChart ?? "",
       sizeChartFR: product.sizeChartFR ?? "",
-      price: String(product.price),
+      price: product.price ? String(product.price) : "",
       salePrice: product.salePrice ? String(product.salePrice) : "",
       category: product.category,
       gender: product.gender,
@@ -276,8 +290,11 @@ export default function AdminProductsPage() {
   const validate = (): boolean => {
     const e: FormErrors = {};
     if (!form.name.trim()) e.name = "Name is required";
-    if (!form.price || isNaN(Number(form.price)) || Number(form.price) <= 0) e.price = "Valid price required";
-    if (form.salePrice && (isNaN(Number(form.salePrice)) || Number(form.salePrice) <= 0)) e.salePrice = "Invalid sale price";
+    if (!form.priceCAD || isNaN(Number(form.priceCAD)) || Number(form.priceCAD) <= 0) e.priceCAD = "Valid CAD price required";
+    if (form.salePriceCAD && (isNaN(Number(form.salePriceCAD)) || Number(form.salePriceCAD) <= 0)) e.salePriceCAD = "Invalid CAD sale price";
+    if (form.salePriceCAD && Number(form.salePriceCAD) >= Number(form.priceCAD)) e.salePriceCAD = "Sale price must be lower than CAD price";
+    if (form.price && (isNaN(Number(form.price)) || Number(form.price) <= 0)) e.price = "Invalid USD price";
+    if (form.salePrice && (isNaN(Number(form.salePrice)) || Number(form.salePrice) <= 0)) e.salePrice = "Invalid USD sale price";
     if (!form.shortDescription.trim()) e.shortDescription = "Required";
     if (form.sizes.length === 0) e.sizes = "Select at least one size";
     const invalidSizeStock = form.sizes.some((size) => {
@@ -328,8 +345,8 @@ export default function AdminProductsPage() {
       returnPolicyFR: form.returnPolicyFR.trim() || undefined,
       sizeChart: form.sizeChart.trim() || undefined,
       sizeChartFR: form.sizeChartFR.trim() || undefined,
-      price: Number(form.price),
-      salePrice: form.salePrice ? Number(form.salePrice) : undefined,
+      price: form.price ? Number(form.price) : Math.round((Number(form.priceCAD) / CAD_RATE) * 100) / 100,
+      salePrice: form.salePrice ? Number(form.salePrice) : form.salePriceCAD ? Math.round((Number(form.salePriceCAD) / CAD_RATE) * 100) / 100 : undefined,
       stock,
       inventoryBySize,
       category: form.category,
@@ -585,6 +602,13 @@ export default function AdminProductsPage() {
   return (
     <div className="p-4 md:p-8 relative">
 
+      <MediaPicker
+        open={mediaPickerOpen}
+        title="Product Images"
+        onClose={() => setMediaPickerOpen(false)}
+        onSelect={(asset) => addImageFromLibrary(asset.url)}
+      />
+
       <ToastContainer toasts={toasts} onClose={removeToast} />
 
       {/* Header */}
@@ -746,13 +770,13 @@ export default function AdminProductsPage() {
 
                   {/* Price */}
                   <div className="col-span-2 text-right">
-                    {product.salePrice ? (
+                    {(product.salePriceCAD ?? product.salePrice) ? (
                       <>
-                        <p className="text-sm text-red-600" style={{ fontFamily: "var(--font-cormorant), serif" }}>{formatPrice(product.salePrice)}</p>
-                        <p className="text-xs text-stone-400 line-through">{formatPrice(product.price)}</p>
+                        <p className="text-sm text-red-600" style={{ fontFamily: "var(--font-cormorant), serif" }}>{formatPrice(product.salePriceCAD ?? product.salePrice ?? 0, "CAD")}</p>
+                        <p className="text-xs text-stone-400 line-through">{formatPrice(product.priceCAD ?? product.price, "CAD")}</p>
                       </>
                     ) : (
-                      <p className="text-sm" style={{ fontFamily: "var(--font-cormorant), serif" }}>{formatPrice(product.price)}</p>
+                      <p className="text-sm" style={{ fontFamily: "var(--font-cormorant), serif" }}>{formatPrice(product.priceCAD ?? product.price, "CAD")}</p>
                     )}
                   </div>
 
@@ -956,7 +980,7 @@ export default function AdminProductsPage() {
 
                 {/* USD row */}
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Price — USD ($)" required error={errors.price}>
+                  <Field label="Reference Price — USD ($)" error={errors.price}>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-stone-400">$</span>
                       <input type="number" min="0" step="0.01" value={form.price}
@@ -976,27 +1000,27 @@ export default function AdminProductsPage() {
 
                 {/* CAD row */}
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Price — CAD (CA$)">
+                  <Field label="Price — CAD (CA$)" required error={errors.priceCAD}>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-stone-400 font-medium">CA$</span>
                       <input type="number" min="0" step="0.01" value={form.priceCAD}
                         onChange={(e) => setForm((f) => ({ ...f, priceCAD: e.target.value }))}
-                        placeholder="0.00" className={inputCls(false) + " pl-10"} />
+                        placeholder="0.00" className={inputCls(!!errors.priceCAD) + " pl-10"} />
                     </div>
                   </Field>
-                  <Field label="Sale Price — CAD (CA$)">
+                  <Field label="Sale Price — CAD (CA$)" error={errors.salePriceCAD}>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-stone-400 font-medium">CA$</span>
                       <input type="number" min="0" step="0.01" value={form.salePriceCAD}
                         onChange={(e) => setForm((f) => ({ ...f, salePriceCAD: e.target.value }))}
-                        placeholder="Optional" className={inputCls(false) + " pl-10"} />
+                        placeholder="Optional" className={inputCls(!!errors.salePriceCAD) + " pl-10"} />
                     </div>
                   </Field>
                 </div>
 
                 {/* Note */}
                 <p className="text-[10px] text-stone-400 leading-relaxed">
-                  If CAD is left empty, price will be auto-converted from USD × 1.38.
+                  CAD is the storefront and checkout currency. USD fields are optional references and will be auto-estimated from CAD if left empty.
                 </p>
 
               </div>
@@ -1247,12 +1271,21 @@ export default function AdminProductsPage() {
                     <>
                       <ImagePlus size={22} className="text-stone-400" />
                       <p className="text-xs text-stone-500">Click hoặc kéo thả ảnh từ máy tính</p>
-                      <p className="text-[10px] text-stone-400">JPG, PNG, WEBP · tối đa 15 MB/ảnh</p>
+                      <p className="text-[10px] text-stone-400">JPG, PNG, WEBP · tự nén dưới 10 MB/ảnh</p>
                     </>
                   )}
                 </div>
 
                 {/* URL paste — collapsible */}
+                <button
+                  type="button"
+                  onClick={() => setMediaPickerOpen(true)}
+                  className="mb-2 inline-flex items-center gap-2 border border-stone-200 px-3 py-2 text-[10px] uppercase tracking-widests text-stone-600 transition-colors hover:border-stone-800 hover:text-stone-900"
+                >
+                  <ImagePlus size={12} />
+                  Choose from Library
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setShowUrlInput((v) => !v)}

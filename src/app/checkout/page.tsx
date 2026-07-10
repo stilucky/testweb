@@ -19,6 +19,7 @@ import {
   Search,
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
+import { productCadPrice } from "@/store/cartStore";
 import { useOrderStore } from "@/store/orderStore";
 import { useAuthStore } from "@/store/authStore";
 import { useCouponStore } from "@/store/couponStore";
@@ -162,7 +163,7 @@ export default function CheckoutPage() {
   const { items, total, clearCart } = useCartStore();
   const { addOrder, updateShopifyOrderId } = useOrderStore();
   const { currentUser, addAddress, getAddresses } = useAuthStore();
-  const { validateCoupon, useCoupon } = useCouponStore();
+  const { validateCoupon, useCoupon: markStoreCouponUsed } = useCouponStore();
   const { markCouponUsed } = useSubscriberStore();
 
   const [saveAddress, setSaveAddress] = useState(false);
@@ -268,7 +269,7 @@ export default function CheckoutPage() {
       const orderItems = items.map((item) => ({
         name: item.product.name,
         qty: item.quantity,
-        price: item.product.salePrice ?? item.product.price,
+        price: productCadPrice(item.product),
         size: item.selectedSize,
         color: item.selectedColor,
         image: item.product.images[0],
@@ -291,7 +292,7 @@ export default function CheckoutPage() {
         userId: currentUser?.id,
       });
       if (appliedCoupon) {
-        useCoupon(appliedCoupon.code);
+        markStoreCouponUsed(appliedCoupon.code);
         markCouponUsed(info.email);
       }
       const res = await fetch("/api/shopify/checkout", {
@@ -690,7 +691,7 @@ export default function CheckoutPage() {
                   ) : (
                     <>
                       <ExternalLink size={13} />
-                      Pay · {formatPrice(orderTotal)}
+                      Pay · {formatPrice(orderTotal, "CAD")}
                     </>
                   )}
                 </button>
@@ -715,7 +716,7 @@ export default function CheckoutPage() {
               Order Summary
             </span>
             <span className="font-medium" style={{ fontFamily: "var(--font-cormorant), serif" }}>
-              {formatPrice(orderTotal)}
+              {formatPrice(orderTotal, "CAD")}
             </span>
           </button>
 
@@ -742,7 +743,7 @@ export default function CheckoutPage() {
                       <p className="text-xs text-stone-400">{item.selectedSize} · {item.selectedColor}</p>
                     </div>
                     <p className="text-sm shrink-0 font-medium">
-                      {formatPrice((item.product.salePrice ?? item.product.price) * item.quantity)}
+                      {formatPrice(productCadPrice(item.product) * item.quantity, "CAD")}
                     </p>
                   </div>
                 </div>
@@ -791,12 +792,12 @@ export default function CheckoutPage() {
             <div className="space-y-2.5 text-sm border-t border-stone-200 pt-4">
               <div className="flex justify-between">
                 <span className="text-stone-500">Subtotal</span>
-                <span>{formatPrice(subtotal)}</span>
+                <span>{formatPrice(subtotal, "CAD")}</span>
               </div>
               {appliedCoupon && (
                 <div className="flex justify-between text-emerald-600">
                   <span>Discount ({appliedCoupon.code})</span>
-                  <span>−{formatPrice(discountAmount)}</span>
+                  <span>−{formatPrice(discountAmount, "CAD")}</span>
                 </div>
               )}
               <div className="flex justify-between">
@@ -805,19 +806,19 @@ export default function CheckoutPage() {
                   {shippingCost === 0 ? (
                     <span className="text-emerald-600">Free</span>
                   ) : (
-                    formatPrice(shippingCost)
+                    formatPrice(shippingCost, "CAD")
                   )}
                 </span>
               </div>
               {subtotal < 200 && (
                 <p className="text-xs text-stone-400">
-                  Add {formatPrice(200 - subtotal)} more for free standard shipping
+                  Add {formatPrice(200 - subtotal, "CAD")} more for free standard shipping
                 </p>
               )}
               <div className="flex justify-between font-medium text-base pt-3 border-t border-stone-200">
                 <span>Total</span>
                 <span style={{ fontFamily: "var(--font-cormorant), serif" }} className="text-xl">
-                  {formatPrice(orderTotal)}
+                  {formatPrice(orderTotal, "CAD")}
                 </span>
               </div>
             </div>

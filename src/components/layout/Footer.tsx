@@ -34,10 +34,10 @@ export default function Footer() {
   const t = useTranslations(language);
 
   const aboutLinks = [
-    { label: "Origin",   href: "/about/our-story" },
-    { label: "Universe", href: "/about/our-world" },
-    { label: "Angels",   href: "/about/lunelle-girl" },
-    { label: "Mantra",   href: "/about/our-mantra" },
+    { label: "Origin",   href: "/about/origin" },
+    { label: "Universe", href: "/about/universe" },
+    { label: "Angels",   href: "/about/angels" },
+    { label: "Mantra",   href: "/about/mantra" },
   ];
 
   const careLinks = [
@@ -57,7 +57,7 @@ export default function Footer() {
           {/* Brand */}
           <div className="col-span-2">
             <p className="type-logo text-base mb-4">Lunelle</p>
-            <p className="text-sm text-stone-400 leading-relaxed mb-6 max-w-xs">
+            <p className="text-sm text-stone-300 leading-relaxed mb-6 max-w-xs">
               {t("footerDesc")}
             </p>
             <div className="flex items-center gap-4">
@@ -66,7 +66,7 @@ export default function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Instagram @Lunellestory.official"
-                className="text-stone-500 hover:text-white transition-colors"
+                className="text-stone-400 hover:text-white transition-colors"
               >
                 <IconInstagram />
               </a>
@@ -75,14 +75,14 @@ export default function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Pinterest @lunellestoryofficial"
-                className="text-stone-500 hover:text-white transition-colors"
+                className="text-stone-400 hover:text-white transition-colors"
               >
                 <IconPinterest />
               </a>
               <a
                 href="mailto:admin@lunellestory.ca"
                 aria-label="Email admin@lunellestory.ca"
-                className="text-stone-500 hover:text-white transition-colors"
+                className="text-stone-400 hover:text-white transition-colors"
               >
                 <IconMail />
               </a>
@@ -91,11 +91,11 @@ export default function Footer() {
 
           {/* About */}
           <div>
-            <p className="text-[9px] tracking-[0.22em] uppercase text-stone-500 mb-5">{t("about")}</p>
+            <p className="text-[9px] tracking-[0.22em] uppercase text-stone-400 mb-5">{t("about")}</p>
             <ul className="space-y-2.5">
               {aboutLinks.map((l) => (
                 <li key={l.label}>
-                  <Link href={l.href} className="text-sm text-stone-400 hover:text-white transition-colors">
+                  <Link href={l.href} className="text-sm text-stone-300 hover:text-white transition-colors">
                     {l.label}
                   </Link>
                 </li>
@@ -105,11 +105,11 @@ export default function Footer() {
 
           {/* Customer Care */}
           <div>
-            <p className="text-[9px] tracking-[0.22em] uppercase text-stone-500 mb-5">{t("customerCare")}</p>
+            <p className="text-[9px] tracking-[0.22em] uppercase text-stone-400 mb-5">{t("customerCare")}</p>
             <ul className="space-y-2.5">
               {careLinks.map((l) => (
                 <li key={l.label}>
-                  <Link href={l.href} className="text-sm text-stone-400 hover:text-white transition-colors">
+                  <Link href={l.href} className="text-sm text-stone-300 hover:text-white transition-colors">
                     {l.label}
                   </Link>
                 </li>
@@ -119,13 +119,13 @@ export default function Footer() {
 
           {/* Member CTA card */}
           <div className="flex flex-col">
-            <p className="text-[9px] tracking-[0.22em] uppercase text-stone-500 mb-5">Members Only</p>
+            <p className="text-[9px] tracking-[0.22em] uppercase text-stone-400 mb-5">Members Only</p>
             <div className="border border-stone-700 p-5 flex-1 flex flex-col justify-between">
               <div>
                 <p className="text-sm font-light text-white leading-snug mb-2">
                   Get <strong className="font-medium">10% off</strong> your first order
                 </p>
-                <p className="text-[11px] text-stone-400 leading-relaxed mb-5">
+                <p className="text-[11px] text-stone-300 leading-relaxed mb-5">
                   Create a free account for early access to Pre-Fall collections and exclusive member benefits.
                 </p>
               </div>
@@ -138,7 +138,7 @@ export default function Footer() {
                 </Link>
                 <Link
                   href="/auth"
-                  className="flex items-center justify-center py-2.5 border border-stone-700 text-stone-400 text-[10px] tracking-[0.18em] uppercase hover:border-stone-500 hover:text-white transition-colors"
+                  className="flex items-center justify-center py-2.5 border border-stone-600 text-stone-300 text-[10px] tracking-[0.18em] uppercase hover:border-stone-400 hover:text-white transition-colors"
                 >
                   Sign In
                 </Link>
@@ -150,16 +150,16 @@ export default function Footer() {
       </div>
 
       {/* ── Bottom bar ── */}
-      <div className="border-t border-stone-800">
+      <div className="border-t border-stone-700">
         <div className="px-6 md:px-12 xl:px-20 py-5 flex flex-col md:flex-row items-center justify-between gap-3">
-          <p className="text-[11px] text-stone-600">
+          <p className="text-[11px] text-stone-400">
             &copy; {new Date().getFullYear()} Lunelle. {t("allRightsReserved")}
           </p>
           <div className="flex items-center gap-6">
-            <Link href="/privacy" className="text-[11px] text-stone-600 hover:text-stone-300 transition-colors">
+            <Link href="/privacy" className="text-[11px] text-stone-400 hover:text-white transition-colors">
               {t("privacyPolicy")}
             </Link>
-            <Link href="/terms" className="text-[11px] text-stone-600 hover:text-stone-300 transition-colors">
+            <Link href="/terms" className="text-[11px] text-stone-400 hover:text-white transition-colors">
               {t("termsOfService")}
             </Link>
           </div>

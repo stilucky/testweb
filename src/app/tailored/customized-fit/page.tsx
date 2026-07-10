@@ -1,11 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useRef } from "react";
-import { Check, ChevronDown, ChevronUp } from "lucide-react";
+import { useMemo, useState, useRef } from "react";
+import { Check, ChevronDown } from "lucide-react";
 import { useTailoredOrderStore } from "@/store/tailoredOrderStore";
 import { useAuthStore } from "@/store/authStore";
+import { useProductStore } from "@/store/productStore";
 import { cn } from "@/lib/utils";
+import type { Product } from "@/types";
 
 /* ─── Products available for custom fit ─── */
 interface CFProduct {
@@ -16,7 +18,9 @@ interface CFProduct {
   description: string;
 }
 
-const products: CFProduct[] = [
+const RANDOM_IMAGE_SEED = Math.random();
+
+const fallbackProducts: CFProduct[] = [
   {
     id: "cf-1",
     name: "Linen Blend Blazer",
@@ -60,6 +64,16 @@ const products: CFProduct[] = [
     description: "A bias-cut satin skirt that moves with you.",
   },
 ];
+
+function productToCustomFitProduct(product: Product): CFProduct {
+  return {
+    id: product.id,
+    name: product.name,
+    category: product.subcategory ?? product.category,
+    image: product.images[0] ?? fallbackProducts[0].image,
+    description: product.shortDescription || product.description,
+  };
+}
 
 /* ─── How It Works ─── */
 const steps = [
@@ -107,6 +121,14 @@ const inputCls =
 
 /* ══════════════════════════════════════════ */
 export default function CustomizedFitPage() {
+  const storeProducts = useProductStore((s) => s.products);
+  const products = storeProducts.length > 0
+    ? storeProducts.map(productToCustomFitProduct)
+    : fallbackProducts;
+  const collectionImages = useMemo(
+    () => products.map((product) => product.image).filter(Boolean),
+    [products]
+  );
   const [selectedProduct, setSelectedProduct] = useState<CFProduct | null>(null);
   const [form, setForm] = useState({
     fullName: "", height: "", bust: "", waist: "",
@@ -119,6 +141,8 @@ export default function CustomizedFitPage() {
   const formRef = useRef<HTMLDivElement>(null);
   const addTailoredOrder = useTailoredOrderStore((s) => s.addOrder);
   const currentUser = useAuthStore((s) => s.currentUser);
+  const randomCollectionImage =
+    collectionImages[Math.floor(RANDOM_IMAGE_SEED * collectionImages.length)] ?? fallbackProducts[0].image;
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -449,7 +473,7 @@ export default function CustomizedFitPage() {
                 <Image
                   src={
                     selectedProduct?.image ??
-                    "https://images.unsplash.com/photo-1487222477894-8943e31ef7b2?w=900&q=80"
+                    randomCollectionImage
                   }
                   alt={selectedProduct?.name ?? "Customized fit"}
                   fill

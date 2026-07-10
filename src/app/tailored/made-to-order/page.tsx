@@ -9,7 +9,9 @@ import { useCartStore } from "@/store/cartStore";
 import { useLocaleStore, formatLocalPrice } from "@/store/localeStore";
 import { useTailoredOrderStore } from "@/store/tailoredOrderStore";
 import { useAuthStore } from "@/store/authStore";
+import { useProductStore } from "@/store/productStore";
 import { cn } from "@/lib/utils";
+import type { Product } from "@/types";
 
 /* ─── Collection ─── */
 const TAILORING_FEE = 10;
@@ -23,11 +25,12 @@ interface MadeToOrderItem {
   priceCAD: number;
   image: string;
   colors: { name: string; hex: string }[];
+  sizes?: string[];
   description: string;
   leadTime: string;
 }
 
-const collection: MadeToOrderItem[] = [
+const fallbackCollection: MadeToOrderItem[] = [
   {
     id: "mto-1",
     name: "Linen Blend Blazer",
@@ -122,6 +125,26 @@ const collection: MadeToOrderItem[] = [
 
 const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 
+function productToMadeToOrderItem(product: Product): MadeToOrderItem {
+  const price = product.salePrice ?? product.price;
+  const priceCAD = product.salePriceCAD ?? product.priceCAD ?? Math.round(price * 1.36 * 100) / 100;
+
+  return {
+    id: product.id,
+    name: product.name,
+    category: product.subcategory ?? product.category,
+    price,
+    priceCAD,
+    image: product.images[0] ?? fallbackCollection[0].image,
+    colors: product.colors.length > 0
+      ? product.colors.map((color) => ({ name: color.name, hex: color.hex }))
+      : [{ name: "Default", hex: "#d6d3d1" }],
+    sizes: product.sizes.length > 0 ? product.sizes : SIZES,
+    description: product.shortDescription || product.description,
+    leadTime: product.tags?.find((tag) => tag.toLowerCase().includes("week")) ?? "3-5 weeks",
+  };
+}
+
 /* ─── How It Works ─── */
 const steps = [
   { num: "01", title: "Choose Your Design",  desc: "Browse our curated made-to-order styles and select your piece." },
@@ -156,6 +179,10 @@ function AccordionItem({ title, body }: { title: string; body: string }) {
 
 /* ══════════════════════════════════════════ */
 export default function MadeToOrderPage() {
+  const products = useProductStore((s) => s.products);
+  const tailoredCollection = products.length > 0
+    ? products.map(productToMadeToOrderItem)
+    : fallbackCollection;
   const [selected, setSelected] = useState<MadeToOrderItem | null>(null);
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
@@ -166,7 +193,6 @@ export default function MadeToOrderPage() {
   const panelRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const addItem = useCartStore((s) => s.addItem);
-  const openCart = useCartStore((s) => s.openCart);
   const currency = useLocaleStore((s) => s.currency);
   const addTailoredOrder = useTailoredOrderStore((s) => s.addOrder);
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -179,14 +205,19 @@ export default function MadeToOrderPage() {
     setNotes("");
     setSubmitted(false);
     setSizeError(false);
-    document.body.style.overflow = "hidden";
   };
 
   /* Close panel */
   const closePanel = () => {
     setSelected(null);
-    document.body.style.overflow = "";
   };
+
+  useEffect(() => {
+    document.body.style.overflow = selected ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [selected]);
 
   /* Close on Escape */
   useEffect(() => {
@@ -308,7 +339,7 @@ export default function MadeToOrderPage() {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-10">
-          {collection.map((item) => (
+          {tailoredCollection.map((item) => (
             <div
               key={item.id}
               className="group cursor-pointer"
@@ -530,7 +561,7 @@ export default function MadeToOrderPage() {
                     )}
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {SIZES.map((size) => (
+                    {(selected.sizes?.length ? selected.sizes : SIZES).map((size) => (
                       <button
                         key={size}
                         onClick={() => { setSelectedSize(size); setSizeError(false); }}

@@ -41,7 +41,7 @@ export default function PayPalCheckout({
     <PayPalScriptProvider
       options={{
         clientId,
-        currency: "USD",
+        currency: "CAD",
         intent: "capture",
       }}
     >
@@ -52,7 +52,7 @@ export default function PayPalCheckout({
               Pay<span style={{ color: "#009cde" }}>Pal</span>
             </div>
             <p className="text-xs text-stone-400 tracking-wide">
-              Complete your purchase securely · {formatPrice(amount)}
+              Complete your purchase securely · {formatPrice(amount, "CAD")}
             </p>
           </div>
 
@@ -77,7 +77,7 @@ export default function PayPalCheckout({
                 purchase_units: [
                   {
                     amount: {
-                      currency_code: "USD",
+                      currency_code: "CAD",
                       value: amount.toFixed(2),
                     },
                     description: "Lunelle Order",

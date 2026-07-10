@@ -7,7 +7,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useAboutStore, type AboutKey } from "@/store/aboutStore";
 
-const VALID_SLUGS: AboutKey[] = ["our-story", "our-world", "lunelle-girl", "our-mantra"];
+const VALID_SLUGS: AboutKey[] = ["origin", "universe", "angels", "mantra"];
 
 function Paragraphs({ text }: { text: string }) {
   return (
@@ -42,10 +42,10 @@ export default function AboutSectionPage({
     .sort((a, b) => a.order - b.order || a.createdAt.localeCompare(b.createdAt));
 
   const SECTION_INDEX: Record<AboutKey, string> = {
-    "our-story":    "01",
-    "our-world":    "02",
-    "lunelle-girl": "03",
-    "our-mantra":   "04",
+    origin:   "01",
+    universe: "02",
+    angels:   "03",
+    mantra:   "04",
   };
 
   return (
@@ -227,7 +227,7 @@ export default function AboutSectionPage({
             Other chapters
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-stone-100">
-            {(["our-story", "our-world", "lunelle-girl", "our-mantra"] as AboutKey[])
+            {(["origin", "universe", "angels", "mantra"] as AboutKey[])
               .filter((k) => k !== slug)
               .map((k) => {
                 const sec = sections.find((s) => s.key === k);

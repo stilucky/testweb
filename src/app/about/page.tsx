@@ -6,10 +6,10 @@ import { ArrowRight } from "lucide-react";
 import { useAboutStore } from "@/store/aboutStore";
 
 const SECTION_ORDER: import("@/store/aboutStore").AboutKey[] = [
-  "our-story",
-  "our-world",
-  "lunelle-girl",
-  "our-mantra",
+  "origin",
+  "universe",
+  "angels",
+  "mantra",
 ];
 
 export default function AboutPage() {

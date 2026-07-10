@@ -11,8 +11,9 @@ import { useAuthStore } from "@/store/authStore";
 
 export default function StoreShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isAdmin  = pathname.startsWith("/admin");
-  const isHome   = pathname === "/";
+  const currentPath = pathname ?? "";
+  const isAdmin  = currentPath.startsWith("/admin");
+  const isHome   = currentPath === "/";
   const checkSessionExpiry = useAuthStore((s) => s.checkSessionExpiry);
 
   useEffect(() => {

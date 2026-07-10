@@ -4,7 +4,7 @@ import { X, Minus, Plus, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useCartStore } from "@/store/cartStore";
-import { useLocaleStore, formatLocalPrice } from "@/store/localeStore";
+import { useLocaleStore, formatLocalPrice, CAD_RATE } from "@/store/localeStore";
 import { useTranslations } from "@/lib/i18n";
 
 export default function CartDrawer() {
@@ -108,7 +108,7 @@ export default function CartDrawer() {
             <div className="flex justify-between items-center">
               <span className="text-xs tracking-wider uppercase text-stone-500">{t("subtotal")}</span>
               <span className="text-lg font-medium" style={{ fontFamily: "var(--font-cormorant), serif" }}>
-                {formatLocalPrice(total(), currency)}
+                {formatLocalPrice(total() / CAD_RATE, currency, total())}
               </span>
             </div>
             <p className="text-xs text-stone-400">

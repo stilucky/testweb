@@ -1,0 +1,184 @@
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+
+export interface MediaAsset {
+  id: string;
+  name: string;
+  url: string;
+  type: string;
+  size: number;
+  createdAt: string;
+}
+
+interface MediaLibraryStore {
+  assets: MediaAsset[];
+  addAssets: (assets: Omit<MediaAsset, "id" | "createdAt">[]) => void;
+  removeAsset: (id: string) => void;
+}
+
+export const useMediaLibraryStore = create<MediaLibraryStore>()(
+  persist(
+    (set) => ({
+      assets: [],
+      addAssets: (assets) =>
+        set((state) => ({
+          assets: [
+            ...assets.map((asset) => ({
+              ...asset,
+              id: `media-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              createdAt: new Date().toISOString(),
+            })),
+            ...state.assets,
+          ],
+        })),
+      removeAsset: (id) =>
+        set((state) => ({
+          assets: state.assets.filter((asset) => asset.id !== id),
+        })),
+    }),
+    { name: "lunelle-media-library" }
+  )
+);
+
+const TARGET_IMAGE_SIZE = 9.5 * 1024 * 1024;
+const MAX_CANVAS_EDGE = 2800;
+
+function replaceExtension(name: string, extension: string) {
+  const base = name.replace(/\.[^.]+$/, "") || "image";
+  return `${base}.${extension}`;
+}
+
+async function canvasToBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("Could not compress image"));
+      },
+      "image/jpeg",
+      quality
+    );
+  });
+}
+
+async function compressImageFile(file: File): Promise<File> {
+  if (file.size <= TARGET_IMAGE_SIZE) return file;
+  if (file.type === "image/svg+xml") return file;
+
+  const imageUrl = URL.createObjectURL(file);
+
+  try {
+    const image = new Image();
+    image.decoding = "async";
+    image.src = imageUrl;
+    await image.decode();
+
+    let { width, height } = image;
+    const largestEdge = Math.max(width, height);
+    if (largestEdge > MAX_CANVAS_EDGE) {
+      const scale = MAX_CANVAS_EDGE / largestEdge;
+      width = Math.max(1, Math.round(width * scale));
+      height = Math.max(1, Math.round(height * scale));
+    }
+
+    let quality = 0.86;
+    let bestBlob: Blob | null = null;
+
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Canvas is not supported");
+      context.drawImage(image, 0, 0, width, height);
+
+      const blob = await canvasToBlob(canvas, quality);
+      bestBlob = blob;
+      if (blob.size <= TARGET_IMAGE_SIZE) break;
+
+      const scale = 0.82;
+      width = Math.max(1, Math.round(width * scale));
+      height = Math.max(1, Math.round(height * scale));
+      quality = Math.max(0.55, quality - 0.06);
+    }
+
+    if (!bestBlob || bestBlob.size > file.size) return file;
+
+    return new File([bestBlob], replaceExtension(file.name, "jpg"), {
+      type: "image/jpeg",
+      lastModified: Date.now(),
+    });
+  } finally {
+    URL.revokeObjectURL(imageUrl);
+  }
+}
+
+export async function compressImageFiles(files: FileList | File[]): Promise<File[]> {
+  const imageFiles = Array.from(files).filter((file) => file.type.startsWith("image/"));
+  return Promise.all(imageFiles.map((file) => compressImageFile(file)));
+}
+
+export async function compressImageFileToDataUrl(file: File): Promise<string> {
+  const compressed = await compressImageFile(file);
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") resolve(reader.result);
+      else reject(new Error(`Could not read ${file.name}`));
+    };
+    reader.onerror = () => reject(new Error(`Could not read ${file.name}`));
+    reader.readAsDataURL(compressed);
+  });
+}
+
+export async function readImageFiles(files: FileList | File[]): Promise<Omit<MediaAsset, "id" | "createdAt">[]> {
+  const imageFiles = Array.from(files).filter((file) => file.type.startsWith("image/"));
+  const compressedFiles = await compressImageFiles(imageFiles);
+
+  return Promise.all(
+    compressedFiles.map(
+      (file) =>
+        new Promise<Omit<MediaAsset, "id" | "createdAt">>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            if (typeof reader.result === "string") {
+              resolve({
+                name: file.name,
+                url: reader.result,
+                type: file.type,
+                size: file.size,
+              });
+            } else {
+              reject(new Error(`Could not read ${file.name}`));
+            }
+          };
+          reader.onerror = () => reject(new Error(`Could not read ${file.name}`));
+          reader.readAsDataURL(file);
+        })
+    )
+  );
+}
+
+export async function uploadImageFiles(files: FileList | File[]): Promise<Omit<MediaAsset, "id" | "createdAt">[]> {
+  const imageFiles = await compressImageFiles(files);
+  if (imageFiles.length === 0) return [];
+
+  const formData = new FormData();
+  imageFiles.forEach((file) => formData.append("files", file));
+
+  try {
+    const res = await fetch("/api/upload", { method: "POST", body: formData });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Upload failed");
+
+    return (data.urls as string[]).map((url, index) => ({
+      name: imageFiles[index]?.name ?? `image-${index + 1}`,
+      url,
+      type: imageFiles[index]?.type ?? "image/*",
+      size: imageFiles[index]?.size ?? 0,
+    }));
+  } catch {
+    return readImageFiles(imageFiles);
+  }
+}
