@@ -5,7 +5,8 @@ import { randomUUID } from "crypto";
 
 const UPLOAD_DIR = join(process.cwd(), "public", "uploads");
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB per file after client-side compression
-const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif", "image/avif"];
+const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/jfif", "image/png", "image/webp", "image/gif", "image/avif"];
+const ALLOWED_EXTENSIONS = ["avif", "gif", "ifif", "jfif", "jpg", "jpeg", "png", "webp"];
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,7 +23,10 @@ export async function POST(req: NextRequest) {
     const urls: string[] = [];
 
     for (const file of files) {
-      if (!ALLOWED_TYPES.includes(file.type)) {
+      const rawExt = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+      const ext = rawExt.replace(/[^a-z0-9]/g, "").slice(0, 5) || "jpg";
+
+      if (!ALLOWED_TYPES.includes(file.type) && !ALLOWED_EXTENSIONS.includes(ext)) {
         return NextResponse.json(
           { error: `File type not allowed: ${file.type}` },
           { status: 400 }
@@ -35,9 +39,7 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const rawExt = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
-      const ext = rawExt.replace(/[^a-z0-9]/g, "").slice(0, 5) || "jpg";
-      const filename = `${randomUUID()}.${ext}`;
+      const filename = `${randomUUID()}.${ext === "ifif" || ext === "jfif" ? "jpg" : ext}`;
       const buffer = Buffer.from(await file.arrayBuffer());
       await writeFile(join(UPLOAD_DIR, filename), buffer);
       urls.push(`${appUrl}/uploads/${filename}`);

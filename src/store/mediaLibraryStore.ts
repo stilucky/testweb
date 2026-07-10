@@ -42,6 +42,15 @@ export const useMediaLibraryStore = create<MediaLibraryStore>()(
 
 const TARGET_IMAGE_SIZE = 9.5 * 1024 * 1024;
 const MAX_CANVAS_EDGE = 2800;
+const IMAGE_EXTENSIONS = /\.(avif|gif|ifif|jfif|jpe?g|png|webp)$/i;
+
+function isImageFile(file: File) {
+  return file.type.startsWith("image/") || IMAGE_EXTENSIONS.test(file.name);
+}
+
+function shouldNormalizeToJpeg(file: File) {
+  return !file.type.startsWith("image/") || /\.(ifif|jfif)$/i.test(file.name);
+}
 
 function replaceExtension(name: string, extension: string) {
   const base = name.replace(/\.[^.]+$/, "") || "image";
@@ -62,7 +71,7 @@ async function canvasToBlob(canvas: HTMLCanvasElement, quality: number): Promise
 }
 
 async function compressImageFile(file: File): Promise<File> {
-  if (file.size <= TARGET_IMAGE_SIZE) return file;
+  if (file.size <= TARGET_IMAGE_SIZE && !shouldNormalizeToJpeg(file)) return file;
   if (file.type === "image/svg+xml") return file;
 
   const imageUrl = URL.createObjectURL(file);
@@ -114,7 +123,7 @@ async function compressImageFile(file: File): Promise<File> {
 }
 
 export async function compressImageFiles(files: FileList | File[]): Promise<File[]> {
-  const imageFiles = Array.from(files).filter((file) => file.type.startsWith("image/"));
+  const imageFiles = Array.from(files).filter(isImageFile);
   return Promise.all(imageFiles.map((file) => compressImageFile(file)));
 }
 
@@ -133,7 +142,7 @@ export async function compressImageFileToDataUrl(file: File): Promise<string> {
 }
 
 export async function readImageFiles(files: FileList | File[]): Promise<Omit<MediaAsset, "id" | "createdAt">[]> {
-  const imageFiles = Array.from(files).filter((file) => file.type.startsWith("image/"));
+  const imageFiles = Array.from(files).filter(isImageFile);
   const compressedFiles = await compressImageFiles(imageFiles);
 
   return Promise.all(
