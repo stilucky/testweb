@@ -3,8 +3,13 @@ import { updateTotalStock, updateVariantInventories, updateVariantInventory } fr
 
 type Params = { params: Promise<{ id: string }> };
 
-function isLocationScopeError(err: unknown) {
-  return String(err).includes("read_locations scope");
+function isInventoryPermissionError(err: unknown) {
+  const message = String(err);
+  return (
+    message.includes("read_locations scope") ||
+    message.includes("write_inventory scope") ||
+    message.includes("requires merchant approval")
+  );
 }
 
 /**
@@ -36,12 +41,12 @@ export async function PUT(req: NextRequest, { params }: Params) {
     return NextResponse.json({ success: true, stock: body.stock });
   } catch (err) {
     console.error("[PUT /api/shopify/products/[id]/inventory]", err);
-    if (isLocationScopeError(err)) {
+    if (isInventoryPermissionError(err)) {
       return NextResponse.json(
         {
           success: false,
           warning:
-            "Product saved, but inventory was not synced because Shopify requires read_locations scope or SHOPIFY_LOCATION_ID.",
+            "Product saved, but inventory was not synced because the Shopify app needs inventory permissions. Add write_inventory/read_locations scopes and reinstall or approve the app.",
         },
         { status: 202 }
       );
