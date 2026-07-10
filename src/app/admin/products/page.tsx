@@ -39,8 +39,9 @@ type FormData = {
   name: string; slug: string;
   shortDescription: string; shortDescriptionFR: string;
   description: string; descriptionFR: string;
+  detailsCare: string; detailsCareFR: string;
   returnPolicy: string; returnPolicyFR: string;
-  sizeChartNote: string; sizeChartNoteFR: string;
+  sizeChart: string; sizeChartFR: string;
   price: string; salePrice: string;
   priceCAD: string; salePriceCAD: string;
   category: string;
@@ -54,8 +55,9 @@ const emptyForm: FormData = {
   name: "", slug: "",
   shortDescription: "", shortDescriptionFR: "",
   description: "", descriptionFR: "",
+  detailsCare: "", detailsCareFR: "",
   returnPolicy: "", returnPolicyFR: "",
-  sizeChartNote: "", sizeChartNoteFR: "",
+  sizeChart: "", sizeChartFR: "",
   price: "", salePrice: "",
   priceCAD: "", salePriceCAD: "",
   category: "dresses",
@@ -77,6 +79,40 @@ function normalizeInventoryBySize(sizes: string[], values: Record<string, string
 
 function totalInventory(values: Record<string, number>) {
   return Object.values(values).reduce((sum, qty) => sum + qty, 0);
+}
+
+type SizeChartKey = "sizeChart" | "sizeChartFR";
+type SizeChartTable = { headers: string[]; rows: string[][] };
+
+const defaultSizeChartHeaders: Record<SizeChartKey, string[]> = {
+  sizeChart: ["Size", "Bust", "Waist", "Hip", "Length"],
+  sizeChartFR: ["Taille", "Buste", "Taille", "Hanches", "Longueur"],
+};
+
+function parseSizeChartTable(raw: string, fallbackHeaders: string[]): SizeChartTable {
+  const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const parseLine = (line: string) =>
+    line.split(line.includes("|") ? "|" : ",").map((cell) => cell.trim());
+
+  if (lines.length === 0) return { headers: fallbackHeaders, rows: [] };
+
+  const headers = parseLine(lines[0]);
+  const rows = lines.slice(1).map(parseLine);
+  return {
+    headers: headers.length > 0 ? headers : fallbackHeaders,
+    rows,
+  };
+}
+
+function serializeSizeChartTable(table: SizeChartTable): string {
+  const cleanHeaders = table.headers.map((cell) => cell.trim()).filter(Boolean);
+  const cleanRows = table.rows
+    .map((row) => row.map((cell) => cell.trim()))
+    .filter((row) => row.some(Boolean));
+
+  const headerLine = cleanHeaders.join(" | ");
+  if (cleanRows.length === 0) return headerLine;
+  return [headerLine, ...cleanRows.map((row) => row.join(" | "))].join("\n");
 }
 
 
@@ -196,10 +232,12 @@ export default function AdminProductsPage() {
       shortDescriptionFR: product.shortDescriptionFR ?? "",
       description: product.description,
       descriptionFR: product.descriptionFR ?? "",
+      detailsCare: product.detailsCare ?? "",
+      detailsCareFR: product.detailsCareFR ?? "",
       returnPolicy: product.returnPolicy ?? "",
       returnPolicyFR: product.returnPolicyFR ?? "",
-      sizeChartNote: product.sizeChartNote ?? "",
-      sizeChartNoteFR: product.sizeChartNoteFR ?? "",
+      sizeChart: product.sizeChart ?? "",
+      sizeChartFR: product.sizeChartFR ?? "",
       price: String(product.price),
       salePrice: product.salePrice ? String(product.salePrice) : "",
       category: product.category,
@@ -284,10 +322,12 @@ export default function AdminProductsPage() {
       shortDescriptionFR: form.shortDescriptionFR.trim() || undefined,
       description: form.description,
       descriptionFR: form.descriptionFR.trim() || undefined,
+      detailsCare: form.detailsCare.trim() || undefined,
+      detailsCareFR: form.detailsCareFR.trim() || undefined,
       returnPolicy: form.returnPolicy.trim() || undefined,
       returnPolicyFR: form.returnPolicyFR.trim() || undefined,
-      sizeChartNote: form.sizeChartNote.trim() || undefined,
-      sizeChartNoteFR: form.sizeChartNoteFR.trim() || undefined,
+      sizeChart: form.sizeChart.trim() || undefined,
+      sizeChartFR: form.sizeChartFR.trim() || undefined,
       price: Number(form.price),
       salePrice: form.salePrice ? Number(form.salePrice) : undefined,
       stock,
@@ -462,6 +502,46 @@ export default function AdminProductsPage() {
       inventoryBySize: { ...f.inventoryBySize, [size]: f.inventoryBySize[size] ?? "0" },
     };
   });
+
+  const sizeMeasurementValue = (size: string, measurementIndex: number) => {
+    const table = parseSizeChartTable(form.sizeChart, defaultSizeChartHeaders.sizeChart);
+    const row = table.rows.find((r) => r[0] === size);
+    return row?.[measurementIndex + 1] ?? "";
+  };
+
+  const updateSelectedSizeMeasurement = (size: string, measurementIndex: number, value: string) => {
+    setForm((f) => {
+      const updateChart = (key: SizeChartKey) => {
+        const table = parseSizeChartTable(f[key], defaultSizeChartHeaders[key]);
+        const headers = table.headers.length ? table.headers : defaultSizeChartHeaders[key];
+        const current = table.rows.find((row) => row[0] === size) ?? [size];
+        const nextRow = [...current];
+        while (nextRow.length < headers.length) nextRow.push("");
+        nextRow[0] = size;
+        nextRow[measurementIndex + 1] = value;
+
+        const rowsBySize = new Map(table.rows.map((row) => [row[0], row]));
+        rowsBySize.set(size, nextRow);
+
+        const rows = f.sizes.map((selectedSize) => {
+          const row = rowsBySize.get(selectedSize) ?? [selectedSize];
+          const normalized = [...row];
+          while (normalized.length < headers.length) normalized.push("");
+          normalized[0] = selectedSize;
+          return normalized;
+        });
+
+        return serializeSizeChartTable({ headers, rows });
+      };
+
+      return {
+        ...f,
+        sizeChart: updateChart("sizeChart"),
+        sizeChartFR: updateChart("sizeChartFR"),
+      };
+    });
+  };
+
   const toggleColor = (color: { name: string; hex: string }) => setForm((f) => {
     const exists = f.colors.some((c) => c.name === color.name);
     if (exists) {
@@ -828,6 +908,25 @@ export default function AdminProductsPage() {
                 </Field>
               </div>
 
+              {/* Details & care */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="h-px flex-1 bg-stone-100" />
+                  <span className="text-[10px] tracking-widest uppercase text-stone-400">Details &amp; Care</span>
+                  <div className="h-px flex-1 bg-stone-100" />
+                </div>
+                <Field label="Details & Care — EN">
+                  <textarea value={form.detailsCare} onChange={(e) => setForm((f) => ({ ...f, detailsCare: e.target.value }))}
+                    placeholder="Fabric, lining, fit notes, and care instructions..." rows={4}
+                    className="w-full px-4 py-3 border border-stone-200 text-sm focus:outline-none focus:border-stone-800 transition-colors resize-none" />
+                </Field>
+                <Field label="Details & Care — FR">
+                  <textarea value={form.detailsCareFR} onChange={(e) => setForm((f) => ({ ...f, detailsCareFR: e.target.value }))}
+                    placeholder="Matière, doublure, coupe et conseils d'entretien..." rows={4}
+                    className="w-full px-4 py-3 border border-stone-200 text-sm focus:outline-none focus:border-stone-800 transition-colors resize-none" />
+                </Field>
+              </div>
+
               {/* Product-specific policies */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2 mb-1">
@@ -843,24 +942,6 @@ export default function AdminProductsPage() {
                 <Field label="Return Policy — FR">
                   <textarea value={form.returnPolicyFR} onChange={(e) => setForm((f) => ({ ...f, returnPolicyFR: e.target.value }))}
                     placeholder="Laisser vide pour utiliser la politique de retour par défaut..." rows={3}
-                    className="w-full px-4 py-3 border border-stone-200 text-sm focus:outline-none focus:border-stone-800 transition-colors resize-none" />
-                </Field>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="h-px flex-1 bg-stone-100" />
-                  <span className="text-[10px] tracking-widest uppercase text-stone-400">Size Chart Notes</span>
-                  <div className="h-px flex-1 bg-stone-100" />
-                </div>
-                <Field label="Size Chart Note — EN">
-                  <textarea value={form.sizeChartNote} onChange={(e) => setForm((f) => ({ ...f, sizeChartNote: e.target.value }))}
-                    placeholder="Fit notes for this product, e.g. size up if between sizes..." rows={3}
-                    className="w-full px-4 py-3 border border-stone-200 text-sm focus:outline-none focus:border-stone-800 transition-colors resize-none" />
-                </Field>
-                <Field label="Size Chart Note — FR">
-                  <textarea value={form.sizeChartNoteFR} onChange={(e) => setForm((f) => ({ ...f, sizeChartNoteFR: e.target.value }))}
-                    placeholder="Notes de coupe pour ce produit..." rows={3}
                     className="w-full px-4 py-3 border border-stone-200 text-sm focus:outline-none focus:border-stone-800 transition-colors resize-none" />
                 </Field>
               </div>
@@ -953,31 +1034,58 @@ export default function AdminProductsPage() {
                     ))}
                   </div>
 
-                  {form.sizes.length > 0 && (
-                    <div className="border border-stone-100 divide-y divide-stone-100">
-                      <div className="grid grid-cols-[80px_1fr] gap-3 px-3 py-2 bg-stone-50">
-                        <span className="text-[10px] tracking-widest uppercase text-stone-400">Size</span>
-                        <span className="text-[10px] tracking-widest uppercase text-stone-400">Quantity</span>
+                  {form.sizes.length === 0 ? (
+                    <p className="text-[11px] text-stone-400">
+                      Select one or more sizes to enter quantity for each size.
+                    </p>
+                  ) : (
+                    <div className="border border-stone-200 divide-y divide-stone-100">
+                      <div className="flex items-center justify-between px-3 py-2 bg-stone-50">
+                        <span className="text-[10px] tracking-widest uppercase text-stone-400">Inventory & size measurements</span>
+                        <span className="text-[10px] text-stone-400">{form.sizes.length} selected</span>
                       </div>
-                      {form.sizes.map((size) => (
-                        <div key={size} className="grid grid-cols-[80px_1fr] gap-3 items-center px-3 py-2">
-                          <span className="text-xs font-medium text-stone-700">{size}</span>
-                          <input
-                            type="number"
-                            min="0"
-                            step="1"
-                            value={form.inventoryBySize[size] ?? "0"}
-                            onChange={(e) => setForm((f) => ({
-                              ...f,
-                              inventoryBySize: { ...f.inventoryBySize, [size]: e.target.value },
-                            }))}
-                            className={cn(
-                              "w-full px-3 py-2 border text-sm focus:outline-none transition-colors",
-                              errors.stock ? "border-red-400 focus:border-red-500" : "border-stone-200 focus:border-stone-800"
-                            )}
-                          />
+                      <div className="overflow-x-auto">
+                        <div className="min-w-[720px]">
+                          <div className="grid grid-cols-[70px_100px_repeat(4,minmax(110px,1fr))] gap-3 px-3 py-2 bg-white">
+                            <span className="text-[10px] tracking-widest uppercase text-stone-400">Size</span>
+                            <span className="text-[10px] tracking-widest uppercase text-stone-400">Quantity</span>
+                            {defaultSizeChartHeaders.sizeChart.slice(1).map((header) => (
+                              <span key={header} className="text-[10px] tracking-widest uppercase text-stone-400">{header}</span>
+                            ))}
+                          </div>
+                          {form.sizes.map((size) => (
+                            <div key={size} className="grid grid-cols-[70px_100px_repeat(4,minmax(110px,1fr))] gap-3 items-center px-3 py-2">
+                              <span className="text-xs font-medium text-stone-700">{size}</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={form.inventoryBySize[size] ?? "0"}
+                                placeholder={`Qty for ${size}`}
+                                inputMode="numeric"
+                                onChange={(e) => setForm((f) => ({
+                                  ...f,
+                                  inventoryBySize: { ...f.inventoryBySize, [size]: e.target.value },
+                                }))}
+                                className={cn(
+                                  "w-full px-3 py-2 border text-sm focus:outline-none transition-colors",
+                                  errors.stock ? "border-red-400 focus:border-red-500" : "border-stone-200 focus:border-stone-800"
+                                )}
+                              />
+                              {defaultSizeChartHeaders.sizeChart.slice(1).map((header, measurementIndex) => (
+                                <input
+                                  key={`${size}-${header}`}
+                                  type="text"
+                                  value={sizeMeasurementValue(size, measurementIndex)}
+                                  placeholder={`${header} (in)`}
+                                  onChange={(e) => updateSelectedSizeMeasurement(size, measurementIndex, e.target.value)}
+                                  className="w-full px-3 py-2 border border-stone-200 text-sm focus:outline-none focus:border-stone-800 transition-colors"
+                                />
+                              ))}
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      </div>
                       <div className="flex items-center justify-between px-3 py-2 bg-stone-50">
                         <span className="text-[10px] tracking-widest uppercase text-stone-400">Total Stock</span>
                         <span className="text-xs font-medium text-stone-700">

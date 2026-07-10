@@ -60,9 +60,12 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
   const returnPolicy = (language === "FR" && product.returnPolicyFR)
     ? product.returnPolicyFR
     : product.returnPolicy;
-  const sizeChartNote = (language === "FR" && product.sizeChartNoteFR)
-    ? product.sizeChartNoteFR
-    : product.sizeChartNote;
+  const detailsCare = (language === "FR" && product.detailsCareFR)
+    ? product.detailsCareFR
+    : product.detailsCare;
+  const sizeChart = (language === "FR" && product.sizeChartFR)
+    ? product.sizeChartFR
+    : product.sizeChart;
 
   const related = relatedProducts;
 
@@ -84,9 +87,9 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
     {
       id: "details",
       label: t("detailsCare"),
-      content: language === "FR"
+      content: detailsCare || (language === "FR"
         ? "Nettoyage à sec recommandé. Conserver dans un endroit frais et sec. Les matières peuvent varier selon la couleur."
-        : "Dry clean recommended. Store in a cool, dry place. Material may vary by color.",
+        : "Dry clean recommended. Store in a cool, dry place. Material may vary by color."),
     },
     {
       id: "returns",
@@ -380,7 +383,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
         open={sizeChartOpen}
         onClose={() => setSizeChartOpen(false)}
         gender={product.gender}
-        customNote={sizeChartNote}
+        customChart={sizeChart}
       />
 
       {/* Related products */}

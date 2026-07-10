@@ -12,12 +12,14 @@ export interface Product {
   colors: Color[];
   description: string;
   descriptionFR?: string;
+  detailsCare?: string;
+  detailsCareFR?: string;
   returnPolicy?: string;
   returnPolicyFR?: string;
   shortDescription: string;
   shortDescriptionFR?: string;
-  sizeChartNote?: string;
-  sizeChartNoteFR?: string;
+  sizeChart?: string;
+  sizeChartFR?: string;
   featured: boolean;
   isNew: boolean;
   isBestSeller: boolean;

@@ -35,6 +35,12 @@ export default function Header() {
   const activeCollections  = collections.filter((c) => c.status === "active");
   const featuredCollections = activeCollections.filter((c) => c.featured);
   const otherCollections    = activeCollections.filter((c) => !c.featured);
+  const aboutLinks = [
+    { label: "Origin",   href: "/about/our-story" },
+    { label: "Universe", href: "/about/our-world" },
+    { label: "Angels",   href: "/about/lunelle-girl" },
+    { label: "Mantra",   href: "/about/our-mantra" },
+  ];
 
   /* transparent only on homepage when not scrolled */
   const isHome        = pathname === "/";
@@ -93,12 +99,7 @@ export default function Header() {
     {
       label: t("about"),
       href: "/about",
-      children: [
-        { label: "Our Story",    href: "/about/our-story" },
-        { label: "Our World",    href: "/about/our-world" },
-        { label: "Lunelle Girl", href: "/about/lunelle-girl" },
-        { label: "Our Mantra",   href: "/about/our-mantra" },
-      ],
+      children: aboutLinks,
     },
   ];
 
@@ -188,7 +189,12 @@ export default function Header() {
                               ) : group.title ? (
                                 <Link
                                   href="/products"
-                                  className="block px-5 pt-2 pb-1 text-[10px] tracking-[0.2em] uppercase text-stone-400 hover:text-stone-700 transition-colors"
+                                  className={cn(
+                                    "block px-5 pt-2 pb-1 text-[10px] tracking-[0.2em] uppercase transition-colors",
+                                    group.title === t("collections")
+                                      ? "font-semibold text-stone-700 hover:text-stone-950"
+                                      : "text-stone-400 hover:text-stone-700"
+                                  )}
                                 >
                                   {group.title}
                                 </Link>
@@ -200,7 +206,12 @@ export default function Header() {
                                     <li key={child.label}>
                                       <Link
                                         href={child.href}
-                                        className="block px-3 py-2.5 text-[15px] font-light text-stone-700 hover:text-black hover:bg-stone-50 rounded-xl transition-all duration-150"
+                                        className={cn(
+                                          "block px-3 py-2.5 text-[15px] hover:text-black hover:bg-stone-50 rounded-xl transition-all duration-150",
+                                          child.href.includes("collection=")
+                                            ? "font-medium text-stone-900"
+                                            : "font-light text-stone-700"
+                                        )}
                                       >
                                         {child.label}
                                       </Link>
@@ -431,7 +442,12 @@ export default function Header() {
                 {item.groups?.map((group) =>
                   group.items.map((child) => (
                     <Link key={child.label} href={child.href}
-                      className="block px-10 py-3 text-sm font-light text-stone-400 border-b border-stone-50 bg-stone-50/50"
+                      className={cn(
+                        "block px-10 py-3 text-sm border-b border-stone-50 bg-stone-50/50",
+                        child.href.includes("collection=")
+                          ? "font-semibold text-stone-800"
+                          : "font-light text-stone-400"
+                      )}
                       onClick={() => setMobileOpen(false)}>
                       {group.title ? `${group.title} — ` : ""}{child.label}
                     </Link>

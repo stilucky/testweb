@@ -39,28 +39,28 @@ interface AboutStore {
 const defaultSections: AboutSection[] = [
   {
     key: "our-story",
-    label: "Our Story",
+    label: "Origin",
     subtitle: "Born from a love of quiet luxury",
     heroImage: "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=1600&q=90",
     heroImagePosition: "50% 30%",
   },
   {
     key: "our-world",
-    label: "Our World",
+    label: "Universe",
     subtitle: "A universe of refined detail",
     heroImage: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=1600&q=90",
     heroImagePosition: "50% 50%",
   },
   {
     key: "lunelle-girl",
-    label: "Lunelle Girl",
+    label: "Angels",
     subtitle: "She knows exactly who she is",
     heroImage: "https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=1600&q=90",
     heroImagePosition: "50% 20%",
   },
   {
     key: "our-mantra",
-    label: "Our Mantra",
+    label: "Mantra",
     subtitle: "Dress the life you imagine",
     heroImage: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1600&q=90",
     heroImagePosition: "50% 50%",

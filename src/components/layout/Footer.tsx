@@ -34,11 +34,10 @@ export default function Footer() {
   const t = useTranslations(language);
 
   const aboutLinks = [
-    { label: t("ourStory"),       href: "/about" },
-    { label: t("craftsmanship"),  href: "/about" },
-    { label: t("sustainability"), href: "/about" },
-    { label: t("press"),          href: "/about" },
-    { label: t("contact"),        href: "/contact" },
+    { label: "Origin",   href: "/about/our-story" },
+    { label: "Universe", href: "/about/our-world" },
+    { label: "Angels",   href: "/about/lunelle-girl" },
+    { label: "Mantra",   href: "/about/our-mantra" },
   ];
 
   const careLinks = [

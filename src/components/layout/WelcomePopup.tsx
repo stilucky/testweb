@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 import { usePathname } from "next/navigation";
+
+const HIDE_DELAY_MS = 3000;
+const EXIT_DURATION_MS = 400;
 
 export default function WelcomePopup() {
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -18,45 +21,7 @@ export default function WelcomePopup() {
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unmountTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    // Only show on homepage, desktop, and when not logged in
-    if (currentUser || pathname !== "/") return;
-
-    // Completely off on mobile / tablet small
-    if (window.innerWidth < 768) return;
-
-    // Show popup immediately
-    setMounted(true);
-
-    requestAnimationFrame(() => {
-      setVisible(true);
-    });
-
-    // Auto close popup after 2 seconds
-    hideTimerRef.current = setTimeout(() => {
-      setVisible(false);
-
-      unmountTimerRef.current = setTimeout(() => {
-        setMounted(false);
-      }, 400);
-    }, 3000);
-
-    return () => {
-      if (hideTimerRef.current) {
-        clearTimeout(hideTimerRef.current);
-        hideTimerRef.current = null;
-      }
-
-      if (unmountTimerRef.current) {
-        clearTimeout(unmountTimerRef.current);
-        unmountTimerRef.current = null;
-      }
-    };
-  }, [currentUser, pathname]);
-
-  const close = () => {
-    setVisible(false);
-
+  const clearTimers = useCallback(() => {
     if (hideTimerRef.current) {
       clearTimeout(hideTimerRef.current);
       hideTimerRef.current = null;
@@ -66,20 +31,62 @@ export default function WelcomePopup() {
       clearTimeout(unmountTimerRef.current);
       unmountTimerRef.current = null;
     }
+  }, []);
+
+  useEffect(() => {
+    const canShow =
+      !currentUser &&
+      pathname === "/" &&
+      typeof window !== "undefined" &&
+      window.innerWidth >= 768;
+
+    if (!canShow) {
+      clearTimers();
+      return;
+    }
+
+    let visibleFrame: number | null = null;
+    const showFrame = requestAnimationFrame(() => {
+      setMounted(true);
+
+      visibleFrame = requestAnimationFrame(() => {
+        setVisible(true);
+      });
+    });
+
+    hideTimerRef.current = setTimeout(() => {
+      setVisible(false);
+
+      unmountTimerRef.current = setTimeout(() => {
+        setMounted(false);
+      }, EXIT_DURATION_MS);
+    }, HIDE_DELAY_MS);
+
+    return () => {
+      cancelAnimationFrame(showFrame);
+      if (visibleFrame !== null) {
+        cancelAnimationFrame(visibleFrame);
+      }
+      clearTimers();
+    };
+  }, [clearTimers, currentUser, pathname]);
+
+  const close = () => {
+    setVisible(false);
+    clearTimers();
 
     unmountTimerRef.current = setTimeout(() => {
       setMounted(false);
-    }, 400);
+    }, EXIT_DURATION_MS);
   };
 
-  if (!mounted) return null;
+  if (!mounted || currentUser || pathname !== "/") return null;
 
   return (
     <>
-      {/* Backdrop — use button so iOS touch fires correctly */}
-      <button
-        onClick={close}
-        aria-label="Close"
+      {/* Backdrop */}
+      <div
+        aria-hidden="true"
         className={cn(
           "fixed inset-0 w-full h-full bg-black/60 z-[200] backdrop-blur-sm transition-opacity duration-400 cursor-default",
           visible ? "opacity-100" : "opacity-0 pointer-events-none"
@@ -88,6 +95,8 @@ export default function WelcomePopup() {
 
       {/* Panel */}
       <div
+        onMouseDown={close}
+        onTouchStart={close}
         className={cn(
           "fixed inset-0 z-[201] flex items-center justify-center p-4 md:p-8",
           "transition-all duration-500",
@@ -96,7 +105,11 @@ export default function WelcomePopup() {
             : "opacity-0 scale-95 pointer-events-none"
         )}
       >
-        <div className="relative bg-white w-full max-w-[820px] overflow-hidden shadow-2xl">
+        <div
+          onMouseDown={(event) => event.stopPropagation()}
+          onTouchStart={(event) => event.stopPropagation()}
+          className="relative bg-white w-full max-w-[820px] overflow-hidden shadow-2xl"
+        >
           {/* Close */}
           <button
             onClick={close}
@@ -172,7 +185,7 @@ export default function WelcomePopup() {
                   onClick={close}
                   className="flex items-center justify-center py-3.5 bg-stone-900 text-white text-[10px] tracking-[0.2em] uppercase hover:bg-stone-700 transition-colors"
                 >
-                  Create Account — It's Free
+                  Create Account — It&apos;s Free
                 </Link>
 
                 <Link

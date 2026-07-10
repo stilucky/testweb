@@ -102,10 +102,12 @@ const METAFIELD_KEYS = {
   shortDescription: "short_description",
   shortDescriptionFR: "short_description_fr",
   descriptionFR: "description_fr",
+  detailsCare: "details_care",
+  detailsCareFR: "details_care_fr",
   returnPolicy: "return_policy",
   returnPolicyFR: "return_policy_fr",
-  sizeChartNote: "size_chart_note",
-  sizeChartNoteFR: "size_chart_note_fr",
+  sizeChart: "size_chart",
+  sizeChartFR: "size_chart_fr",
 } as const;
 
 function metafieldValue(sp: ShopifyProduct, key: string): string | undefined {
@@ -158,10 +160,12 @@ export function shopifyToProduct(sp: ShopifyProduct): Product {
   const shortDescription = metafieldValue(sp, METAFIELD_KEYS.shortDescription);
   const shortDescriptionFR = metafieldValue(sp, METAFIELD_KEYS.shortDescriptionFR);
   const descriptionFR = metafieldValue(sp, METAFIELD_KEYS.descriptionFR);
+  const detailsCare = metafieldValue(sp, METAFIELD_KEYS.detailsCare);
+  const detailsCareFR = metafieldValue(sp, METAFIELD_KEYS.detailsCareFR);
   const returnPolicy = metafieldValue(sp, METAFIELD_KEYS.returnPolicy);
   const returnPolicyFR = metafieldValue(sp, METAFIELD_KEYS.returnPolicyFR);
-  const sizeChartNote = metafieldValue(sp, METAFIELD_KEYS.sizeChartNote);
-  const sizeChartNoteFR = metafieldValue(sp, METAFIELD_KEYS.sizeChartNoteFR);
+  const sizeChart = metafieldValue(sp, METAFIELD_KEYS.sizeChart);
+  const sizeChartFR = metafieldValue(sp, METAFIELD_KEYS.sizeChartFR);
 
   // Parse colors from tags: "color:Black:000000"
   const colors: Color[] = sp.tags
@@ -199,12 +203,14 @@ export function shopifyToProduct(sp: ShopifyProduct): Product {
     slug: sp.handle,
     description: sp.body_html ? stripHtml(sp.body_html) : "",
     descriptionFR,
+    detailsCare,
+    detailsCareFR,
     returnPolicy,
     returnPolicyFR,
     shortDescription: shortDescription ?? (sp.body_html ? stripHtml(sp.body_html).slice(0, 120) : ""),
     shortDescriptionFR,
-    sizeChartNote,
-    sizeChartNoteFR,
+    sizeChart,
+    sizeChartFR,
     price,
     salePrice,
     images: sp.images.map((i) => i.src),
@@ -342,10 +348,12 @@ async function syncProductMetafields(productId: string, p: Partial<Product>) {
     upsertProductMetafield(productId, existing, METAFIELD_KEYS.shortDescription, p.shortDescription, "single_line_text_field"),
     upsertProductMetafield(productId, existing, METAFIELD_KEYS.shortDescriptionFR, p.shortDescriptionFR, "single_line_text_field"),
     upsertProductMetafield(productId, existing, METAFIELD_KEYS.descriptionFR, p.descriptionFR, "multi_line_text_field"),
+    upsertProductMetafield(productId, existing, METAFIELD_KEYS.detailsCare, p.detailsCare, "multi_line_text_field"),
+    upsertProductMetafield(productId, existing, METAFIELD_KEYS.detailsCareFR, p.detailsCareFR, "multi_line_text_field"),
     upsertProductMetafield(productId, existing, METAFIELD_KEYS.returnPolicy, p.returnPolicy, "multi_line_text_field"),
     upsertProductMetafield(productId, existing, METAFIELD_KEYS.returnPolicyFR, p.returnPolicyFR, "multi_line_text_field"),
-    upsertProductMetafield(productId, existing, METAFIELD_KEYS.sizeChartNote, p.sizeChartNote, "multi_line_text_field"),
-    upsertProductMetafield(productId, existing, METAFIELD_KEYS.sizeChartNoteFR, p.sizeChartNoteFR, "multi_line_text_field"),
+    upsertProductMetafield(productId, existing, METAFIELD_KEYS.sizeChart, p.sizeChart, "multi_line_text_field"),
+    upsertProductMetafield(productId, existing, METAFIELD_KEYS.sizeChartFR, p.sizeChartFR, "multi_line_text_field"),
   ]);
 }
 

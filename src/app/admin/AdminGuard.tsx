@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import { ShieldAlert } from "lucide-react";
@@ -9,14 +9,23 @@ import Link from "next/link";
 export default function AdminGuard({ children }: { children: React.ReactNode }) {
   const { currentUser } = useAuthStore();
   const router = useRouter();
+  const [hydrated, setHydrated] = useState(() => useAuthStore.persist.hasHydrated());
 
   useEffect(() => {
-    if (!currentUser) {
+    const unsub = useAuthStore.persist.onFinishHydration(() => {
+      setHydrated(true);
+    });
+
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    if (hydrated && !currentUser) {
       router.push("/auth");
     }
-  }, [currentUser, router]);
+  }, [currentUser, hydrated, router]);
 
-  if (!currentUser) {
+  if (!hydrated || !currentUser) {
     return null;
   }
 

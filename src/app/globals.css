@@ -19,6 +19,44 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+.admin-shell {
+  -webkit-overflow-scrolling: touch;
+  isolation: isolate;
+}
+
+.admin-shell input,
+.admin-shell textarea,
+.admin-shell select {
+  -webkit-user-select: text;
+  user-select: text;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.admin-shell textarea,
+.admin-shell input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="file"]) {
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 0;
+}
+
+.admin-shell .fixed.inset-0 > button[aria-label="Close"] {
+  z-index: 0;
+}
+
+.admin-shell .fixed.inset-0 > button[aria-label="Close"] + div {
+  position: relative;
+  z-index: 1;
+}
+
+@media (min-width: 768px) {
+  .admin-shell input,
+  .admin-shell textarea,
+  .admin-shell select {
+    font-size: 0.875rem;
+  }
+}
+
 /* ── Lunelle Type Scale ───────────────────────────────────
    Logo:           Cormorant · 19–52px · wt 400 · caps · ls 0.22em
    H1 Hero:        Cormorant · 40px   · wt 300 · ls 0.01em

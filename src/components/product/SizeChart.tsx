@@ -44,12 +44,34 @@ interface Props {
   open: boolean;
   onClose: () => void;
   gender?: "women" | "men" | "unisex";
-  customNote?: string;
+  customChart?: string;
 }
 
-export default function SizeChart({ open, onClose, gender = "women", customNote }: Props) {
+function parseCustomChart(raw?: string) {
+  const lines = raw?.split(/\r?\n/).map((line) => line.trim()).filter(Boolean) ?? [];
+  if (lines.length < 2) return null;
+
+  const parseLine = (line: string) =>
+    line.split(line.includes("|") ? "|" : ",").map((cell) => cell.trim()).filter(Boolean);
+  const headers = parseLine(lines[0]);
+  const rows = lines.slice(1).map(parseLine).filter((row) => row.length > 0);
+
+  if (headers.length < 2 || rows.length === 0) return null;
+  return { headers, rows };
+}
+
+function formatCustomMeasurement(value: string | undefined, cellIndex: number) {
+  const clean = value?.trim();
+  if (!clean) return "-";
+  if (cellIndex === 0) return clean;
+  if (/^\d+(\.\d+)?$/.test(clean)) return `${clean} in`;
+  return clean;
+}
+
+export default function SizeChart({ open, onClose, gender = "women", customChart }: Props) {
   const [unit, setUnit] = useState<"in" | "cm">("in");
   const [tab, setTab] = useState<"chart" | "how">("chart");
+  const parsedCustomChart = parseCustomChart(customChart);
 
   return (
     <>
@@ -110,7 +132,7 @@ export default function SizeChart({ open, onClose, gender = "women", customNote 
                 <p className="text-xs text-stone-500">
                   {gender === "men" ? "Men" : "Women"} · Regular Fit
                 </p>
-                <div className="flex border border-stone-200 text-xs">
+                {!parsedCustomChart && <div className="flex border border-stone-200 text-xs">
                   {(["in", "cm"] as const).map((u) => (
                     <button
                       key={u}
@@ -123,11 +145,44 @@ export default function SizeChart({ open, onClose, gender = "women", customNote 
                       {u}
                     </button>
                   ))}
-                </div>
+                </div>}
               </div>
 
+              {parsedCustomChart && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-stone-200">
+                        {parsedCustomChart.headers.map((header) => (
+                          <th key={header} className="text-left text-[10px] tracking-widests uppercase text-stone-400 font-normal pb-3 pr-4 whitespace-nowrap">
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-50">
+                      {parsedCustomChart.rows.map((row, rowIndex) => (
+                        <tr key={`${row[0] ?? "row"}-${rowIndex}`} className="hover:bg-stone-50/50 transition-colors">
+                          {parsedCustomChart.headers.map((header, cellIndex) => (
+                            <td
+                              key={`${header}-${cellIndex}`}
+                              className={cn(
+                                "py-3 pr-4 text-xs whitespace-nowrap",
+                                cellIndex === 0 ? "font-medium text-stone-900" : "text-stone-700"
+                              )}
+                            >
+                              {formatCustomMeasurement(row[cellIndex], cellIndex)}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
               {/* Table — Women */}
-              {gender !== "men" && (
+              {!parsedCustomChart && gender !== "men" && (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -162,7 +217,7 @@ export default function SizeChart({ open, onClose, gender = "women", customNote 
               )}
 
               {/* Table — Men */}
-              {gender === "men" && (
+              {!parsedCustomChart && gender === "men" && (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -199,13 +254,6 @@ export default function SizeChart({ open, onClose, gender = "women", customNote 
               <p className="text-[11px] text-stone-400 mt-6 leading-relaxed">
                 Measurements are body measurements, not garment measurements. For the best fit, measure yourself and compare to the chart above.
               </p>
-
-              {customNote && (
-                <div className="mt-6 border border-stone-200 bg-stone-50 p-4">
-                  <p className="text-xs tracking-widests uppercase text-stone-400 mb-2">Product Fit Note</p>
-                  <p className="text-xs text-stone-600 leading-relaxed whitespace-pre-line">{customNote}</p>
-                </div>
-              )}
 
               {/* Fit note */}
               <div className="mt-6 border border-stone-100 p-4 space-y-2">
