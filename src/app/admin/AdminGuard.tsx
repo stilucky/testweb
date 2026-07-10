@@ -9,14 +9,39 @@ import Link from "next/link";
 export default function AdminGuard({ children }: { children: React.ReactNode }) {
   const { currentUser } = useAuthStore();
   const router = useRouter();
-  const [hydrated, setHydrated] = useState(() => useAuthStore.persist.hasHydrated());
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    const unsub = useAuthStore.persist.onFinishHydration(() => {
-      setHydrated(true);
-    });
+    const persist = useAuthStore.persist;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
-    return unsub;
+    const markHydrated = () => {
+      if (!cancelled) setHydrated(true);
+    };
+
+    if (!persist) {
+      timer = setTimeout(markHydrated, 0);
+      return () => {
+        cancelled = true;
+        if (timer) clearTimeout(timer);
+      };
+    }
+
+    if (persist.hasHydrated()) {
+      timer = setTimeout(markHydrated, 0);
+      return () => {
+        cancelled = true;
+        if (timer) clearTimeout(timer);
+      };
+    }
+
+    const unsub = persist.onFinishHydration(markHydrated);
+
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, []);
 
   useEffect(() => {
