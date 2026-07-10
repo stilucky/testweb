@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Image as ImageIcon, Trash2, Upload } from "lucide-react";
-import { uploadImageFiles, useMediaLibraryStore } from "@/store/mediaLibraryStore";
+import { normalizeMediaUrl, uploadImageFiles, useMediaLibraryStore } from "@/store/mediaLibraryStore";
 
 function formatSize(size: number) {
   if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`;
@@ -50,7 +50,7 @@ export default function AdminMediaPage() {
       <input
         ref={fileRef}
         type="file"
-        accept="image/*"
+        accept="image/*,.jfif,.ifif"
         multiple
         className="hidden"
         onChange={(e) => handleUpload(e.target.files)}
@@ -67,7 +67,7 @@ export default function AdminMediaPage() {
       >
         <Upload size={22} />
         <p className="text-xs uppercase tracking-widests">Click or drag images here</p>
-        <p className="text-[11px] text-stone-400">JPG, PNG, WEBP, GIF</p>
+        <p className="text-[11px] text-stone-400">JPG, PNG, WEBP, GIF, JFIF</p>
       </div>
 
       {assets.length === 0 ? (
@@ -80,7 +80,7 @@ export default function AdminMediaPage() {
           {assets.map((asset) => (
             <div key={asset.id} className="group border border-stone-100 bg-white">
               <div className="aspect-square overflow-hidden bg-stone-100">
-                <img src={asset.url} alt={asset.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                <img src={normalizeMediaUrl(asset.url)} alt={asset.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
               </div>
               <div className="p-3">
                 <p className="truncate text-xs text-stone-800">{asset.name}</p>

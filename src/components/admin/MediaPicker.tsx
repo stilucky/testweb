@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { Image as ImageIcon, Trash2, Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { uploadImageFiles, useMediaLibraryStore, type MediaAsset } from "@/store/mediaLibraryStore";
+import { normalizeMediaUrl, uploadImageFiles, useMediaLibraryStore, type MediaAsset } from "@/store/mediaLibraryStore";
 
 type MediaPickerProps = {
   open: boolean;
@@ -53,7 +53,7 @@ export default function MediaPicker({ open, title = "Media Library", onClose, on
           <input
             ref={fileRef}
             type="file"
-            accept="image/*"
+            accept="image/*,.jfif,.ifif"
             multiple
             className="hidden"
             onChange={(e) => handleUpload(e.target.files)}
@@ -88,7 +88,7 @@ export default function MediaPicker({ open, title = "Media Library", onClose, on
                     className="block w-full text-left"
                   >
                     <span className="block aspect-square overflow-hidden bg-stone-100">
-                      <img src={asset.url} alt={asset.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                      <img src={normalizeMediaUrl(asset.url)} alt={asset.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
                     </span>
                     <span className="block min-w-0 px-3 py-2">
                       <span className="block truncate text-xs text-stone-700">{asset.name}</span>

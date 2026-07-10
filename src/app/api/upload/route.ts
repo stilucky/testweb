@@ -19,7 +19,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No files provided" }, { status: 400 });
     }
 
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
     const urls: string[] = [];
 
     for (const file of files) {
@@ -42,7 +41,7 @@ export async function POST(req: NextRequest) {
       const filename = `${randomUUID()}.${ext === "ifif" || ext === "jfif" ? "jpg" : ext}`;
       const buffer = Buffer.from(await file.arrayBuffer());
       await writeFile(join(UPLOAD_DIR, filename), buffer);
-      urls.push(`${appUrl}/uploads/${filename}`);
+      urls.push(`/uploads/${filename}`);
     }
 
     return NextResponse.json({ urls });

@@ -16,6 +16,21 @@ interface MediaLibraryStore {
   removeAsset: (id: string) => void;
 }
 
+export function normalizeMediaUrl(url: string) {
+  if (!url) return url;
+
+  try {
+    const parsed = new URL(url);
+    if (parsed.pathname.startsWith("/uploads/")) {
+      return parsed.pathname;
+    }
+  } catch {
+    // Already relative or data URL.
+  }
+
+  return url;
+}
+
 export const useMediaLibraryStore = create<MediaLibraryStore>()(
   persist(
     (set) => ({
@@ -25,10 +40,11 @@ export const useMediaLibraryStore = create<MediaLibraryStore>()(
           assets: [
             ...assets.map((asset) => ({
               ...asset,
+              url: normalizeMediaUrl(asset.url),
               id: `media-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
               createdAt: new Date().toISOString(),
             })),
-            ...state.assets,
+            ...state.assets.map((asset) => ({ ...asset, url: normalizeMediaUrl(asset.url) })),
           ],
         })),
       removeAsset: (id) =>
@@ -36,7 +52,20 @@ export const useMediaLibraryStore = create<MediaLibraryStore>()(
           assets: state.assets.filter((asset) => asset.id !== id),
         })),
     }),
-    { name: "lunelle-media-library" }
+    {
+      name: "lunelle-media-library",
+      version: 2,
+      migrate: (persisted: unknown) => {
+        const state = persisted as Partial<MediaLibraryStore>;
+        return {
+          ...state,
+          assets: (state.assets ?? []).map((asset) => ({
+            ...asset,
+            url: normalizeMediaUrl(asset.url),
+          })),
+        };
+      },
+    }
   )
 );
 
@@ -111,7 +140,8 @@ async function compressImageFile(file: File): Promise<File> {
       quality = Math.max(0.55, quality - 0.06);
     }
 
-    if (!bestBlob || bestBlob.size > file.size) return file;
+    if (!bestBlob) return file;
+    if (!shouldNormalizeToJpeg(file) && bestBlob.size > file.size) return file;
 
     return new File([bestBlob], replaceExtension(file.name, "jpg"), {
       type: "image/jpeg",
@@ -183,7 +213,7 @@ export async function uploadImageFiles(files: FileList | File[]): Promise<Omit<M
 
     return (data.urls as string[]).map((url, index) => ({
       name: imageFiles[index]?.name ?? `image-${index + 1}`,
-      url,
+      url: normalizeMediaUrl(url),
       type: imageFiles[index]?.type ?? "image/*",
       size: imageFiles[index]?.size ?? 0,
     }));
