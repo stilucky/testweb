@@ -4,18 +4,22 @@ import { useState } from "react";
 import { Image as ImageIcon, Upload } from "lucide-react";
 import MediaPicker from "@/components/admin/MediaPicker";
 import { useHomeFeatureStore, type HomeFeature, type HomeFeatureKey } from "@/store/homeFeatureStore";
-import { uploadImageFiles } from "@/store/mediaLibraryStore";
+import { uploadImageFiles, useMediaLibraryStore } from "@/store/mediaLibraryStore";
 
 export default function AdminHomepagePage() {
   const [mediaTarget, setMediaTarget] = useState<HomeFeatureKey | null>(null);
   const homeFeatures = useHomeFeatureStore((state) => state.features);
   const updateHomeFeature = useHomeFeatureStore((state) => state.updateFeature);
+  const addAssets = useMediaLibraryStore((state) => state.addAssets);
 
   const handleHomeFeatureImageUpload = async (key: HomeFeatureKey, file: File | null) => {
     if (!file) return;
 
     const [asset] = await uploadImageFiles([file]);
-    if (asset) updateHomeFeature(key, { image: asset.url });
+    if (asset) {
+      addAssets([asset]);
+      updateHomeFeature(key, { image: asset.url });
+    }
   };
 
   const inputCls = "w-full px-3 md:px-4 py-2.5 md:py-3 border border-stone-200 text-sm focus:outline-none focus:border-stone-800 transition-colors";
@@ -93,7 +97,7 @@ export default function AdminHomepagePage() {
                     <input
                       id={`home-feature-image-${feature.key}`}
                       type="file"
-                      accept="image/*"
+                      accept="image/*,.jfif,.ifif"
                       className="sr-only"
                       onChange={(e) => handleHomeFeatureImageUpload(feature.key, e.target.files?.[0] ?? null)}
                     />

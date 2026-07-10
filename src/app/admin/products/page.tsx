@@ -15,7 +15,7 @@ import { useSubscriberStore } from "@/store/subscriberStore";
 import { ToastContainer, useToast } from "@/components/ui/Toast";
 import { CAD_RATE } from "@/store/localeStore";
 import MediaPicker from "@/components/admin/MediaPicker";
-import { compressImageFiles } from "@/store/mediaLibraryStore";
+import { compressImageFiles, useMediaLibraryStore } from "@/store/mediaLibraryStore";
 
 const categoryOptions = ["all", "dresses", "tops", "bottoms", "outerwear", "accessories"];
 const allSizes = ["XS", "S", "M", "L", "XL", "XXL"];
@@ -125,6 +125,7 @@ export default function AdminProductsPage() {
   const { addProduct, updateProduct, removeProduct, setProducts } = useProductStore();
   const { collections, updateCollection } = useCollectionStore();
   const { subscribers, addCampaign } = useSubscriberStore();
+  const addMediaAssets = useMediaLibraryStore((state) => state.addAssets);
   const { toasts, addToast, removeToast } = useToast(3000);
 
   // Announce modal state — shown after creating a new product
@@ -186,17 +187,25 @@ export default function AdminProductsPage() {
 
   const handleImageUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    const imageFiles = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    const imageFiles = Array.from(files);
     if (imageFiles.length === 0) return;
     setUploadingImages(true);
     try {
       const compressedImages = await compressImageFiles(imageFiles);
+      if (compressedImages.length === 0) return;
       const fd = new FormData();
       compressedImages.forEach((f) => fd.append("files", f));
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Upload failed");
-      setUploadedImages((prev) => [...prev, ...(data.urls as string[])]);
+      const urls = data.urls as string[];
+      addMediaAssets(urls.map((url, index) => ({
+        name: compressedImages[index]?.name ?? `product-image-${index + 1}`,
+        url,
+        type: compressedImages[index]?.type ?? "image/*",
+        size: compressedImages[index]?.size ?? 0,
+      })));
+      setUploadedImages((prev) => [...prev, ...urls]);
     } catch (err) {
       addToast("error", `Upload failed: ${err}`);
     } finally {
@@ -303,6 +312,7 @@ export default function AdminProductsPage() {
     });
     if (invalidSizeStock) e.stock = "Enter a valid quantity for each selected size";
     if (!form.images.trim() && uploadedImages.length === 0) e.images = "At least one image required";
+    if (form.collections.length === 0) e.collections = "Select at least one collection";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -1186,7 +1196,7 @@ export default function AdminProductsPage() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/*,.jfif,.ifif"
                   multiple
                   className="hidden"
                   onChange={(e) => handleImageUpload(e.target.files)}
@@ -1369,20 +1379,25 @@ export default function AdminProductsPage() {
               </Field>
 
               {/* Collections */}
-              {collections.length > 0 && (
-                <Field label="Collections">
+              <Field label="Collections" required error={errors.collections}>
+                {collections.length > 0 ? (
                   <div className="space-y-2">
                     {collections.map((col) => (
                       <label key={col.id} className="flex items-center gap-2.5 cursor-pointer select-none group">
                         <input
                           type="checkbox"
                           checked={form.collections.includes(col.id)}
-                          onChange={(e) => setForm((f) => ({
-                            ...f,
-                            collections: e.target.checked
-                              ? [...f.collections, col.id]
-                              : f.collections.filter((id) => id !== col.id),
-                          }))}
+                          onChange={(e) => {
+                            setForm((f) => ({
+                              ...f,
+                              collections: e.target.checked
+                                ? [...f.collections, col.id]
+                                : f.collections.filter((id) => id !== col.id),
+                            }));
+                            if (errors.collections) {
+                              setErrors((prev) => ({ ...prev, collections: undefined }));
+                            }
+                          }}
                           className="w-4 h-4 accent-stone-900 shrink-0"
                         />
                         <div className="flex items-center gap-2 min-w-0">
@@ -1408,11 +1423,15 @@ export default function AdminProductsPage() {
                       </label>
                     ))}
                   </div>
-                  <p className="text-[11px] text-stone-400 mt-2">
-                    Product will appear in the selected collection pages.
+                ) : (
+                  <p className="border border-dashed border-stone-200 px-3 py-3 text-xs text-stone-500">
+                    Create a collection before saving this product.
                   </p>
-                </Field>
-              )}
+                )}
+                <p className="text-[11px] text-stone-400 mt-2">
+                  Product will appear in the selected collection pages.
+                </p>
+              </Field>
 
               {/* Flags */}
               <Field label="Labels">

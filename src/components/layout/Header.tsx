@@ -33,8 +33,6 @@ export default function Header() {
   const t        = useTranslations(language);
 
   const activeCollections  = collections.filter((c) => c.status === "active");
-  const featuredCollections = activeCollections.filter((c) => c.featured);
-  const otherCollections    = activeCollections.filter((c) => !c.featured);
   const aboutLinks = [
     { label: "Origin",   href: "/about/origin" },
     { label: "Universe", href: "/about/universe" },
@@ -55,32 +53,11 @@ export default function Header() {
       label: t("shop"),
       href: "/products",
       groups: [
-        // Featured collections — shown at top without a section label
-        ...(featuredCollections.length > 0
+        ...(activeCollections.length > 0
           ? [{
+              title: undefined,
               flyout: false,
-              items: featuredCollections.map((c) => ({
-                label: c.name,
-                href: `/products?collection=${c.slug}`,
-              })),
-            }]
-          : []),
-        {
-          title: t("readyToWear"),
-          flyout: false,
-          items: [
-            { label: t("dresses"),  href: "/products?category=dresses" },
-            { label: t("tops"),     href: "/products?category=tops" },
-            { label: t("bottoms"),  href: "/products?category=bottoms" },
-            { label: t("sets"),     href: "/products?category=sets" },
-          ],
-        },
-        // Non-featured active collections (or fall back to all if none are non-featured)
-        ...(otherCollections.length > 0
-          ? [{
-              title: t("collections"),
-              flyout: false,
-              items: otherCollections.map((c) => ({
+              items: activeCollections.map((c) => ({
                 label: c.name,
                 href: `/products?collection=${c.slug}`,
               })),

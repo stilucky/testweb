@@ -12,6 +12,7 @@ export interface MediaAsset {
 
 interface MediaLibraryStore {
   assets: MediaAsset[];
+  setAssets: (assets: MediaAsset[]) => void;
   addAssets: (assets: Omit<MediaAsset, "id" | "createdAt">[]) => void;
   removeAsset: (id: string) => void;
 }
@@ -22,10 +23,15 @@ export function normalizeMediaUrl(url: string) {
   try {
     const parsed = new URL(url);
     if (parsed.pathname.startsWith("/uploads/")) {
+      return parsed.pathname.replace(/^\/uploads\//, "/api/uploads/");
+    }
+    if (parsed.pathname.startsWith("/api/uploads/")) {
       return parsed.pathname;
     }
   } catch {
-    // Already relative or data URL.
+    if (url.startsWith("/uploads/")) {
+      return url.replace(/^\/uploads\//, "/api/uploads/");
+    }
   }
 
   return url;
@@ -35,17 +41,25 @@ export const useMediaLibraryStore = create<MediaLibraryStore>()(
   persist(
     (set) => ({
       assets: [],
+      setAssets: (assets) =>
+        set(() => ({
+          assets: assets.map((asset) => ({ ...asset, url: normalizeMediaUrl(asset.url) })),
+        })),
       addAssets: (assets) =>
         set((state) => ({
           assets: [
-            ...assets.map((asset) => ({
-              ...asset,
-              url: normalizeMediaUrl(asset.url),
-              id: `media-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-              createdAt: new Date().toISOString(),
-            })),
+            ...assets.map((asset) => {
+              const url = normalizeMediaUrl(asset.url);
+              const filename = url.split("/").pop();
+              return {
+                ...asset,
+                url,
+                id: filename ?? `media-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                createdAt: new Date().toISOString(),
+              };
+            }),
             ...state.assets.map((asset) => ({ ...asset, url: normalizeMediaUrl(asset.url) })),
-          ],
+          ].filter((asset, index, all) => index === all.findIndex((item) => item.url === asset.url)),
         })),
       removeAsset: (id) =>
         set((state) => ({
@@ -54,7 +68,7 @@ export const useMediaLibraryStore = create<MediaLibraryStore>()(
     }),
     {
       name: "lunelle-media-library",
-      version: 2,
+      version: 3,
       migrate: (persisted: unknown) => {
         const state = persisted as Partial<MediaLibraryStore>;
         return {
@@ -211,6 +225,15 @@ export async function uploadImageFiles(files: FileList | File[]): Promise<Omit<M
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Upload failed");
 
+    if (Array.isArray(data.assets)) {
+      return (data.assets as MediaAsset[]).map((asset) => ({
+        name: asset.name,
+        url: normalizeMediaUrl(asset.url),
+        type: asset.type,
+        size: asset.size,
+      }));
+    }
+
     return (data.urls as string[]).map((url, index) => ({
       name: imageFiles[index]?.name ?? `image-${index + 1}`,
       url: normalizeMediaUrl(url),
@@ -220,4 +243,30 @@ export async function uploadImageFiles(files: FileList | File[]): Promise<Omit<M
   } catch {
     return readImageFiles(imageFiles);
   }
+}
+
+export async function fetchServerMediaAssets(): Promise<MediaAsset[]> {
+  const res = await fetch("/api/media", { cache: "no-store" });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to load media library");
+
+  return ((data.assets ?? []) as MediaAsset[]).map((asset) => ({
+    ...asset,
+    url: normalizeMediaUrl(asset.url),
+  }));
+}
+
+export async function deleteServerMediaAsset(id: string): Promise<MediaAsset[]> {
+  const res = await fetch("/api/media", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to remove media");
+
+  return ((data.assets ?? []) as MediaAsset[]).map((asset) => ({
+    ...asset,
+    url: normalizeMediaUrl(asset.url),
+  }));
 }

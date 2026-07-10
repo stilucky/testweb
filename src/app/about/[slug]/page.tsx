@@ -226,7 +226,7 @@ export default function AboutSectionPage({
           <p className="text-[9px] tracking-[0.35em] uppercase text-stone-300 mb-10 text-center">
             Other chapters
           </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-stone-100">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-stone-100">
             {(["origin", "universe", "angels", "mantra"] as AboutKey[])
               .filter((k) => k !== slug)
               .map((k) => {
@@ -243,7 +243,7 @@ export default function AboutSectionPage({
                         src={sec.heroImage}
                         alt={sec.label}
                         fill
-                        sizes="25vw"
+                        sizes="(min-width: 640px) 33vw, 100vw"
                         className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
                         style={{ objectPosition: sec.heroImagePosition ?? "center" }}
                       />

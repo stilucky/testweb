@@ -1,8 +1,15 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Image as ImageIcon, Trash2, Upload } from "lucide-react";
-import { normalizeMediaUrl, uploadImageFiles, useMediaLibraryStore } from "@/store/mediaLibraryStore";
+import {
+  deleteServerMediaAsset,
+  fetchServerMediaAssets,
+  normalizeMediaUrl,
+  uploadImageFiles,
+  useMediaLibraryStore,
+  type MediaAsset,
+} from "@/store/mediaLibraryStore";
 
 function formatSize(size: number) {
   if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`;
@@ -12,7 +19,13 @@ function formatSize(size: number) {
 export default function AdminMediaPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const { assets, addAssets, removeAsset } = useMediaLibraryStore();
+  const { assets, addAssets, setAssets } = useMediaLibraryStore();
+
+  useEffect(() => {
+    fetchServerMediaAssets()
+      .then(setAssets)
+      .catch(() => undefined);
+  }, [setAssets]);
 
   const handleUpload = async (files: FileList | null) => {
     if (!files?.length) return;
@@ -24,6 +37,11 @@ export default function AdminMediaPage() {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
     }
+  };
+
+  const handleRemove = async (asset: MediaAsset) => {
+    const nextAssets = await deleteServerMediaAsset(asset.id);
+    setAssets(nextAssets);
   };
 
   return (
@@ -87,7 +105,7 @@ export default function AdminMediaPage() {
                 <p className="mt-0.5 text-[10px] uppercase tracking-wide text-stone-400">{formatSize(asset.size)}</p>
                 <button
                   type="button"
-                  onClick={() => removeAsset(asset.id)}
+                  onClick={() => handleRemove(asset)}
                   className="mt-3 inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widests text-red-400 transition-colors hover:text-red-600"
                 >
                   <Trash2 size={11} />

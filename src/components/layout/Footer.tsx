@@ -33,26 +33,14 @@ export default function Footer() {
   const language = useLocaleStore((s) => s.language);
   const t = useTranslations(language);
 
-  const aboutLinks = [
-    { label: "Origin",   href: "/about/origin" },
-    { label: "Universe", href: "/about/universe" },
-    { label: "Angels",   href: "/about/angels" },
-    { label: "Mantra",   href: "/about/mantra" },
-  ];
-
-  const careLinks = [
-    { label: t("returns"),    href: "/returns" },
-    { label: t("sizeGuide"),  href: "/size-guide" },
-    { label: "FAQ",           href: "/faq" },
-    { label: t("contact"),    href: "/contact" },
-  ];
+  const contactEmail = "admin@lunellestory.ca";
 
   return (
     <footer className="bg-stone-900 text-white mt-24">
 
       {/* ── Links grid ── */}
       <div className="px-6 md:px-12 xl:px-20 py-12">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-10">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
 
           {/* Brand */}
           <div className="col-span-2">
@@ -80,41 +68,13 @@ export default function Footer() {
                 <IconPinterest />
               </a>
               <a
-                href="mailto:admin@lunellestory.ca"
-                aria-label="Email admin@lunellestory.ca"
-                className="text-stone-400 hover:text-white transition-colors"
+                href={`mailto:${contactEmail}`}
+                className="inline-flex items-center gap-2 text-stone-300 hover:text-white transition-colors"
               >
                 <IconMail />
+                <span className="text-sm">{contactEmail}</span>
               </a>
             </div>
-          </div>
-
-          {/* About */}
-          <div>
-            <p className="text-[9px] tracking-[0.22em] uppercase text-stone-400 mb-5">{t("about")}</p>
-            <ul className="space-y-2.5">
-              {aboutLinks.map((l) => (
-                <li key={l.label}>
-                  <Link href={l.href} className="text-sm text-stone-300 hover:text-white transition-colors">
-                    {l.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Customer Care */}
-          <div>
-            <p className="text-[9px] tracking-[0.22em] uppercase text-stone-400 mb-5">{t("customerCare")}</p>
-            <ul className="space-y-2.5">
-              {careLinks.map((l) => (
-                <li key={l.label}>
-                  <Link href={l.href} className="text-sm text-stone-300 hover:text-white transition-colors">
-                    {l.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
           </div>
 
           {/* Member CTA card */}

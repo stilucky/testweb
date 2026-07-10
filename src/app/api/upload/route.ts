@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
+import { writeFile } from "fs/promises";
 import { randomUUID } from "crypto";
+import { addMediaAssets, ensureUploadDir, uploadPath, uploadUrl } from "@/lib/server-media-library";
 
-const UPLOAD_DIR = join(process.cwd(), "public", "uploads");
+export const runtime = "nodejs";
+
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB per file after client-side compression
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/jfif", "image/png", "image/webp", "image/gif", "image/avif"];
 const ALLOWED_EXTENSIONS = ["avif", "gif", "ifif", "jfif", "jpg", "jpeg", "png", "webp"];
 
 export async function POST(req: NextRequest) {
   try {
-    await mkdir(UPLOAD_DIR, { recursive: true });
+    await ensureUploadDir();
 
     const formData = await req.formData();
     const files = formData.getAll("files") as File[];
@@ -20,6 +21,7 @@ export async function POST(req: NextRequest) {
     }
 
     const urls: string[] = [];
+    const assets = [];
 
     for (const file of files) {
       const rawExt = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
@@ -40,11 +42,22 @@ export async function POST(req: NextRequest) {
 
       const filename = `${randomUUID()}.${ext === "ifif" || ext === "jfif" ? "jpg" : ext}`;
       const buffer = Buffer.from(await file.arrayBuffer());
-      await writeFile(join(UPLOAD_DIR, filename), buffer);
-      urls.push(`/uploads/${filename}`);
+      await writeFile(uploadPath(filename), buffer);
+      const url = uploadUrl(filename);
+      urls.push(url);
+      assets.push({
+        id: filename,
+        name: file.name,
+        url,
+        type: file.type || "image/*",
+        size: file.size,
+        createdAt: new Date().toISOString(),
+      });
     }
 
-    return NextResponse.json({ urls });
+    await addMediaAssets(assets);
+
+    return NextResponse.json({ urls, assets });
   } catch (err) {
     console.error("[POST /api/upload]", err);
     return NextResponse.json({ error: String(err) }, { status: 500 });

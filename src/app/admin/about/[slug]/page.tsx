@@ -9,6 +9,8 @@ import {
   ImagePlus, Move, Eye, EyeOff, ChevronUp, ChevronDown,
 } from "lucide-react";
 import { useAboutStore, type AboutKey, type AboutPost } from "@/store/aboutStore";
+import MediaPicker from "@/components/admin/MediaPicker";
+import { uploadImageFiles, useMediaLibraryStore } from "@/store/mediaLibraryStore";
 
 const VALID_SLUGS: AboutKey[] = ["origin", "universe", "angels", "mantra"];
 
@@ -105,32 +107,56 @@ function ImageField({
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const addAssets = useMediaLibraryStore((state) => state.addAssets);
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    const reader = new FileReader();
-    reader.onload = (ev) => { onSrcChange(ev.target?.result as string); setUploading(false); };
-    reader.readAsDataURL(file);
+    try {
+      const [asset] = await uploadImageFiles([file]);
+      if (asset) {
+        addAssets([asset]);
+        onSrcChange(asset.url);
+      }
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
   };
 
   return (
     <div className="space-y-2.5 p-4 border border-stone-100 bg-stone-50 rounded-sm">
+      <MediaPicker
+        open={libraryOpen}
+        title={label}
+        onClose={() => setLibraryOpen(false)}
+        onSelect={(asset) => onSrcChange(asset.url)}
+      />
       <p className="text-[9px] tracking-[0.2em] uppercase text-stone-500 font-medium">
         {label}
         {hint && <span className="ml-1.5 text-stone-300 normal-case tracking-normal font-normal">— {hint}</span>}
       </p>
       <FocalPicker src={src} position={position} onChange={onPositionChange} />
       {uploading && <p className="text-[10px] text-stone-400 animate-pulse">Processing…</p>}
-      <button
-        type="button"
-        onClick={() => fileRef.current?.click()}
-        className="w-full flex items-center justify-center gap-1.5 border border-stone-300 py-2 text-[10px] tracking-[0.15em] uppercase text-stone-600 hover:border-stone-900 hover:text-stone-900 transition-colors bg-white"
-      >
-        <ImagePlus size={11} /> Upload
-      </button>
-      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          className="flex items-center justify-center gap-1.5 border border-stone-300 py-2 text-[10px] tracking-[0.15em] uppercase text-stone-600 hover:border-stone-900 hover:text-stone-900 transition-colors bg-white"
+        >
+          <ImagePlus size={11} /> Upload
+        </button>
+        <button
+          type="button"
+          onClick={() => setLibraryOpen(true)}
+          className="flex items-center justify-center gap-1.5 border border-stone-300 py-2 text-[10px] tracking-[0.15em] uppercase text-stone-600 hover:border-stone-900 hover:text-stone-900 transition-colors bg-white"
+        >
+          <ImagePlus size={11} /> Library
+        </button>
+      </div>
+      <input ref={fileRef} type="file" accept="image/*,.jfif,.ifif" className="hidden" onChange={handleFile} />
       <input
         value={src}
         onChange={(e) => onSrcChange(e.target.value)}

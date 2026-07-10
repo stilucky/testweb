@@ -8,7 +8,7 @@ import {
 import { useHeroStore, HeroSlide } from "@/store/heroStore";
 import { cn } from "@/lib/utils";
 import MediaPicker from "@/components/admin/MediaPicker";
-import { uploadImageFiles } from "@/store/mediaLibraryStore";
+import { uploadImageFiles, useMediaLibraryStore } from "@/store/mediaLibraryStore";
 
 function getYouTubeId(url: string): string | null {
   const patterns = [
@@ -362,6 +362,7 @@ function SlideForm({
     form.videoType ?? "youtube"
   );
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+  const addAssets = useMediaLibraryStore((state) => state.addAssets);
   const imageFileRef = useRef<HTMLInputElement>(null);
   const thumbnailFileRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -400,10 +401,13 @@ function SlideForm({
   };
 
   const handleImageUpload = async (file: File | null) => {
-    if (!file || !file.type.startsWith("image/")) return;
+    if (!file) return;
 
     const [asset] = await uploadImageFiles([file]);
-    if (asset) setForm((f) => ({ ...f, image: asset.url }));
+    if (asset) {
+      addAssets([asset]);
+      setForm((f) => ({ ...f, image: asset.url }));
+    }
   };
 
   const ytId = slideMode === "video" && videoTab === "youtube" && form.videoUrl
@@ -451,7 +455,7 @@ function SlideForm({
           <input
             ref={imageFileRef}
             type="file"
-            accept="image/*"
+            accept="image/*,.jfif,.ifif"
             className="hidden"
             onChange={(e) => handleImageUpload(e.target.files?.[0] ?? null)}
           />
@@ -565,7 +569,7 @@ function SlideForm({
             <input
               ref={thumbnailFileRef}
               type="file"
-              accept="image/*"
+              accept="image/*,.jfif,.ifif"
               className="hidden"
               onChange={(e) => handleImageUpload(e.target.files?.[0] ?? null)}
             />

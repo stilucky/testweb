@@ -1,9 +1,16 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Image as ImageIcon, Trash2, Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { normalizeMediaUrl, uploadImageFiles, useMediaLibraryStore, type MediaAsset } from "@/store/mediaLibraryStore";
+import {
+  deleteServerMediaAsset,
+  fetchServerMediaAssets,
+  normalizeMediaUrl,
+  uploadImageFiles,
+  useMediaLibraryStore,
+  type MediaAsset,
+} from "@/store/mediaLibraryStore";
 
 type MediaPickerProps = {
   open: boolean;
@@ -20,7 +27,14 @@ function formatSize(size: number) {
 export default function MediaPicker({ open, title = "Media Library", onClose, onSelect }: MediaPickerProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const { assets, addAssets, removeAsset } = useMediaLibraryStore();
+  const { assets, addAssets, setAssets } = useMediaLibraryStore();
+
+  useEffect(() => {
+    if (!open) return;
+    fetchServerMediaAssets()
+      .then(setAssets)
+      .catch(() => undefined);
+  }, [open, setAssets]);
 
   const handleUpload = async (files: FileList | null) => {
     if (!files?.length) return;
@@ -32,6 +46,11 @@ export default function MediaPicker({ open, title = "Media Library", onClose, on
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
     }
+  };
+
+  const handleRemove = async (asset: MediaAsset) => {
+    const nextAssets = await deleteServerMediaAsset(asset.id);
+    setAssets(nextAssets);
   };
 
   if (!open) return null;
@@ -82,7 +101,7 @@ export default function MediaPicker({ open, title = "Media Library", onClose, on
                   <button
                     type="button"
                     onClick={() => {
-                      onSelect(asset);
+                      onSelect({ ...asset, url: normalizeMediaUrl(asset.url) });
                       onClose();
                     }}
                     className="block w-full text-left"
@@ -97,7 +116,7 @@ export default function MediaPicker({ open, title = "Media Library", onClose, on
                   </button>
                   <button
                     type="button"
-                    onClick={() => removeAsset(asset.id)}
+                    onClick={() => handleRemove(asset)}
                     className={cn(
                       "mx-3 mb-3 inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widests text-red-400 transition-colors hover:text-red-600"
                     )}

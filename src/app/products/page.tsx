@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useState, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { SlidersHorizontal, X, ChevronDown, Lock } from "lucide-react";
 import Link from "next/link";
 import { useProductStore } from "@/store/productStore";
@@ -23,7 +23,6 @@ const priceRanges = [
 
 function ProductsContent() {
   const searchParams = useSearchParams();
-  const router       = useRouter();
   const filterParam      = searchParams.get("filter");
   const categoryParam    = searchParams.get("category") ?? "all";
   const collectionParam  = searchParams.get("collection");
@@ -52,9 +51,6 @@ function ProductsContent() {
   const [selectedCategory, setSelectedCategory] = useState(categoryParam);
 
   // Sync category khi URL thay đổi
-  useEffect(() => {
-    setSelectedCategory(categoryParam);
-  }, [categoryParam]);
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [selectedPrice, setSelectedPrice] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState("newest");
@@ -69,6 +65,13 @@ function ProductsContent() {
   const activeCollection = collectionParam
     ? collections.find((c) => c.slug === collectionParam && c.status === "active")
     : null;
+  const isMembersOnlyCollection =
+    collectionParam === "pre-fall-2026" || activeCollection?.membersOnly === true;
+  const membersOnlyProductIds = useMemo(() => new Set(
+    collections
+      .filter((c) => c.membersOnly || c.slug === "pre-fall-2026")
+      .flatMap((c) => c.productIds)
+  ), [collections]);
 
   const filtered = useMemo(() => {
     let list = [...products];
@@ -77,9 +80,7 @@ function ProductsContent() {
     if (collectionParam) {
       const col = collections.find((c) => c.slug === collectionParam && c.status === "active");
       if (col) {
-        list = col.productIds.length > 0
-          ? list.filter((p) => col.productIds.includes(p.id))
-          : list; // collection exists but no products assigned yet — show all to avoid empty state
+        list = list.filter((p) => col.productIds.includes(p.id));
       }
     } else if (filterParam === "new") {
       list = list.filter((p) => p.isNew);
@@ -89,6 +90,10 @@ function ProductsContent() {
       list = list.filter((p) =>
         p.tags.includes("occasion") || p.tags.includes("formal") || p.tags.includes("cocktail")
       );
+    }
+
+    if (!currentUser && !isMembersOnlyCollection) {
+      list = list.filter((p) => !membersOnlyProductIds.has(p.id));
     }
 
     if (selectedCategory !== "all") {
@@ -115,7 +120,7 @@ function ProductsContent() {
       list.sort((a, b) => (b.isBestSeller ? 1 : 0) - (a.isBestSeller ? 1 : 0));
 
     return list;
-  }, [products, collections, collectionParam, filterParam, selectedCategory, selectedSizes, selectedPrice, sortBy]);
+  }, [products, collections, collectionParam, filterParam, currentUser, isMembersOnlyCollection, membersOnlyProductIds, selectedCategory, selectedSizes, selectedPrice, sortBy]);
 
   const pageTitle =
     activeCollection
@@ -134,37 +139,44 @@ function ProductsContent() {
     selectedCategory !== "all" || selectedSizes.length > 0 || selectedPrice !== null;
 
   // Members-only gate
-  if (activeCollection?.membersOnly && !currentUser) {
+  if (isMembersOnlyCollection && !currentUser) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 py-24">
+      <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/60 px-4 py-24 text-center backdrop-blur-sm">
+        <Link
+          href="/products"
+          aria-label="Close members only notice"
+          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center bg-white/90 text-stone-600 shadow-sm transition-colors hover:bg-white hover:text-stone-900"
+        >
+          <X size={16} />
+        </Link>
         <div className="w-14 h-14 rounded-full bg-stone-100 flex items-center justify-center mb-6">
           <Lock size={22} className="text-stone-400" />
         </div>
-        <p className="text-[10px] tracking-[0.25em] uppercase text-stone-400 mb-3">Members Only</p>
+        <p className="text-[10px] tracking-[0.25em] uppercase text-white/55 mb-3">Members Only</p>
         <h1
-          className="text-3xl md:text-4xl font-light mb-4"
+          className="text-3xl md:text-4xl font-light mb-4 text-white"
           style={{ fontFamily: "var(--font-cormorant), serif" }}
         >
-          {activeCollection.name}
+          {activeCollection?.name ?? "Pre-Fall 2026"}
         </h1>
-        <p className="text-sm text-stone-500 max-w-sm mb-8 leading-relaxed">
+        <p className="text-sm text-white/70 max-w-sm mb-8 leading-relaxed">
           This collection is exclusively available to Lunelle members. Sign in or create a free account to unlock access.
         </p>
         <div className="flex flex-col sm:flex-row gap-3">
           <Link
             href="/auth?tab=register"
-            className="px-8 py-3.5 bg-stone-900 text-white text-[10px] tracking-[0.2em] uppercase hover:bg-stone-700 transition-colors"
+            className="px-8 py-3.5 bg-white text-stone-900 text-[10px] tracking-[0.2em] uppercase hover:bg-stone-100 transition-colors"
           >
             Create Account — Free
           </Link>
           <Link
             href="/auth"
-            className="px-8 py-3.5 border border-stone-200 text-[10px] tracking-[0.2em] uppercase hover:bg-stone-50 transition-colors"
+            className="px-8 py-3.5 border border-white/40 text-white text-[10px] tracking-[0.2em] uppercase hover:bg-white hover:text-stone-900 transition-colors"
           >
             Sign In
           </Link>
         </div>
-        <p className="text-xs text-stone-300 mt-6">Members receive a 10% welcome discount on their first order.</p>
+        <p className="text-xs text-white/45 mt-6">Members receive a 10% welcome discount on their first order.</p>
       </div>
     );
   }
