@@ -21,11 +21,43 @@ const priceRanges = [
   { labelEN: "Over $350",    labelFR: "Plus de 350$",   min: 350, max: Infinity },
 ];
 
+const baseCategoryValues = ["dresses", "tops", "bottoms", "sets", "outerwear", "accessories"];
+
+function normalizeCategory(value: string | null | undefined) {
+  const normalized = (value || "all")
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "all";
+
+  const aliases: Record<string, string> = {
+    dress: "dresses",
+    top: "tops",
+    bottom: "bottoms",
+    pant: "bottoms",
+    pants: "bottoms",
+    skirt: "bottoms",
+    set: "sets",
+    accessory: "accessories",
+  };
+
+  return aliases[normalized] ?? normalized;
+}
+
+function titleCaseCategory(value: string) {
+  return value
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 function ProductsContent() {
   const [mounted, setMounted] = useState(false);
   const searchParams = useSearchParams();
   const filterParam      = searchParams.get("filter");
-  const categoryParam    = searchParams.get("category") ?? "all";
+  const categoryParam    = normalizeCategory(searchParams.get("category"));
   const collectionParam  = searchParams.get("collection");
 
   const products       = useProductStore((s) => s.products);
@@ -47,16 +79,31 @@ function ProductsContent() {
     { label: t("priceHighLow"),value: "price-desc" },
     { label: t("bestSellersHeading"), value: "bestseller" },
   ];
-  const categoryOptions = [
-    { label: t("allCategories"), value: "all" },
-    { label: t("dresses"),       value: "dresses" },
-    { label: t("tops"),          value: "tops" },
-    { label: t("bottoms"),       value: "bottoms" },
-    { label: t("outerwear"),     value: "outerwear" },
-  ];
+  const categoryOptions = useMemo(() => {
+    const productCategoryValues = products
+      .map((product) => normalizeCategory(product.category))
+      .filter((value) => value !== "all");
+    const values = Array.from(new Set(["all", ...baseCategoryValues, ...productCategoryValues]));
+
+    return values.map((value) => ({
+      value,
+      label:
+        value === "all" ? t("allCategories") :
+        value === "dresses" ? t("dresses") :
+        value === "tops" ? t("tops") :
+        value === "bottoms" ? t("bottoms") :
+        value === "sets" ? t("sets") :
+        value === "outerwear" ? t("outerwear") :
+        titleCaseCategory(value),
+    }));
+  }, [products, t]);
 
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(categoryParam);
+
+  useEffect(() => {
+    setSelectedCategory(categoryParam);
+  }, [categoryParam]);
 
   // Sync category khi URL thay đổi
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
@@ -105,7 +152,7 @@ function ProductsContent() {
     }
 
     if (selectedCategory !== "all") {
-      list = list.filter((p) => p.category === selectedCategory);
+      list = list.filter((p) => normalizeCategory(p.category) === selectedCategory);
     }
 
     if (selectedSizes.length > 0) {

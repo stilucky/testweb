@@ -79,6 +79,28 @@ function parseTags(tags: string): Record<string, string> {
   return out;
 }
 
+function normalizeCategory(value: string | undefined): string {
+  const normalized = (value || "dresses")
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "dresses";
+
+  const aliases: Record<string, string> = {
+    dress: "dresses",
+    top: "tops",
+    bottom: "bottoms",
+    pant: "bottoms",
+    pants: "bottoms",
+    skirt: "bottoms",
+    set: "sets",
+    accessory: "accessories",
+  };
+
+  return aliases[normalized] ?? normalized;
+}
+
 function buildTags(
   gender: string,
   category: string,
@@ -219,7 +241,7 @@ export function shopifyToProduct(sp: ShopifyProduct): Product {
     priceCAD,
     salePriceCAD,
     images: sp.images.map((i) => i.src),
-    category: sp.product_type || tagMap["cat"] || "dresses",
+    category: normalizeCategory(sp.product_type || tagMap["cat"]),
     gender: (tagMap["gender"] as Product["gender"]) || "women",
     sizes: sizes.filter(Boolean),
     colors,

@@ -17,7 +17,7 @@ import { CAD_RATE } from "@/store/localeStore";
 import MediaPicker from "@/components/admin/MediaPicker";
 import { compressImageFiles, useMediaLibraryStore } from "@/store/mediaLibraryStore";
 
-const categoryOptions = ["all", "dresses", "tops", "bottoms", "outerwear", "accessories"];
+const categoryOptions = ["all", "dresses", "tops", "bottoms", "sets", "outerwear", "accessories"];
 const allSizes = ["XS", "S", "M", "L", "XL", "XXL"];
 const allColors = [
   { name: "Black",     hex: "#000000" },

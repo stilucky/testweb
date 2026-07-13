@@ -67,5 +67,6 @@ export type Category =
   | "dresses"
   | "tops"
   | "bottoms"
+  | "sets"
   | "outerwear"
   | "accessories";
