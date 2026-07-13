@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Plus, Trash2, ChevronUp, ChevronDown,
   ImageIcon, Save, CheckCircle2, Eye, Settings2, Play, Video, Upload,
@@ -193,7 +193,7 @@ export default function HeroAdminPage() {
   const {
     slides, maxSlides, autoplayInterval,
     addSlide, removeSlide, updateSlide, toggleSlideEnabled, moveSlide,
-    setMaxSlides, setAutoplayInterval,
+    setMaxSlides, setAutoplayInterval, setHeroSettings,
   } = useHeroStore();
 
   const [editing, setEditing]     = useState<string | null>(null);
@@ -201,6 +201,31 @@ export default function HeroAdminPage() {
   const [addingNew, setAddingNew] = useState(false);
   const [saved, setSaved]         = useState(false);
   const [preview, setPreview]     = useState<HeroSlide | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    Promise.resolve(useHeroStore.persist.rehydrate())
+      .then(() =>
+        fetch("/api/hero", { cache: "no-store", signal: controller.signal })
+      )
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then((data) => {
+        if (Array.isArray(data.slides)) {
+          setHeroSettings({
+            slides: data.slides,
+            maxSlides: data.maxSlides,
+            autoplayInterval: data.autoplayInterval,
+          });
+        }
+      })
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        console.warn("[HeroAdminPage] Failed to load hero settings", err);
+      });
+
+    return () => controller.abort();
+  }, [setHeroSettings]);
 
   const canAdd = slides.length < maxSlides;
 

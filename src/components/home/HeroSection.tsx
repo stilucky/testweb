@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -20,10 +20,86 @@ function getYouTubeId(url: string): string | null {
   return null;
 }
 
+function HeroNativeVideo({
+  src,
+  poster,
+  objectPosition,
+}: {
+  src: string;
+  poster?: string;
+  objectPosition?: string;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const play = () => {
+      video.muted = true;
+      video.defaultMuted = true;
+      video.playsInline = true;
+      void video.play().catch(() => {});
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") play();
+    };
+
+    play();
+    video.addEventListener("canplay", play);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      video.removeEventListener("canplay", play);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [src]);
+
+  return (
+    <video
+      ref={videoRef}
+      src={src}
+      poster={poster}
+      autoPlay
+      loop
+      muted
+      playsInline
+      preload="auto"
+      controls={false}
+      disablePictureInPicture
+      className="absolute inset-0 h-full w-full object-cover"
+      style={{ objectPosition: objectPosition ?? "50% 50%" }}
+    />
+  );
+}
+
 export default function HeroSection() {
-  const { slides: allSlides, autoplayInterval } = useHeroStore();
+  const { slides: allSlides, autoplayInterval, setHeroSettings } = useHeroStore();
   const slides = allSlides.filter((s) => s.enabled !== false);
   const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    fetch("/api/hero", { cache: "no-store", signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then((data) => {
+        if (Array.isArray(data.slides)) {
+          setHeroSettings({
+            slides: data.slides,
+            maxSlides: data.maxSlides,
+            autoplayInterval: data.autoplayInterval,
+          });
+        }
+      })
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        console.warn("[HeroSection] Failed to load hero settings", err);
+      });
+
+    return () => controller.abort();
+  }, [setHeroSettings]);
 
   useEffect(() => {
     if (slides.length <= 1) return;
@@ -41,7 +117,7 @@ export default function HeroSection() {
   const activeSlide = slides[activeIndex];
 
   return (
-    <section className="relative w-full h-screen overflow-hidden bg-stone-900">
+    <section className="relative h-[100svh] w-full overflow-hidden bg-stone-900 md:h-screen">
 
       {/* ── Slides ── */}
       {slides.map((s, i) => {
@@ -62,26 +138,17 @@ export default function HeroSection() {
                 {s.videoType === "youtube" && ytId && isActive && (
                   <iframe
                     src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}&controls=0&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&showinfo=0`}
-                    allow="autoplay; encrypted-media; fullscreen"
+                    allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
                     title="Hero video"
-                    className="absolute border-0"
-                    style={{
-                      top: "50%", left: "50%",
-                      width: "100%", height: "100%",
-                      transform: "translate(-50%, -50%) scale(1.6)",
-                      pointerEvents: "none",
-                    }}
+                    className="pointer-events-none absolute left-1/2 top-1/2 h-[100svh] min-h-full w-[177.777778svh] min-w-full -translate-x-1/2 -translate-y-1/2 border-0 md:h-[100vh] md:w-[177.777778vh]"
                   />
                 )}
                 {/* Native video — only active */}
                 {s.videoType === "native" && isActive && (
-                  <video
+                  <HeroNativeVideo
                     src={s.videoUrl}
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    className="absolute inset-0 w-full h-full object-cover"
+                    poster={s.image || undefined}
+                    objectPosition={s.imagePosition}
                   />
                 )}
                 {/* Thumbnail fallback when this slide is not active */}
@@ -125,7 +192,7 @@ export default function HeroSection() {
       )}
 
       {/* ── Bottom bar ── */}
-      <div className="absolute bottom-0 inset-x-0 z-30 px-8 md:px-16 pb-8 flex items-end justify-between gap-6">
+      <div className="absolute inset-x-0 bottom-0 z-30 flex items-end justify-between gap-6 px-5 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-8 md:px-16">
         <Link
           href="/products"
           className="group flex items-center gap-2.5 text-white text-xs tracking-[0.2em] uppercase transition-all duration-300"

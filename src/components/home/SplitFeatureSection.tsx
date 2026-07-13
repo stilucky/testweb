@@ -1,15 +1,36 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useHomeFeatureStore } from "@/store/homeFeatureStore";
+import { defaultHomeFeatures, useHomeFeatureStore } from "@/store/homeFeatureStore";
 
 export default function SplitFeatureSection() {
+  const [mounted, setMounted] = useState(false);
   const features = useHomeFeatureStore((state) => state.features);
+  const setFeatures = useHomeFeatureStore((state) => state.setFeatures);
+  const displayFeatures = mounted ? features : defaultHomeFeatures;
+
+  useEffect(() => {
+    setMounted(true);
+
+    const controller = new AbortController();
+    fetch("/api/homepage", { cache: "no-store", signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then((data) => {
+        if (Array.isArray(data.features)) setFeatures(data.features);
+      })
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        console.warn("[SplitFeatureSection] Failed to load homepage settings", err);
+      });
+
+    return () => controller.abort();
+  }, [setFeatures]);
 
   return (
     <section className="grid min-h-screen grid-cols-1 gap-3 bg-white py-3 md:grid-cols-2 md:gap-4 md:py-4">
-      {features.map((feature, index) => (
+      {displayFeatures.map((feature, index) => (
         <Link
           key={feature.key}
           href={feature.href}

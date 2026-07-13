@@ -16,12 +16,16 @@ const currencies: { code: Currency; label: string; symbol: string }[] = [
 ];
 
 export default function LocaleSelector({ transparent = false }: { transparent?: boolean }) {
+  const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const { language, currency, setLanguage, setCurrency } = useLocaleStore();
+  const displayLanguage = mounted ? language : "EN";
+  const displayCurrency = mounted ? currency : "CAD";
 
   /* close on outside click */
   useEffect(() => {
+    setMounted(true);
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
@@ -43,9 +47,9 @@ export default function LocaleSelector({ transparent = false }: { transparent?: 
         )}
       >
         <Globe size={12} className={transparent ? "text-white" : "text-stone-400"} />
-        <span className="font-medium">{language}</span>
+        <span className="font-medium">{displayLanguage}</span>
         <span className={transparent ? "text-white/40" : "text-stone-300"}>·</span>
-        <span>{currency}</span>
+        <span>{displayCurrency}</span>
         <ChevronDown size={10} className={cn(
           "transition-transform",
           transparent ? "text-white" : "text-stone-400",
@@ -69,7 +73,7 @@ export default function LocaleSelector({ transparent = false }: { transparent?: 
                   onClick={() => { setLanguage(code); }}
                   className={cn(
                     "w-full flex items-center justify-between px-2 py-2 text-left transition-colors rounded-sm",
-                    language === code
+                    displayLanguage === code
                       ? "bg-stone-900 text-white"
                       : "text-stone-600 hover:bg-stone-50"
                   )}
@@ -77,13 +81,13 @@ export default function LocaleSelector({ transparent = false }: { transparent?: 
                   <div className="flex items-center gap-2.5">
                     <span className={cn(
                       "text-[10px] font-semibold tracking-widest w-6",
-                      language === code ? "text-white" : "text-stone-400"
+                      displayLanguage === code ? "text-white" : "text-stone-400"
                     )}>
                       {native}
                     </span>
                     <span className="text-xs">{label}</span>
                   </div>
-                  {language === code && <Check size={11} className="text-white" />}
+                  {displayLanguage === code && <Check size={11} className="text-white" />}
                 </button>
               ))}
             </div>
@@ -103,7 +107,7 @@ export default function LocaleSelector({ transparent = false }: { transparent?: 
                   onClick={() => { setCurrency(code); }}
                   className={cn(
                     "w-full flex items-center justify-between px-2 py-2 text-left transition-colors rounded-sm",
-                    currency === code
+                    displayCurrency === code
                       ? "bg-stone-900 text-white"
                       : "text-stone-600 hover:bg-stone-50"
                   )}
@@ -111,13 +115,13 @@ export default function LocaleSelector({ transparent = false }: { transparent?: 
                   <div className="flex items-center gap-2.5">
                     <span className={cn(
                       "text-[10px] font-semibold tracking-widest w-6",
-                      currency === code ? "text-white" : "text-stone-400"
+                      displayCurrency === code ? "text-white" : "text-stone-400"
                     )}>
                       {symbol}
                     </span>
                     <span className="text-xs">{code} — {label}</span>
                   </div>
-                  {currency === code && <Check size={11} className="text-white" />}
+                  {displayCurrency === code && <Check size={11} className="text-white" />}
                 </button>
               ))}
             </div>
@@ -126,7 +130,7 @@ export default function LocaleSelector({ transparent = false }: { transparent?: 
           {/* Footer note */}
           <div className="border-t border-stone-100 px-4 py-2.5 bg-stone-50">
             <p className="text-[9px] text-stone-400 leading-relaxed">
-              {language === "FR"
+              {displayLanguage === "FR"
                 ? "Votre préférence est enregistrée automatiquement."
                 : "Your preference is saved automatically."}
             </p>

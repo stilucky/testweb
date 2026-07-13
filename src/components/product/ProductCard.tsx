@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Heart } from "lucide-react";
@@ -15,11 +16,18 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, priority = false }: ProductCardProps) {
+  const [mounted, setMounted] = useState(false);
   const { toggleItem, isWishlisted } = useWishlistStore();
-  const wishlisted = isWishlisted(product.id);
+  const wishlisted = mounted ? isWishlisted(product.id) : false;
   const currency = useLocaleStore((s) => s.currency);
   const language = useLocaleStore((s) => s.language);
-  const t = useTranslations(language);
+  const displayCurrency = mounted ? currency : "CAD";
+  const displayLanguage = mounted ? language : "EN";
+  const t = useTranslations(displayLanguage);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const displayPrice = product.salePrice ?? product.price;
   const hasDiscount = product.salePrice !== undefined;
@@ -111,13 +119,13 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
           <span className={cn("type-price", hasDiscount && "text-red-600")}>
             {formatLocalPrice(
               displayPrice,
-              currency,
+              displayCurrency,
               hasDiscount ? product.salePriceCAD : product.priceCAD
             )}
           </span>
           {hasDiscount && (
             <span className="text-xs text-stone-400 line-through">
-              {formatLocalPrice(product.price, currency, product.priceCAD)}
+              {formatLocalPrice(product.price, displayCurrency, product.priceCAD)}
             </span>
           )}
         </div>

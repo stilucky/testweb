@@ -20,6 +20,7 @@ interface HeroStore {
   slides: HeroSlide[];
   maxSlides: number;
   autoplayInterval: number; // seconds
+  setHeroSettings: (settings: Partial<Pick<HeroStore, "slides" | "maxSlides" | "autoplayInterval">>) => void;
   addSlide: (slide: Omit<HeroSlide, "id">) => void;
   removeSlide: (id: string) => void;
   updateSlide: (id: string, updates: Partial<Omit<HeroSlide, "id">>) => void;
@@ -65,12 +66,29 @@ const DEFAULT_SLIDES: HeroSlide[] = [
   },
 ];
 
+function saveHeroSettings(settings: Pick<HeroStore, "slides" | "maxSlides" | "autoplayInterval">) {
+  if (typeof window === "undefined") return;
+
+  fetch("/api/hero", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  }).catch((err) => console.warn("[heroStore] Failed to save hero settings", err));
+}
+
 export const useHeroStore = create<HeroStore>()(
   persist(
     (set, get) => ({
       slides: DEFAULT_SLIDES,
       maxSlides: 5,
       autoplayInterval: 5,
+
+      setHeroSettings: (settings) =>
+        set((s) => ({
+          slides: settings.slides ?? s.slides,
+          maxSlides: settings.maxSlides ?? s.maxSlides,
+          autoplayInterval: settings.autoplayInterval ?? s.autoplayInterval,
+        })),
 
       addSlide: (slideData) => {
         const { slides, maxSlides } = get();
@@ -80,22 +98,29 @@ export const useHeroStore = create<HeroStore>()(
           id: `slide-${Date.now()}`,
         };
         set({ slides: [...slides, newSlide] });
+        saveHeroSettings(get());
       },
 
-      removeSlide: (id) =>
-        set((s) => ({ slides: s.slides.filter((sl) => sl.id !== id) })),
+      removeSlide: (id) => {
+        set((s) => ({ slides: s.slides.filter((sl) => sl.id !== id) }));
+        saveHeroSettings(get());
+      },
 
-      toggleSlideEnabled: (id) =>
+      toggleSlideEnabled: (id) => {
         set((s) => ({
           slides: s.slides.map((sl) =>
             sl.id === id ? { ...sl, enabled: sl.enabled === false ? true : false } : sl
           ),
-        })),
+        }));
+        saveHeroSettings(get());
+      },
 
-      updateSlide: (id, updates) =>
+      updateSlide: (id, updates) => {
         set((s) => ({
           slides: s.slides.map((sl) => (sl.id === id ? { ...sl, ...updates } : sl)),
-        })),
+        }));
+        saveHeroSettings(get());
+      },
 
       moveSlide: (id, direction) => {
         const { slides } = get();
@@ -108,11 +133,23 @@ export const useHeroStore = create<HeroStore>()(
           [newSlides[idx], newSlides[idx + 1]] = [newSlides[idx + 1], newSlides[idx]];
         }
         set({ slides: newSlides });
+        saveHeroSettings(get());
       },
 
-      setMaxSlides: (max) => set({ maxSlides: Math.min(Math.max(max, 1), 10) }),
-      setAutoplayInterval: (secs) => set({ autoplayInterval: Math.min(Math.max(secs, 2), 30) }),
+      setMaxSlides: (max) => {
+        set({ maxSlides: Math.min(Math.max(max, 1), 10) });
+        saveHeroSettings(get());
+      },
+      setAutoplayInterval: (secs) => {
+        set({ autoplayInterval: Math.min(Math.max(secs, 2), 30) });
+        saveHeroSettings(get());
+      },
     }),
-    { name: "lunelle-hero" }
+    {
+      name: "lunelle-hero",
+      version: 3,
+      migrate: (persisted) => persisted as HeroStore,
+      skipHydration: true,
+    }
   )
 );

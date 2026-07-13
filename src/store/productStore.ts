@@ -34,6 +34,6 @@ export const useProductStore = create<ProductState>()(
       removeProduct: (id) =>
         set((s) => ({ products: s.products.filter((x) => x.id !== id) })),
     }),
-    { name: "lunelle-products" }
+    { name: "lunelle-products", version: 3, skipHydration: true }
   )
 );

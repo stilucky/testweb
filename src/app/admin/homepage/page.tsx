@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Image as ImageIcon, Upload } from "lucide-react";
 import MediaPicker from "@/components/admin/MediaPicker";
 import { useHomeFeatureStore, type HomeFeature, type HomeFeatureKey } from "@/store/homeFeatureStore";
@@ -9,8 +9,26 @@ import { uploadImageFiles, useMediaLibraryStore } from "@/store/mediaLibraryStor
 export default function AdminHomepagePage() {
   const [mediaTarget, setMediaTarget] = useState<HomeFeatureKey | null>(null);
   const homeFeatures = useHomeFeatureStore((state) => state.features);
+  const setHomeFeatures = useHomeFeatureStore((state) => state.setFeatures);
   const updateHomeFeature = useHomeFeatureStore((state) => state.updateFeature);
   const addAssets = useMediaLibraryStore((state) => state.addAssets);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    Promise.resolve(useHomeFeatureStore.persist.rehydrate())
+      .then(() => fetch("/api/homepage", { cache: "no-store", signal: controller.signal }))
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then((data) => {
+        if (Array.isArray(data.features)) setHomeFeatures(data.features);
+      })
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        console.warn("[AdminHomepagePage] Failed to load homepage settings", err);
+      });
+
+    return () => controller.abort();
+  }, [setHomeFeatures]);
 
   const handleHomeFeatureImageUpload = async (key: HomeFeatureKey, file: File | null) => {
     if (!file) return;

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useLocaleStore } from "@/store/localeStore";
 import { useTranslations } from "@/lib/i18n";
@@ -30,8 +31,13 @@ function IconMail() {
 }
 
 export default function Footer() {
+  const [mounted, setMounted] = useState(false);
   const language = useLocaleStore((s) => s.language);
-  const t = useTranslations(language);
+  const t = useTranslations(mounted ? language : "EN");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const contactEmail = "admin@lunellestory.ca";
 

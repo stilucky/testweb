@@ -13,6 +13,7 @@ export interface HomeFeature {
 
 interface HomeFeatureStore {
   features: HomeFeature[];
+  setFeatures: (features: HomeFeature[]) => void;
   updateFeature: (key: HomeFeatureKey, updates: Partial<Omit<HomeFeature, "key">>) => void;
 }
 
@@ -35,15 +36,30 @@ export const defaultHomeFeatures: HomeFeature[] = [
 
 export const useHomeFeatureStore = create<HomeFeatureStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       features: defaultHomeFeatures,
-      updateFeature: (key, updates) =>
+      setFeatures: (features) => set({ features }),
+      updateFeature: (key, updates) => {
         set((state) => ({
           features: state.features.map((feature) =>
             feature.key === key ? { ...feature, ...updates } : feature
           ),
-        })),
+        }));
+
+        if (typeof window !== "undefined") {
+          fetch("/api/homepage", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ features: get().features }),
+          }).catch((err) => console.warn("[homeFeatureStore] Failed to save homepage settings", err));
+        }
+      },
     }),
-    { name: "lunelle-home-features" }
+    {
+      name: "lunelle-home-features",
+      version: 2,
+      migrate: (persisted) => persisted as HomeFeatureStore,
+      skipHydration: true,
+    }
   )
 );

@@ -45,7 +45,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${jost.variable} ${cormorant.variable} ${didot.variable}`}>
+    <html lang="en" className={`${jost.variable} ${cormorant.variable} ${didot.variable}`} suppressHydrationWarning>
       <body className="min-h-screen flex flex-col">
         <StoreShell>{children}</StoreShell>
       </body>

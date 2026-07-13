@@ -14,6 +14,7 @@ import LocaleSelector from "./LocaleSelector";
 import { cn } from "@/lib/utils";
 
 export default function Header() {
+  const [mounted,        setMounted]        = useState(false);
   const [scrolled,       setScrolled]       = useState(false);
   const [mobileOpen,     setMobileOpen]     = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -30,9 +31,15 @@ export default function Header() {
   const router   = useRouter();
   const pathname = usePathname();
   const language = useLocaleStore((s) => s.language);
-  const t        = useTranslations(language);
+  const displayLanguage = mounted ? language : "EN";
+  const t        = useTranslations(displayLanguage);
+  const displayCurrentUser = mounted ? currentUser : null;
+  const displayItemCount = mounted ? itemCount() : 0;
+  const displayWishlistCount = mounted ? wishlistCount() : 0;
 
-  const activeCollections  = collections.filter((c) => c.status === "active");
+  const activeCollections  = (mounted ? collections : []).filter((c) => c.status === "active");
+  const featuredCollections = activeCollections.filter((c) => c.featured);
+  const otherCollections    = activeCollections.filter((c) => !c.featured);
   const aboutLinks = [
     { label: "Origin",   href: "/about/origin" },
     { label: "Universe", href: "/about/universe" },
@@ -53,11 +60,30 @@ export default function Header() {
       label: t("shop"),
       href: "/products",
       groups: [
-        ...(activeCollections.length > 0
+        ...(featuredCollections.length > 0
           ? [{
-              title: undefined,
               flyout: false,
-              items: activeCollections.map((c) => ({
+              items: featuredCollections.map((c) => ({
+                label: c.name,
+                href: `/products?collection=${c.slug}`,
+              })),
+            }]
+          : []),
+        {
+          title: t("readyToWear"),
+          flyout: false,
+          items: [
+            { label: t("dresses"), href: "/products?category=dresses" },
+            { label: t("tops"), href: "/products?category=tops" },
+            { label: t("bottoms"), href: "/products?category=bottoms" },
+            { label: t("sets"), href: "/products?category=sets" },
+          ],
+        },
+        ...(otherCollections.length > 0
+          ? [{
+              title: t("collections"),
+              flyout: false,
+              items: otherCollections.map((c) => ({
                 label: c.name,
                 href: `/products?collection=${c.slug}`,
               })),
@@ -81,6 +107,7 @@ export default function Header() {
   ];
 
   useEffect(() => {
+    setMounted(true);
     const onScroll = () => setScrolled(window.scrollY > 10);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -263,7 +290,7 @@ export default function Header() {
               </button>
 
               {/* Account */}
-              {currentUser ? (
+              {displayCurrentUser ? (
                 <div className="relative">
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -273,21 +300,21 @@ export default function Header() {
                       "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-medium",
                       isTransparent ? "bg-white/20 text-white border border-white/40" : "bg-stone-900 text-white"
                     )}>
-                      {currentUser.firstName[0]}{currentUser.lastName[0]}
+                      {displayCurrentUser.firstName[0]}{displayCurrentUser.lastName[0]}
                     </div>
                     <span className="hidden lg:block">{t("myAccount")}</span>
                   </button>
                   {userMenuOpen && (
                     <div className="absolute right-0 top-full mt-1 bg-white border border-stone-100 shadow-lg min-w-48 py-2 z-50">
                       <div className="px-4 py-3 border-b border-stone-100">
-                        <p className="text-sm font-medium text-stone-900">{currentUser.firstName} {currentUser.lastName}</p>
-                        <p className="text-xs text-stone-400 mt-0.5 truncate">{currentUser.email}</p>
+                        <p className="text-sm font-medium text-stone-900">{displayCurrentUser.firstName} {displayCurrentUser.lastName}</p>
+                        <p className="text-xs text-stone-400 mt-0.5 truncate">{displayCurrentUser.email}</p>
                       </div>
                       {[
                         { label: t("myAccount"), href: "/account" },
                         { label: t("orders"),    href: "/account?tab=orders" },
                         { label: t("wishlist"),  href: "/wishlist" },
-                        ...(currentUser.role === "admin" ? [{ label: t("adminDash"), href: "/admin" }] : []),
+                        ...(displayCurrentUser.role === "admin" ? [{ label: t("adminDash"), href: "/admin" }] : []),
                       ].map((item) => (
                         <Link key={item.label} href={item.href} onClick={() => setUserMenuOpen(false)}
                           className="block px-4 py-2.5 text-sm font-light text-stone-600 hover:text-black hover:bg-stone-50 transition-colors">
@@ -313,12 +340,12 @@ export default function Header() {
               <Link href="/wishlist"
                 className={cn("relative px-3 py-2 transition-colors", iconColor, hoverColor)}>
                 <Heart size={18} strokeWidth={1.5} />
-                {wishlistCount() > 0 && (
+                {displayWishlistCount > 0 && (
                   <span className={cn(
                     "absolute top-1 right-1 text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center",
                     isTransparent ? "bg-white text-stone-900" : "bg-stone-900 text-white"
                   )}>
-                    {wishlistCount()}
+                    {displayWishlistCount}
                   </span>
                 )}
               </Link>
@@ -327,12 +354,12 @@ export default function Header() {
               <button onClick={toggleCart}
                 className={cn("relative px-3 py-2 transition-colors", iconColor, hoverColor)}>
                 <ShoppingBag size={18} strokeWidth={1.5} />
-                {itemCount() > 0 && (
+                {displayItemCount > 0 && (
                   <span className={cn(
                     "absolute top-1 right-1 text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center",
                     isTransparent ? "bg-white text-stone-900" : "bg-stone-900 text-white"
                   )}>
-                    {itemCount()}
+                    {displayItemCount}
                   </span>
                 )}
               </button>
@@ -368,12 +395,12 @@ export default function Header() {
               </button>
               <button onClick={toggleCart} className={cn("relative p-2 transition-colors", iconColor)}>
                 <ShoppingBag size={18} strokeWidth={1.5} />
-                {itemCount() > 0 && (
+                {displayItemCount > 0 && (
                   <span className={cn(
                     "absolute top-1 right-1 text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center",
                     isTransparent ? "bg-white text-stone-900" : "bg-stone-900 text-white"
                   )}>
-                    {itemCount()}
+                    {displayItemCount}
                   </span>
                 )}
               </button>
@@ -434,22 +461,22 @@ export default function Header() {
             ))}
 
             <div className="border-t border-stone-200">
-              {currentUser ? (
+              {displayCurrentUser ? (
                 <>
                   <div className="flex items-center gap-3 px-6 py-4 border-b border-stone-100 bg-stone-50">
                     <div className="w-8 h-8 rounded-full bg-stone-900 text-white flex items-center justify-center text-xs font-medium">
-                      {currentUser.firstName[0]}{currentUser.lastName[0]}
+                      {displayCurrentUser.firstName[0]}{displayCurrentUser.lastName[0]}
                     </div>
                     <div>
-                      <p className="text-sm font-medium">{currentUser.firstName} {currentUser.lastName}</p>
-                      <p className="text-xs text-stone-400">{currentUser.email}</p>
+                      <p className="text-sm font-medium">{displayCurrentUser.firstName} {displayCurrentUser.lastName}</p>
+                      <p className="text-xs text-stone-400">{displayCurrentUser.email}</p>
                     </div>
                   </div>
                   {[
                     { label: t("myAccount"), href: "/account" },
                     { label: t("orders"),    href: "/account?tab=orders" },
                     { label: t("wishlist"),  href: "/wishlist" },
-                    ...(currentUser.role === "admin" ? [{ label: t("adminDash"), href: "/admin" }] : []),
+                    ...(displayCurrentUser.role === "admin" ? [{ label: t("adminDash"), href: "/admin" }] : []),
                   ].map(({ label, href }) => (
                     <Link key={label} href={href} onClick={() => setMobileOpen(false)}
                       className="block px-6 py-4 text-sm font-light border-b border-stone-100">

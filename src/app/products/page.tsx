@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, Suspense } from "react";
+import { useEffect, useState, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { SlidersHorizontal, X, ChevronDown, Lock } from "lucide-react";
 import Link from "next/link";
@@ -22,6 +22,7 @@ const priceRanges = [
 ];
 
 function ProductsContent() {
+  const [mounted, setMounted] = useState(false);
   const searchParams = useSearchParams();
   const filterParam      = searchParams.get("filter");
   const categoryParam    = searchParams.get("category") ?? "all";
@@ -31,7 +32,14 @@ function ProductsContent() {
   const { collections } = useCollectionStore();
   const currentUser    = useAuthStore((s) => s.currentUser);
   const language       = useLocaleStore((s) => s.language);
-  const t              = useTranslations(language);
+  const displayCollections = mounted ? collections : [];
+  const displayCurrentUser = mounted ? currentUser : null;
+  const displayLanguage    = mounted ? language : "EN";
+  const t              = useTranslations(displayLanguage);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const sortOptions = [
     { label: t("newest"),      value: "newest" },
@@ -63,22 +71,22 @@ function ProductsContent() {
   };
 
   const activeCollection = collectionParam
-    ? collections.find((c) => c.slug === collectionParam && c.status === "active")
+    ? displayCollections.find((c) => c.slug === collectionParam && c.status === "active")
     : null;
   const isMembersOnlyCollection =
     collectionParam === "pre-fall-2026" || activeCollection?.membersOnly === true;
   const membersOnlyProductIds = useMemo(() => new Set(
-    collections
+    displayCollections
       .filter((c) => c.membersOnly || c.slug === "pre-fall-2026")
       .flatMap((c) => c.productIds)
-  ), [collections]);
+  ), [displayCollections]);
 
   const filtered = useMemo(() => {
     let list = [...products];
 
     // Collection filter takes priority over other filter params
     if (collectionParam) {
-      const col = collections.find((c) => c.slug === collectionParam && c.status === "active");
+      const col = displayCollections.find((c) => c.slug === collectionParam && c.status === "active");
       if (col) {
         list = list.filter((p) => col.productIds.includes(p.id));
       }
@@ -92,7 +100,7 @@ function ProductsContent() {
       );
     }
 
-    if (!currentUser && !isMembersOnlyCollection) {
+    if (!displayCurrentUser && !isMembersOnlyCollection) {
       list = list.filter((p) => !membersOnlyProductIds.has(p.id));
     }
 
@@ -120,7 +128,7 @@ function ProductsContent() {
       list.sort((a, b) => (b.isBestSeller ? 1 : 0) - (a.isBestSeller ? 1 : 0));
 
     return list;
-  }, [products, collections, collectionParam, filterParam, currentUser, isMembersOnlyCollection, membersOnlyProductIds, selectedCategory, selectedSizes, selectedPrice, sortBy]);
+  }, [products, displayCollections, collectionParam, filterParam, displayCurrentUser, isMembersOnlyCollection, membersOnlyProductIds, selectedCategory, selectedSizes, selectedPrice, sortBy]);
 
   const pageTitle =
     activeCollection
@@ -139,7 +147,7 @@ function ProductsContent() {
     selectedCategory !== "all" || selectedSizes.length > 0 || selectedPrice !== null;
 
   // Members-only gate
-  if (isMembersOnlyCollection && !currentUser) {
+  if (isMembersOnlyCollection && !displayCurrentUser) {
     return (
       <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/60 px-4 py-24 text-center backdrop-blur-sm">
         <Link
@@ -293,7 +301,7 @@ function ProductsContent() {
                       selectedPrice === i ? "text-stone-900 font-medium" : "text-stone-400"
                     )}
                   >
-                    {language === "FR" ? range.labelFR : range.labelEN}
+                    {displayLanguage === "FR" ? range.labelFR : range.labelEN}
                   </button>
                 ))}
               </div>
