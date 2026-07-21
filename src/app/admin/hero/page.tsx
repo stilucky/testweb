@@ -49,6 +49,15 @@ async function parseUploadResponse(res: Response) {
   return { error: cleanText || `Upload failed with HTTP ${res.status}` };
 }
 
+const HERO_VIDEO_CHUNK_SIZE = 8 * 1024 * 1024;
+
+function createUploadId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `hero-video-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 function FocalPicker({
   src,
   position,
@@ -509,6 +518,7 @@ function SlideForm({
   );
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0);
   const addAssets = useMediaLibraryStore((state) => state.addAssets);
   const imageFileRef = useRef<HTMLInputElement>(null);
   const thumbnailFileRef = useRef<HTMLInputElement>(null);
@@ -536,20 +546,41 @@ function SlideForm({
   const handleNativeUpload = async (file: File) => {
     if (!file.type.startsWith("video/")) return;
     setUploadingVideo(true);
+    setVideoUploadProgress(0);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/hero-video", { method: "POST", body: formData });
-      const data = await parseUploadResponse(res);
+      const uploadId = createUploadId();
+      const totalChunks = Math.ceil(file.size / HERO_VIDEO_CHUNK_SIZE);
+      let finalUrl = "";
 
-      if (!res.ok) throw new Error(data.error ?? `Upload failed (${formatFileSize(file.size)})`);
-      if (data.url) setForm((f) => ({ ...f, videoUrl: data.url, videoType: "native" }));
+      for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex += 1) {
+        const start = chunkIndex * HERO_VIDEO_CHUNK_SIZE;
+        const end = Math.min(file.size, start + HERO_VIDEO_CHUNK_SIZE);
+        const chunk = file.slice(start, end);
+        const formData = new FormData();
+        formData.append("chunk", chunk, `${file.name}.part-${chunkIndex}`);
+        formData.append("uploadId", uploadId);
+        formData.append("filename", file.name);
+        formData.append("fileType", file.type);
+        formData.append("chunkIndex", String(chunkIndex));
+        formData.append("totalChunks", String(totalChunks));
+        formData.append("totalSize", String(file.size));
+
+        const res = await fetch("/api/hero-video/chunk", { method: "POST", body: formData });
+        const data = await parseUploadResponse(res);
+
+        if (!res.ok) throw new Error(data.error ?? `Upload failed at chunk ${chunkIndex + 1}/${totalChunks}`);
+        if (data.url) finalUrl = data.url;
+        setVideoUploadProgress(Math.round(((chunkIndex + 1) / totalChunks) * 100));
+      }
+
+      if (finalUrl) setForm((f) => ({ ...f, videoUrl: finalUrl, videoType: "native" }));
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       alert(`Upload video thất bại (${formatFileSize(file.size)}): ${message}`);
     } finally {
       setUploadingVideo(false);
+      setVideoUploadProgress(0);
     }
   };
 
@@ -716,9 +747,17 @@ function SlideForm({
                   className="w-full flex flex-col items-center gap-2 border-2 border-dashed border-stone-200 hover:border-stone-400 py-6 transition-colors bg-white disabled:cursor-wait disabled:opacity-60">
                   <Upload size={18} className="text-stone-400" />
                   <p className="text-xs text-stone-500">
-                    {uploadingVideo ? "Đang upload video lên VPS/local..." : "Click hoặc kéo thả video (MP4, WebM, MOV)"}
+                    {uploadingVideo ? `Đang upload video lên VPS/local... ${videoUploadProgress}%` : "Click hoặc kéo thả video (MP4, WebM, MOV)"}
                   </p>
-                  <p className="text-[10px] text-stone-400">Video được lưu trên server, không lưu base64 trong trình duyệt.</p>
+                  <p className="text-[10px] text-stone-400">Video được chia thành từng phần nhỏ và lưu trên server.</p>
+                  {uploadingVideo && (
+                    <span className="mt-1 h-1 w-44 overflow-hidden bg-stone-100">
+                      <span
+                        className="block h-full bg-stone-900 transition-all"
+                        style={{ width: `${videoUploadProgress}%` }}
+                      />
+                    </span>
+                  )}
                 </button>
               )}
             </div>
