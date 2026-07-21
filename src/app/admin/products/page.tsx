@@ -84,6 +84,20 @@ function totalInventory(values: Record<string, number>) {
   return Object.values(values).reduce((sum, qty) => sum + qty, 0);
 }
 
+function isValidProductImageSource(src: string) {
+  const trimmed = src.trim();
+  if (!trimmed) return true;
+  if (trimmed.startsWith("/uploads/")) return true;
+  if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(trimmed)) return true;
+
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 type SizeChartKey = "sizeChart" | "sizeChartFR";
 type SizeChartTable = { headers: string[]; rows: string[][] };
 
@@ -312,6 +326,9 @@ export default function AdminProductsPage() {
     });
     if (invalidSizeStock) e.stock = "Enter a valid quantity for each selected size";
     if (!form.images.trim() && uploadedImages.length === 0) e.images = "At least one image required";
+    if (!e.images && parseUrls(form.images).some((url) => !isValidProductImageSource(url))) {
+      e.images = "Use full http(s) image URLs, /uploads/... images, or upload files from your computer";
+    }
     if (form.collections.length === 0) e.collections = "Select at least one collection";
     setErrors(e);
     return Object.keys(e).length === 0;

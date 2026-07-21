@@ -37,6 +37,7 @@ interface ShopifyVariant {
 }
 
 interface ShopifyImage { id: number; src: string; position: number }
+type ShopifyImageInput = { src: string } | { attachment: string; filename: string };
 interface ShopifyOption { id: number; name: string; values: string[] }
 interface ShopifyMetafield {
   id: number;
@@ -143,27 +144,60 @@ function metafieldValue(sp: ShopifyProduct, key: string): string | undefined {
 function localUploadFilename(src: string): string | null {
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
   const prefix = `${appUrl}/uploads/`;
+  const trimmed = src.trim();
 
-  if (src.startsWith(prefix)) {
-    return src.slice(prefix.length);
+  if (trimmed.startsWith(prefix)) {
+    return trimmed.slice(prefix.length);
   }
 
   try {
-    const url = new URL(src);
+    const url = new URL(trimmed);
     if (url.pathname.startsWith("/uploads/")) {
       return decodeURIComponent(url.pathname.slice("/uploads/".length));
     }
   } catch {
-    if (src.startsWith("/uploads/")) return src.slice("/uploads/".length);
+    if (trimmed.startsWith("/uploads/")) return trimmed.slice("/uploads/".length);
   }
 
   return null;
 }
 
-async function imageInput(src: string) {
-  const filename = localUploadFilename(src);
+function dataUrlImageInput(src: string, index: number): ShopifyImageInput | null {
+  const match = src.trim().match(/^data:image\/([a-z0-9.+-]+);base64,([a-z0-9+/=\s]+)$/i);
+  if (!match) return null;
+
+  const extension = match[1].toLowerCase().replace("jpeg", "jpg").replace(/[^a-z0-9]/g, "") || "jpg";
+  const attachment = match[2].replace(/\s/g, "");
+
+  return {
+    attachment,
+    filename: `product-image-${index + 1}.${extension}`,
+  };
+}
+
+function remoteImageInput(src: string): ShopifyImageInput {
+  const trimmed = src.trim();
+
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol === "http:" || url.protocol === "https:") {
+      return { src: url.toString() };
+    }
+  } catch {
+    // Fall through to the clearer error below.
+  }
+
+  throw new Error(`Invalid product image URL: "${trimmed}". Use an http(s) URL or upload the image first.`);
+}
+
+async function imageInput(src: string, index: number): Promise<ShopifyImageInput> {
+  const trimmed = src.trim();
+  const dataUrlInput = dataUrlImageInput(trimmed, index);
+  if (dataUrlInput) return dataUrlInput;
+
+  const filename = localUploadFilename(trimmed);
   if (!filename || filename.includes("..") || filename.includes("/") || filename.includes("\\")) {
-    return { src };
+    return remoteImageInput(trimmed);
   }
 
   const buffer = await readFile(join(process.cwd(), "public", "uploads", filename));
@@ -174,7 +208,8 @@ async function imageInput(src: string) {
 }
 
 async function imageInputs(images: string[] = []) {
-  return Promise.all(images.map(imageInput));
+  const cleanImages = images.map((src) => src.trim()).filter(Boolean);
+  return Promise.all(cleanImages.map(imageInput));
 }
 
 /** Convert Shopify product to our Product type */
