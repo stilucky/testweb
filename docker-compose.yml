@@ -6,8 +6,12 @@ services:
     container_name: lunelle_app
     restart: unless-stopped
     env_file: .env.production
+    environment:
+      LUNELLE_UPLOAD_DIR: /app/public/uploads
     expose:
       - "3000"
+    volumes:
+      - lunelle_uploads:/app/public/uploads
     networks:
       - lunelle_net
     healthcheck:
@@ -36,3 +40,6 @@ services:
 networks:
   lunelle_net:
     driver: bridge
+
+volumes:
+  lunelle_uploads:

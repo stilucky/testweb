@@ -78,6 +78,7 @@ export default function HeroSection() {
   const { slides: allSlides, autoplayInterval, setHeroSettings } = useHeroStore();
   const slides = allSlides.filter((s) => s.enabled !== false);
   const [current, setCurrent] = useState(0);
+  const [heroLoaded, setHeroLoaded] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -92,10 +93,12 @@ export default function HeroSection() {
             autoplayInterval: data.autoplayInterval,
           });
         }
+        setHeroLoaded(true);
       })
       .catch((err) => {
         if (err instanceof DOMException && err.name === "AbortError") return;
         console.warn("[HeroSection] Failed to load hero settings", err);
+        setHeroLoaded(true);
       });
 
     return () => controller.abort();
@@ -107,6 +110,10 @@ export default function HeroSection() {
     const timer = setInterval(() => setCurrent((c) => (c + 1) % slides.length), ms);
     return () => clearInterval(timer);
   }, [slides.length, autoplayInterval]);
+
+  if (!heroLoaded) {
+    return <section className="relative h-[100svh] w-full bg-stone-900 md:h-screen" />;
+  }
 
   if (slides.length === 0) return null;
 
