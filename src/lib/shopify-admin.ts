@@ -130,6 +130,8 @@ const METAFIELD_KEYS = {
   detailsCareFR: "details_care_fr",
   returnPolicy: "return_policy",
   returnPolicyFR: "return_policy_fr",
+  fitNote: "fit_note",
+  fitNoteFR: "fit_note_fr",
   sizeChart: "size_chart",
   sizeChartFR: "size_chart_fr",
 } as const;
@@ -225,6 +227,8 @@ export function shopifyToProduct(sp: ShopifyProduct): Product {
   const detailsCareFR = metafieldValue(sp, METAFIELD_KEYS.detailsCareFR);
   const returnPolicy = metafieldValue(sp, METAFIELD_KEYS.returnPolicy);
   const returnPolicyFR = metafieldValue(sp, METAFIELD_KEYS.returnPolicyFR);
+  const fitNote = metafieldValue(sp, METAFIELD_KEYS.fitNote);
+  const fitNoteFR = metafieldValue(sp, METAFIELD_KEYS.fitNoteFR);
   const sizeChart = metafieldValue(sp, METAFIELD_KEYS.sizeChart);
   const sizeChartFR = metafieldValue(sp, METAFIELD_KEYS.sizeChartFR);
 
@@ -270,6 +274,8 @@ export function shopifyToProduct(sp: ShopifyProduct): Product {
     detailsCareFR,
     returnPolicy,
     returnPolicyFR,
+    fitNote,
+    fitNoteFR,
     shortDescription: shortDescription ?? (sp.body_html ? stripHtml(sp.body_html).slice(0, 120) : ""),
     shortDescriptionFR,
     sizeChart,
@@ -419,6 +425,8 @@ async function syncProductMetafields(productId: string, p: Partial<Product>) {
     upsertProductMetafield(productId, existing, METAFIELD_KEYS.detailsCareFR, p.detailsCareFR, "multi_line_text_field"),
     upsertProductMetafield(productId, existing, METAFIELD_KEYS.returnPolicy, p.returnPolicy, "multi_line_text_field"),
     upsertProductMetafield(productId, existing, METAFIELD_KEYS.returnPolicyFR, p.returnPolicyFR, "multi_line_text_field"),
+    upsertProductMetafield(productId, existing, METAFIELD_KEYS.fitNote, p.fitNote, "multi_line_text_field"),
+    upsertProductMetafield(productId, existing, METAFIELD_KEYS.fitNoteFR, p.fitNoteFR, "multi_line_text_field"),
     upsertProductMetafield(productId, existing, METAFIELD_KEYS.sizeChart, p.sizeChart, "multi_line_text_field"),
     upsertProductMetafield(productId, existing, METAFIELD_KEYS.sizeChartFR, p.sizeChartFR, "multi_line_text_field"),
   ]);

@@ -1,11 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { useTailoredOrderStore } from "@/store/tailoredOrderStore";
 import { useAuthStore } from "@/store/authStore";
 import { useProductStore } from "@/store/productStore";
+import { tailoredImageByKey, useTailoredContentStore } from "@/store/tailoredContentStore";
 import { cn } from "@/lib/utils";
 import type { Product } from "@/types";
 
@@ -141,8 +142,28 @@ export default function CustomizedFitPage() {
   const formRef = useRef<HTMLDivElement>(null);
   const addTailoredOrder = useTailoredOrderStore((s) => s.addOrder);
   const currentUser = useAuthStore((s) => s.currentUser);
+  const tailoredImages = useTailoredContentStore((s) => s.images);
+  const setTailoredImages = useTailoredContentStore((s) => s.setImages);
+  const heroImage = tailoredImageByKey(tailoredImages, "customizedFitHero");
   const randomCollectionImage =
     collectionImages[Math.floor(RANDOM_IMAGE_SEED * collectionImages.length)] ?? fallbackProducts[0].image;
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    Promise.resolve(useTailoredContentStore.persist.rehydrate())
+      .then(() => fetch("/api/tailored", { cache: "no-store", signal: controller.signal }))
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then((data) => {
+        if (Array.isArray(data.images)) setTailoredImages(data.images);
+      })
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        console.warn("[CustomizedFitPage] Failed to load tailored settings", err);
+      });
+
+    return () => controller.abort();
+  }, [setTailoredImages]);
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -190,11 +211,12 @@ export default function CustomizedFitPage() {
       {/* ── 1. HERO ── */}
       <section className="relative h-[90vh] overflow-hidden">
         <Image
-          src="https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=1600&q=80"
+          src={heroImage.image}
           alt="Customized Fit"
           fill priority
           sizes="100vw"
           className="object-cover object-top"
+          style={{ objectPosition: heroImage.imagePosition }}
         />
         <div className="absolute inset-0 bg-black/30" />
         <div className="relative z-10 h-full flex flex-col justify-end pb-16 px-10 md:px-20">

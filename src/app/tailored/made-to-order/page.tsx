@@ -10,6 +10,7 @@ import { useLocaleStore, formatLocalPrice } from "@/store/localeStore";
 import { useTailoredOrderStore } from "@/store/tailoredOrderStore";
 import { useAuthStore } from "@/store/authStore";
 import { useProductStore } from "@/store/productStore";
+import { tailoredImageByKey, useTailoredContentStore } from "@/store/tailoredContentStore";
 import { cn } from "@/lib/utils";
 import type { Product } from "@/types";
 
@@ -196,6 +197,26 @@ export default function MadeToOrderPage() {
   const currency = useLocaleStore((s) => s.currency);
   const addTailoredOrder = useTailoredOrderStore((s) => s.addOrder);
   const currentUser = useAuthStore((s) => s.currentUser);
+  const tailoredImages = useTailoredContentStore((s) => s.images);
+  const setTailoredImages = useTailoredContentStore((s) => s.setImages);
+  const heroImage = tailoredImageByKey(tailoredImages, "madeToOrderHero");
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    Promise.resolve(useTailoredContentStore.persist.rehydrate())
+      .then(() => fetch("/api/tailored", { cache: "no-store", signal: controller.signal }))
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then((data) => {
+        if (Array.isArray(data.images)) setTailoredImages(data.images);
+      })
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        console.warn("[MadeToOrderPage] Failed to load tailored settings", err);
+      });
+
+    return () => controller.abort();
+  }, [setTailoredImages]);
 
   /* Open panel */
   const openPanel = (item: MadeToOrderItem) => {
@@ -294,11 +315,12 @@ export default function MadeToOrderPage() {
       {/* ── 1. HERO ── */}
       <section className="relative h-[90vh] overflow-hidden">
         <Image
-          src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1600&q=80"
+          src={heroImage.image}
           alt="Made to Order"
           fill priority
           sizes="100vw"
           className="object-cover object-top"
+          style={{ objectPosition: heroImage.imagePosition }}
         />
         <div className="absolute inset-0 bg-black/35" />
         <div className="relative z-10 h-full flex flex-col justify-end pb-16 px-10 md:px-20">

@@ -45,6 +45,7 @@ interface Props {
   onClose: () => void;
   gender?: "women" | "men" | "unisex";
   customChart?: string;
+  customFitNote?: string;
 }
 
 function parseCustomChart(raw?: string) {
@@ -60,18 +61,22 @@ function parseCustomChart(raw?: string) {
   return { headers, rows };
 }
 
-function formatCustomMeasurement(value: string | undefined, cellIndex: number) {
+function formatCustomMeasurement(value: string | undefined, cellIndex: number, header?: string) {
   const clean = value?.trim();
   if (!clean) return "-";
   if (cellIndex === 0) return clean;
-  if (/^\d+(\.\d+)?$/.test(clean)) return `${clean} in`;
+  if (/^\d+(\.\d+)?$/.test(clean)) {
+    const unit = header?.match(/\((in|cm)\)/i)?.[1]?.toLowerCase() ?? "in";
+    return `${clean} ${unit}`;
+  }
   return clean;
 }
 
-export default function SizeChart({ open, onClose, gender = "women", customChart }: Props) {
+export default function SizeChart({ open, onClose, gender = "women", customChart, customFitNote }: Props) {
   const [unit, setUnit] = useState<"in" | "cm">("in");
   const [tab, setTab] = useState<"chart" | "how">("chart");
   const parsedCustomChart = parseCustomChart(customChart);
+  const fitNote = customFitNote?.trim();
 
   return (
     <>
@@ -171,7 +176,7 @@ export default function SizeChart({ open, onClose, gender = "women", customChart
                                 cellIndex === 0 ? "font-medium text-stone-900" : "text-stone-700"
                               )}
                             >
-                              {formatCustomMeasurement(row[cellIndex], cellIndex)}
+                              {formatCustomMeasurement(row[cellIndex], cellIndex, header)}
                             </td>
                           ))}
                         </tr>
@@ -258,7 +263,10 @@ export default function SizeChart({ open, onClose, gender = "women", customChart
               {/* Fit note */}
               <div className="mt-6 border border-stone-100 p-4 space-y-2">
                 <p className="text-xs tracking-widests uppercase text-stone-400 mb-3">Fit Notes</p>
-                {[
+                {fitNote && (
+                  <p className="text-xs text-stone-500 leading-relaxed whitespace-pre-line">{fitNote}</p>
+                )}
+                {!fitNote && [
                   { label: "True to size", desc: "This style fits as expected." },
                   { label: "Model info", desc: "Model is 5'10\" and wearing a size S." },
                   { label: "Fabric", desc: "Non-stretch woven fabric — size up if between sizes." },

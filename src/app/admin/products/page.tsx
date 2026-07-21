@@ -44,6 +44,7 @@ type FormData = {
   description: string; descriptionFR: string;
   detailsCare: string; detailsCareFR: string;
   returnPolicy: string; returnPolicyFR: string;
+  fitNote: string; fitNoteFR: string;
   sizeChart: string; sizeChartFR: string;
   price: string; salePrice: string;
   priceCAD: string; salePriceCAD: string;
@@ -60,6 +61,7 @@ const emptyForm: FormData = {
   description: "", descriptionFR: "",
   detailsCare: "", detailsCareFR: "",
   returnPolicy: "", returnPolicyFR: "",
+  fitNote: "", fitNoteFR: "",
   sizeChart: "", sizeChartFR: "",
   price: "", salePrice: "",
   priceCAD: "", salePriceCAD: "",
@@ -100,11 +102,18 @@ function isValidProductImageSource(src: string) {
 
 type SizeChartKey = "sizeChart" | "sizeChartFR";
 type SizeChartTable = { headers: string[]; rows: string[][] };
+type MeasurementUnit = "in" | "cm";
 
 const defaultSizeChartHeaders: Record<SizeChartKey, string[]> = {
   sizeChart: ["Size", "Bust", "Waist", "Hip", "Length"],
   sizeChartFR: ["Taille", "Buste", "Taille", "Hanches", "Longueur"],
 };
+
+function sizeChartHeaders(key: SizeChartKey, unit: MeasurementUnit) {
+  return defaultSizeChartHeaders[key].map((header, index) =>
+    index === 0 ? header : `${header} (${unit})`
+  );
+}
 
 function parseSizeChartTable(raw: string, fallbackHeaders: string[]): SizeChartTable {
   const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
@@ -130,6 +139,21 @@ function serializeSizeChartTable(table: SizeChartTable): string {
   const headerLine = cleanHeaders.join(" | ");
   if (cleanRows.length === 0) return headerLine;
   return [headerLine, ...cleanRows.map((row) => row.join(" | "))].join("\n");
+}
+
+function detectMeasurementUnit(raw: string): MeasurementUnit {
+  return /\((cm|centimeters?)\)/i.test(raw) ? "cm" : "in";
+}
+
+function convertMeasurementText(value: string, from: MeasurementUnit, to: MeasurementUnit) {
+  if (from === to || !value.trim()) return value;
+  const factor = from === "in" ? 2.54 : 1 / 2.54;
+
+  return value.replace(/\d+(?:\.\d+)?/g, (match) => {
+    const converted = Number(match) * factor;
+    if (!Number.isFinite(converted)) return match;
+    return Number(converted.toFixed(1)).toString();
+  });
 }
 
 
@@ -165,6 +189,7 @@ export default function AdminProductsPage() {
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [uploadedVideoUrl, setUploadedVideoUrl] = useState<string>("");
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+  const [measurementUnit, setMeasurementUnit] = useState<MeasurementUnit>("in");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -251,10 +276,12 @@ export default function AdminProductsPage() {
     setUploadedImages([]);
     setUploadedVideoUrl("");
     setShowUrlInput(false);
+    setMeasurementUnit("in");
     setModalOpen(true);
   };
 
   const openEdit = (product: Product) => {
+    setMeasurementUnit(detectMeasurementUnit(product.sizeChart ?? product.sizeChartFR ?? ""));
     const inventoryBySize = product.sizes.reduce<Record<string, string>>((acc, size) => {
       acc[size] = String(product.inventoryBySize?.[size] ?? 0);
       return acc;
@@ -273,6 +300,8 @@ export default function AdminProductsPage() {
       detailsCareFR: product.detailsCareFR ?? "",
       returnPolicy: product.returnPolicy ?? "",
       returnPolicyFR: product.returnPolicyFR ?? "",
+      fitNote: product.fitNote ?? "",
+      fitNoteFR: product.fitNoteFR ?? "",
       sizeChart: product.sizeChart ?? "",
       sizeChartFR: product.sizeChartFR ?? "",
       price: product.price ? String(product.price) : "",
@@ -370,6 +399,8 @@ export default function AdminProductsPage() {
       detailsCareFR: form.detailsCareFR.trim() || undefined,
       returnPolicy: form.returnPolicy.trim() || undefined,
       returnPolicyFR: form.returnPolicyFR.trim() || undefined,
+      fitNote: form.fitNote.trim() || undefined,
+      fitNoteFR: form.fitNoteFR.trim() || undefined,
       sizeChart: form.sizeChart.trim() || undefined,
       sizeChartFR: form.sizeChartFR.trim() || undefined,
       price: form.price ? Number(form.price) : Math.round((Number(form.priceCAD) / CAD_RATE) * 100) / 100,
@@ -548,16 +579,43 @@ export default function AdminProductsPage() {
   });
 
   const sizeMeasurementValue = (size: string, measurementIndex: number) => {
-    const table = parseSizeChartTable(form.sizeChart, defaultSizeChartHeaders.sizeChart);
+    const table = parseSizeChartTable(form.sizeChart, sizeChartHeaders("sizeChart", measurementUnit));
     const row = table.rows.find((r) => r[0] === size);
     return row?.[measurementIndex + 1] ?? "";
+  };
+
+  const convertSizeChartUnit = (raw: string, key: SizeChartKey, from: MeasurementUnit, to: MeasurementUnit) => {
+    const table = parseSizeChartTable(raw, sizeChartHeaders(key, from));
+    const headers = sizeChartHeaders(key, to);
+    const rows = table.rows.map((row) => {
+      const nextRow = [...row];
+      while (nextRow.length < headers.length) nextRow.push("");
+      return nextRow.map((cell, index) =>
+        index === 0 ? cell : convertMeasurementText(cell, from, to)
+      );
+    });
+
+    return serializeSizeChartTable({ headers, rows });
+  };
+
+  const changeMeasurementUnit = (unit: MeasurementUnit) => {
+    setForm((f) => {
+      if (measurementUnit === unit) return f;
+
+      return {
+        ...f,
+        sizeChart: convertSizeChartUnit(f.sizeChart, "sizeChart", measurementUnit, unit),
+        sizeChartFR: convertSizeChartUnit(f.sizeChartFR, "sizeChartFR", measurementUnit, unit),
+      };
+    });
+    setMeasurementUnit(unit);
   };
 
   const updateSelectedSizeMeasurement = (size: string, measurementIndex: number, value: string) => {
     setForm((f) => {
       const updateChart = (key: SizeChartKey) => {
-        const table = parseSizeChartTable(f[key], defaultSizeChartHeaders[key]);
-        const headers = table.headers.length ? table.headers : defaultSizeChartHeaders[key];
+        const table = parseSizeChartTable(f[key], sizeChartHeaders(key, measurementUnit));
+        const headers = sizeChartHeaders(key, measurementUnit);
         const current = table.rows.find((row) => row[0] === size) ?? [size];
         const nextRow = [...current];
         while (nextRow.length < headers.length) nextRow.push("");
@@ -978,6 +1036,33 @@ export default function AdminProductsPage() {
                 </Field>
               </div>
 
+              {/* Fit note EN / FR */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="h-px flex-1 bg-stone-100" />
+                  <span className="text-[10px] tracking-widest uppercase text-stone-400">Fit Note</span>
+                  <div className="h-px flex-1 bg-stone-100" />
+                </div>
+                <Field label="Fit Note — EN">
+                  <textarea
+                    value={form.fitNote}
+                    onChange={(e) => setForm((f) => ({ ...f, fitNote: e.target.value }))}
+                    placeholder="e.g. True to size. Fitted through the bodice with a relaxed skirt."
+                    rows={3}
+                    className="w-full px-4 py-3 border border-stone-200 text-sm focus:outline-none focus:border-stone-800 transition-colors resize-none"
+                  />
+                </Field>
+                <Field label="Fit Note — FR">
+                  <textarea
+                    value={form.fitNoteFR}
+                    onChange={(e) => setForm((f) => ({ ...f, fitNoteFR: e.target.value }))}
+                    placeholder="Note de coupe en français..."
+                    rows={3}
+                    className="w-full px-4 py-3 border border-stone-200 text-sm focus:outline-none focus:border-stone-800 transition-colors resize-none"
+                  />
+                </Field>
+              </div>
+
               {/* Product-specific policies */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2 mb-1">
@@ -1093,14 +1178,33 @@ export default function AdminProductsPage() {
                     <div className="border border-stone-200 divide-y divide-stone-100">
                       <div className="flex items-center justify-between px-3 py-2 bg-stone-50">
                         <span className="text-[10px] tracking-widest uppercase text-stone-400">Inventory & size measurements</span>
-                        <span className="text-[10px] text-stone-400">{form.sizes.length} selected</span>
+                        <div className="flex items-center gap-3">
+                          <div className="flex border border-stone-200 bg-white">
+                            {(["in", "cm"] as MeasurementUnit[]).map((unit) => (
+                              <button
+                                key={unit}
+                                type="button"
+                                onClick={() => changeMeasurementUnit(unit)}
+                                className={cn(
+                                  "px-3 py-1.5 text-[10px] uppercase tracking-widest transition-colors",
+                                  measurementUnit === unit
+                                    ? "bg-stone-900 text-white"
+                                    : "text-stone-500 hover:text-stone-900"
+                                )}
+                              >
+                                {unit}
+                              </button>
+                            ))}
+                          </div>
+                          <span className="text-[10px] text-stone-400">{form.sizes.length} selected</span>
+                        </div>
                       </div>
                       <div className="overflow-x-auto">
                         <div className="min-w-[720px]">
                           <div className="grid grid-cols-[70px_100px_repeat(4,minmax(110px,1fr))] gap-3 px-3 py-2 bg-white">
                             <span className="text-[10px] tracking-widest uppercase text-stone-400">Size</span>
                             <span className="text-[10px] tracking-widest uppercase text-stone-400">Quantity</span>
-                            {defaultSizeChartHeaders.sizeChart.slice(1).map((header) => (
+                            {sizeChartHeaders("sizeChart", measurementUnit).slice(1).map((header) => (
                               <span key={header} className="text-[10px] tracking-widest uppercase text-stone-400">{header}</span>
                             ))}
                           </div>
@@ -1128,7 +1232,7 @@ export default function AdminProductsPage() {
                                   key={`${size}-${header}`}
                                   type="text"
                                   value={sizeMeasurementValue(size, measurementIndex)}
-                                  placeholder={`${header} (in)`}
+                                  placeholder={`${header} (${measurementUnit})`}
                                   onChange={(e) => updateSelectedSizeMeasurement(size, measurementIndex, e.target.value)}
                                   className="w-full px-3 py-2 border border-stone-200 text-sm focus:outline-none focus:border-stone-800 transition-colors"
                                 />

@@ -66,6 +66,9 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
   const sizeChart = (language === "FR" && product.sizeChartFR)
     ? product.sizeChartFR
     : product.sizeChart;
+  const fitNote = (language === "FR" && product.fitNoteFR)
+    ? product.fitNoteFR
+    : product.fitNote;
 
   const related = relatedProducts;
 
@@ -383,6 +386,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
         onClose={() => setSizeChartOpen(false)}
         gender={product.gender}
         customChart={sizeChart}
+        customFitNote={fitNote}
       />
 
       {/* Related products */}

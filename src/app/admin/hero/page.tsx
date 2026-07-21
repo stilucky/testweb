@@ -482,6 +482,7 @@ function SlideForm({
     form.videoType ?? "youtube"
   );
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
   const addAssets = useMediaLibraryStore((state) => state.addAssets);
   const imageFileRef = useRef<HTMLInputElement>(null);
   const thumbnailFileRef = useRef<HTMLInputElement>(null);
@@ -506,18 +507,23 @@ function SlideForm({
     setForm((f) => ({ ...f, videoType: tab, videoUrl: "" }));
   };
 
-  const handleNativeUpload = (file: File) => {
+  const handleNativeUpload = async (file: File) => {
     if (!file.type.startsWith("video/")) return;
-    if (file.size > 200 * 1024 * 1024) {
-      alert("File quá lớn (max 200 MB). Khuyến nghị dùng YouTube URL.");
-      return;
+    setUploadingVideo(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/hero-video", { method: "POST", body: formData });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error ?? "Upload failed");
+      if (data.url) setForm((f) => ({ ...f, videoUrl: data.url, videoType: "native" }));
+    } catch (err) {
+      alert(`Upload video thất bại: ${err}`);
+    } finally {
+      setUploadingVideo(false);
     }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const data = e.target?.result as string;
-      if (data) setForm((f) => ({ ...f, videoUrl: data, videoType: "native" }));
-    };
-    reader.readAsDataURL(file);
   };
 
   const handleImageUpload = async (file: File | null) => {
@@ -659,23 +665,33 @@ function SlideForm({
 
           {videoTab === "native" && (
             <div>
-              <input ref={fileRef} type="file" accept="video/*" className="hidden"
+              <input ref={fileRef} type="file" accept="video/mp4,video/webm,video/ogg,video/quicktime,.mp4,.webm,.ogv,.mov,.m4v" className="hidden"
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) handleNativeUpload(f); }} />
               {form.videoUrl && form.videoType === "native" ? (
                 <div>
                   <video src={form.videoUrl} controls className="w-full border border-stone-200" style={{ maxHeight: 160 }} />
+                  <p className="mt-1.5 break-all text-[10px] text-stone-400">{form.videoUrl}</p>
                   <button onClick={() => { setForm(f => ({ ...f, videoUrl: "" })); if (fileRef.current) fileRef.current.value = ""; }}
                     className="mt-1.5 text-xs text-red-400 hover:text-red-600 transition-colors">
                     Remove video
                   </button>
                 </div>
               ) : (
-                <button onClick={() => fileRef.current?.click()}
+                <button onClick={() => !uploadingVideo && fileRef.current?.click()}
                   onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) handleNativeUpload(f); }}
-                  className="w-full flex flex-col items-center gap-2 border-2 border-dashed border-stone-200 hover:border-stone-400 py-6 transition-colors bg-white">
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (uploadingVideo) return;
+                    const f = e.dataTransfer.files?.[0];
+                    if (f) handleNativeUpload(f);
+                  }}
+                  disabled={uploadingVideo}
+                  className="w-full flex flex-col items-center gap-2 border-2 border-dashed border-stone-200 hover:border-stone-400 py-6 transition-colors bg-white disabled:cursor-wait disabled:opacity-60">
                   <Upload size={18} className="text-stone-400" />
-                  <p className="text-xs text-stone-500">Click hoặc kéo thả video (MP4, WebM — max 200 MB)</p>
+                  <p className="text-xs text-stone-500">
+                    {uploadingVideo ? "Đang upload video lên VPS/local..." : "Click hoặc kéo thả video (MP4, WebM, MOV)"}
+                  </p>
+                  <p className="text-[10px] text-stone-400">Video được lưu trên server, không lưu base64 trong trình duyệt.</p>
                 </button>
               )}
             </div>

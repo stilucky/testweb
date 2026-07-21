@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
+import { readTailoredContentSettings } from "@/lib/server-tailored-content";
+import { defaultTailoredImages, tailoredImageByKey } from "@/store/tailoredContentStore";
 
 export const metadata: Metadata = {
   title: "Tailored",
@@ -24,7 +26,13 @@ const sections = {
   ],
 };
 
-export default function TailoredPage() {
+export default async function TailoredPage() {
+  const tailoredSettings = await readTailoredContentSettings();
+  const tailoredImages = tailoredSettings?.images ?? defaultTailoredImages;
+  const madeToOrderImage = tailoredImageByKey(tailoredImages, "overviewMadeToOrder");
+  const customizedFitImage = tailoredImageByKey(tailoredImages, "overviewCustomizedFit");
+  const closingImage = tailoredImageByKey(tailoredImages, "overviewClosing");
+
   return (
     <>
       {/* ── Page heading ── */}
@@ -63,12 +71,13 @@ export default function TailoredPage() {
           {/* Hero image */}
           <div className="relative h-[60vh] md:h-[70vh] overflow-hidden">
             <Image
-              src="https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=1200&q=80"
+              src={madeToOrderImage.image}
               alt="Made to Order"
               fill
               priority
               sizes="(max-width: 768px) 100vw, 50vw"
               className="object-cover object-top"
+              style={{ objectPosition: madeToOrderImage.imagePosition }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12">
@@ -130,12 +139,13 @@ export default function TailoredPage() {
           {/* Hero image */}
           <div className="relative h-[60vh] md:h-[70vh] overflow-hidden">
             <Image
-              src="https://images.unsplash.com/photo-1487222477894-8943e31ef7b2?w=1200&q=80"
+              src={customizedFitImage.image}
               alt="Customized Fit"
               fill
               priority
               sizes="(max-width: 768px) 100vw, 50vw"
               className="object-cover object-top"
+              style={{ objectPosition: customizedFitImage.imagePosition }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12">
@@ -196,11 +206,12 @@ export default function TailoredPage() {
       {/* ── Bottom closing strip ── */}
       <section className="relative py-28 overflow-hidden">
         <Image
-          src="https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=1600&q=80"
+          src={closingImage.image}
           alt="Tailored for you"
           fill
           sizes="100vw"
           className="object-cover"
+          style={{ objectPosition: closingImage.imagePosition }}
         />
         <div className="absolute inset-0 bg-stone-900/55" />
         <div className="relative z-10 text-center px-4 max-w-2xl mx-auto">

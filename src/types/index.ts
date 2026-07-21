@@ -18,6 +18,8 @@ export interface Product {
   returnPolicyFR?: string;
   shortDescription: string;
   shortDescriptionFR?: string;
+  fitNote?: string;
+  fitNoteFR?: string;
   sizeChart?: string;
   sizeChartFR?: string;
   featured: boolean;

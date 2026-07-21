@@ -29,6 +29,7 @@ const navLinks = [
   { href: "/admin/homepage",      label: "Homepage",        icon: PanelsTopLeft,   exact: false },
   { href: "/admin/media",         label: "Media Library",   icon: Images,          exact: false },
   { href: "/admin/about",         label: "About Content",   icon: BookOpen,        exact: false },
+  { href: "/admin/tailored",      label: "Tailored Images", icon: Scissors,        exact: true  },
   { href: "/admin/tailored-orders", label: "Tailored Orders", icon: Scissors,      exact: false },
   { href: "/admin/orders",        label: "Orders",          icon: ShoppingCart,    exact: false },
   { href: "/admin/customers",     label: "Customers",       icon: Users,           exact: false },

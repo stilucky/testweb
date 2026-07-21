@@ -18,7 +18,12 @@ export const CONTENT_TYPES: Record<string, string> = {
   gif: "image/gif",
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
+  m4v: "video/x-m4v",
+  mov: "video/quicktime",
+  mp4: "video/mp4",
+  ogv: "video/ogg",
   png: "image/png",
+  webm: "video/webm",
   webp: "image/webp",
 };
 
