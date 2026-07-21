@@ -23,6 +23,32 @@ function getYouTubeId(url: string): string | null {
   return null;
 }
 
+function formatFileSize(size: number) {
+  if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`;
+  if (size < 1024 * 1024 * 1024) return `${(size / 1024 / 1024).toFixed(1)} MB`;
+  return `${(size / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+async function parseUploadResponse(res: Response) {
+  const text = await res.text();
+  const contentType = res.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    try {
+      return JSON.parse(text) as { url?: string; error?: string };
+    } catch {
+      return { error: text || `HTTP ${res.status}` };
+    }
+  }
+
+  if (res.status === 413) {
+    return { error: "Video quá lớn so với giới hạn upload của server/nginx. Hãy tăng client_max_body_size hoặc HERO_VIDEO_MAX_MB." };
+  }
+
+  const cleanText = text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  return { error: cleanText || `Upload failed with HTTP ${res.status}` };
+}
+
 function FocalPicker({
   src,
   position,
@@ -515,12 +541,13 @@ function SlideForm({
       const formData = new FormData();
       formData.append("file", file);
       const res = await fetch("/api/hero-video", { method: "POST", body: formData });
-      const data = await res.json();
+      const data = await parseUploadResponse(res);
 
-      if (!res.ok) throw new Error(data.error ?? "Upload failed");
+      if (!res.ok) throw new Error(data.error ?? `Upload failed (${formatFileSize(file.size)})`);
       if (data.url) setForm((f) => ({ ...f, videoUrl: data.url, videoType: "native" }));
     } catch (err) {
-      alert(`Upload video thất bại: ${err}`);
+      const message = err instanceof Error ? err.message : String(err);
+      alert(`Upload video thất bại (${formatFileSize(file.size)}): ${message}`);
     } finally {
       setUploadingVideo(false);
     }

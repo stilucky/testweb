@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MB = 1024 * 1024;
-const MAX_FILE_SIZE = Number(process.env.HERO_VIDEO_MAX_MB ?? 1024) * MB;
+const MAX_FILE_SIZE = Number(process.env.HERO_VIDEO_MAX_MB ?? 4096) * MB;
 const ALLOWED_TYPES = ["video/mp4", "video/webm", "video/ogg", "video/quicktime", "video/x-m4v"];
 const ALLOWED_EXTENSIONS = ["m4v", "mov", "mp4", "ogv", "webm"];
 
