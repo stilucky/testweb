@@ -68,7 +68,7 @@ function HeroNativeVideo({
       preload="auto"
       controls={false}
       disablePictureInPicture
-      className="absolute inset-0 h-full w-full object-cover"
+      className="absolute left-1/2 top-1/2 h-[112%] w-[112%] -translate-x-1/2 -translate-y-1/2 object-cover"
       style={{ objectPosition: objectPosition ?? "50% 50%" }}
     />
   );
@@ -147,7 +147,7 @@ export default function HeroSection() {
                     src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}&controls=0&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&showinfo=0`}
                     allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
                     title="Hero video"
-                    className="pointer-events-none absolute left-1/2 top-1/2 h-[100svh] min-h-full w-[177.777778svh] min-w-full -translate-x-1/2 -translate-y-1/2 border-0 md:h-[100vh] md:w-[177.777778vh]"
+                    className="pointer-events-none absolute left-1/2 top-1/2 h-[max(63vw,112svh)] w-[max(112vw,199.111111svh)] -translate-x-1/2 -translate-y-1/2 border-0"
                   />
                 )}
                 {/* Native video — only active */}
