@@ -143,20 +143,23 @@ function metafieldValue(sp: ShopifyProduct, key: string): string | undefined {
 
 function localUploadFilename(src: string): string | null {
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
-  const prefix = `${appUrl}/uploads/`;
+  const uploadPrefixes = [`${appUrl}/uploads/`, `${appUrl}/api/uploads/`];
   const trimmed = src.trim();
 
-  if (trimmed.startsWith(prefix)) {
-    return trimmed.slice(prefix.length);
+  const matchedPrefix = uploadPrefixes.find((prefix) => trimmed.startsWith(prefix));
+  if (matchedPrefix) {
+    return decodeURIComponent(trimmed.slice(matchedPrefix.length));
   }
 
   try {
     const url = new URL(trimmed);
-    if (url.pathname.startsWith("/uploads/")) {
-      return decodeURIComponent(url.pathname.slice("/uploads/".length));
+    const uploadPathPrefix = ["/uploads/", "/api/uploads/"].find((prefix) => url.pathname.startsWith(prefix));
+    if (uploadPathPrefix) {
+      return decodeURIComponent(url.pathname.slice(uploadPathPrefix.length));
     }
   } catch {
-    if (trimmed.startsWith("/uploads/")) return trimmed.slice("/uploads/".length);
+    const uploadPathPrefix = ["/uploads/", "/api/uploads/"].find((prefix) => trimmed.startsWith(prefix));
+    if (uploadPathPrefix) return decodeURIComponent(trimmed.slice(uploadPathPrefix.length));
   }
 
   return null;

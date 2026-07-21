@@ -87,7 +87,7 @@ function totalInventory(values: Record<string, number>) {
 function isValidProductImageSource(src: string) {
   const trimmed = src.trim();
   if (!trimmed) return true;
-  if (trimmed.startsWith("/uploads/")) return true;
+  if (trimmed.startsWith("/uploads/") || trimmed.startsWith("/api/uploads/")) return true;
   if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(trimmed)) return true;
 
   try {
@@ -1219,12 +1219,12 @@ export default function AdminProductsPage() {
                   onChange={(e) => handleImageUpload(e.target.files)}
                 />
 
-                {/* Existing Shopify CDN images (when editing) */}
+                {/* Selected images from Shopify, uploads, or the media library */}
                 {parseUrls(form.images).length > 0 && (
                   <div className="mb-3">
                     <p className="text-[10px] text-stone-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                       <span className="inline-block w-2 h-2 rounded-full bg-emerald-400" />
-                      Shopify CDN
+                      Selected images
                     </p>
                     <div className="grid grid-cols-4 gap-2">
                       {parseUrls(form.images).map((url, i) => (
