@@ -20,7 +20,8 @@ function cleanToken(value: string) {
 function extensionFor(filename: string, type: string) {
   const rawExt = filename.split(".").pop()?.toLowerCase() ?? "mp4";
   const ext = rawExt.replace(/[^a-z0-9]/g, "").slice(0, 5) || "mp4";
-  if (!ALLOWED_TYPES.includes(type) && !ALLOWED_EXTENSIONS.includes(ext)) return null;
+  if (type && !ALLOWED_TYPES.includes(type) && !ALLOWED_EXTENSIONS.includes(ext)) return null;
+  if (!type && !ALLOWED_EXTENSIONS.includes(ext)) return null;
   return ALLOWED_EXTENSIONS.includes(ext) ? ext : "mp4";
 }
 

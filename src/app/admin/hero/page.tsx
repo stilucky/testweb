@@ -49,13 +49,41 @@ async function parseUploadResponse(res: Response) {
   return { error: cleanText || `Upload failed with HTTP ${res.status}` };
 }
 
-const HERO_VIDEO_CHUNK_SIZE = 8 * 1024 * 1024;
+const HERO_VIDEO_CHUNK_SIZE = 1024 * 1024;
+const HERO_VIDEO_CHUNK_RETRIES = 3;
 
 function createUploadId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
   }
   return `hero-video-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function uploadHeroVideoChunk(formData: FormData, chunkIndex: number, totalChunks: number) {
+  let lastError = "";
+
+  for (let attempt = 1; attempt <= HERO_VIDEO_CHUNK_RETRIES; attempt += 1) {
+    try {
+      const res = await fetch("/api/hero-video/chunk", { method: "POST", body: formData });
+      const data = await parseUploadResponse(res);
+
+      if (res.ok) return data;
+
+      lastError = data.error ?? `HTTP ${res.status}`;
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+    }
+
+    if (attempt < HERO_VIDEO_CHUNK_RETRIES) {
+      await wait(500 * attempt);
+    }
+  }
+
+  throw new Error(`Chunk ${chunkIndex + 1}/${totalChunks} upload failed: ${lastError || "network error"}`);
 }
 
 function FocalPicker({
@@ -566,10 +594,7 @@ function SlideForm({
         formData.append("totalChunks", String(totalChunks));
         formData.append("totalSize", String(file.size));
 
-        const res = await fetch("/api/hero-video/chunk", { method: "POST", body: formData });
-        const data = await parseUploadResponse(res);
-
-        if (!res.ok) throw new Error(data.error ?? `Upload failed at chunk ${chunkIndex + 1}/${totalChunks}`);
+        const data = await uploadHeroVideoChunk(formData, chunkIndex, totalChunks);
         if (data.url) finalUrl = data.url;
         setVideoUploadProgress(Math.round(((chunkIndex + 1) / totalChunks) * 100));
       }
