@@ -50,6 +50,7 @@ async function parseUploadResponse(res: Response) {
 }
 
 const HERO_VIDEO_CHUNK_SIZE = 1024 * 1024;
+const HERO_VIDEO_CHUNK_CONCURRENCY = 4;
 const HERO_VIDEO_CHUNK_RETRIES = 3;
 
 function createUploadId() {
@@ -84,6 +85,23 @@ async function uploadHeroVideoChunk(formData: FormData, chunkIndex: number, tota
   }
 
   throw new Error(`Chunk ${chunkIndex + 1}/${totalChunks} upload failed: ${lastError || "network error"}`);
+}
+
+async function completeHeroVideoUpload(payload: {
+  uploadId: string;
+  filename: string;
+  fileType: string;
+  totalChunks: number;
+  totalSize: number;
+}) {
+  const res = await fetch("/api/hero-video/complete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await parseUploadResponse(res);
+  if (!res.ok) throw new Error(data.error ?? "Could not finalize video upload");
+  return data;
 }
 
 function FocalPicker({
@@ -579,9 +597,10 @@ function SlideForm({
     try {
       const uploadId = createUploadId();
       const totalChunks = Math.ceil(file.size / HERO_VIDEO_CHUNK_SIZE);
-      let finalUrl = "";
+      let uploadedChunks = 0;
+      let nextChunkIndex = 0;
 
-      for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex += 1) {
+      const uploadChunk = async (chunkIndex: number) => {
         const start = chunkIndex * HERO_VIDEO_CHUNK_SIZE;
         const end = Math.min(file.size, start + HERO_VIDEO_CHUNK_SIZE);
         const chunk = file.slice(start, end);
@@ -594,12 +613,35 @@ function SlideForm({
         formData.append("totalChunks", String(totalChunks));
         formData.append("totalSize", String(file.size));
 
-        const data = await uploadHeroVideoChunk(formData, chunkIndex, totalChunks);
-        if (data.url) finalUrl = data.url;
-        setVideoUploadProgress(Math.round(((chunkIndex + 1) / totalChunks) * 100));
-      }
+        await uploadHeroVideoChunk(formData, chunkIndex, totalChunks);
+        uploadedChunks += 1;
+        setVideoUploadProgress(Math.round((uploadedChunks / totalChunks) * 95));
+      };
 
-      if (finalUrl) setForm((f) => ({ ...f, videoUrl: finalUrl, videoType: "native" }));
+      const worker = async () => {
+        while (nextChunkIndex < totalChunks) {
+          const chunkIndex = nextChunkIndex;
+          nextChunkIndex += 1;
+          await uploadChunk(chunkIndex);
+        }
+      };
+
+      await Promise.all(
+        Array.from({ length: Math.min(HERO_VIDEO_CHUNK_CONCURRENCY, totalChunks) }, () => worker())
+      );
+
+      setVideoUploadProgress(96);
+      const data = await completeHeroVideoUpload({
+        uploadId,
+        filename: file.name,
+        fileType: file.type || "video/*",
+        totalChunks,
+        totalSize: file.size,
+      });
+      if (data.url) {
+        setVideoUploadProgress(100);
+        setForm((f) => ({ ...f, videoUrl: data.url, videoType: "native" }));
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       alert(`Upload video thất bại (${formatFileSize(file.size)}): ${message}`);
