@@ -19,6 +19,45 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+.navigation-progress {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 10000;
+  height: 3px;
+  pointer-events: none;
+  background: #c8a96a;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 18%);
+  transform: scaleX(0.08);
+  transform-origin: left center;
+  animation: navigation-progress-loading 15s cubic-bezier(0.1, 0.6, 0.2, 1) forwards;
+}
+
+.navigation-progress[data-completing="true"] {
+  opacity: 0;
+  transform: scaleX(1);
+  animation: none;
+  transition: transform 160ms ease-out, opacity 180ms ease-out 80ms;
+}
+
+@keyframes navigation-progress-loading {
+  0% { transform: scaleX(0.08); }
+  20% { transform: scaleX(0.42); }
+  55% { transform: scaleX(0.68); }
+  100% { transform: scaleX(0.9); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navigation-progress {
+    animation: none;
+    transform: scaleX(0.72);
+  }
+
+  .navigation-progress[data-completing="true"] {
+    transform: scaleX(1);
+    transition-duration: 80ms;
+  }
+}
+
 .admin-shell {
   -webkit-overflow-scrolling: touch;
   isolation: isolate;

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Cormorant_Garamond, Jost, GFS_Didot } from "next/font/google";
 import "./globals.css";
 import StoreShell from "@/components/layout/StoreShell";
+import NavigationProgress from "@/components/layout/NavigationProgress";
 
 const jost = Jost({
   subsets: ["latin"],
@@ -47,6 +49,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${jost.variable} ${cormorant.variable} ${didot.variable}`} suppressHydrationWarning>
       <body className="min-h-screen flex flex-col">
+        <Suspense fallback={null}>
+          <NavigationProgress />
+        </Suspense>
         <StoreShell>{children}</StoreShell>
       </body>
     </html>
