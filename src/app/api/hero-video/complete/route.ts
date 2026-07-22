@@ -2,7 +2,7 @@ import { appendFile, mkdir, readFile, stat, unlink } from "fs/promises";
 import { randomUUID } from "crypto";
 import { basename, join } from "path";
 import { NextRequest, NextResponse } from "next/server";
-import { UPLOAD_DIR, uploadPath, uploadUrl } from "@/lib/server-media-library";
+import { UPLOAD_DIR, ensureUploadPath, uploadPath, uploadUrl } from "@/lib/server-media-library";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
     await mkdir(UPLOAD_DIR, { recursive: true });
     const finalName = `${randomUUID()}.${ext}`;
     const finalPath = uploadPath(finalName);
+    await ensureUploadPath(finalName);
     let receivedSize = 0;
 
     for (let index = 0; index < totalChunks; index += 1) {

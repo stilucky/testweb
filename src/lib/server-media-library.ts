@@ -1,5 +1,5 @@
 import { mkdir, readFile, readdir, stat, unlink, writeFile } from "fs/promises";
-import { basename, join } from "path";
+import { basename, dirname, isAbsolute, join, normalize, resolve } from "path";
 
 export type ServerMediaAsset = {
   id: string;
@@ -10,7 +10,25 @@ export type ServerMediaAsset = {
   createdAt: string;
 };
 
-export const UPLOAD_DIR = process.env.LUNELLE_UPLOAD_DIR || join(/*turbopackIgnore: true*/ process.cwd(), "public", "uploads");
+function defaultUploadDir() {
+  const cwd = normalize(/*turbopackIgnore: true*/ process.cwd());
+  const standaloneSuffix = normalize(join(".next", "standalone"));
+
+  if (cwd.endsWith(standaloneSuffix)) {
+    return join(cwd, "..", "..", "public", "uploads");
+  }
+
+  return join(cwd, "public", "uploads");
+}
+
+function resolveUploadDir() {
+  const configuredDir = process.env.LUNELLE_UPLOAD_DIR;
+  if (!configuredDir) return defaultUploadDir();
+  if (isAbsolute(configuredDir)) return configuredDir;
+  return resolve(defaultUploadDir(), "..", "..", configuredDir);
+}
+
+export const UPLOAD_DIR = resolveUploadDir();
 export const MEDIA_MANIFEST = join(UPLOAD_DIR, "media-library.json");
 
 export const CONTENT_TYPES: Record<string, string> = {
@@ -39,6 +57,10 @@ export function uploadPath(filename: string) {
 
 export async function ensureUploadDir() {
   await mkdir(UPLOAD_DIR, { recursive: true });
+}
+
+export async function ensureUploadPath(filename: string) {
+  await mkdir(dirname(uploadPath(filename)), { recursive: true });
 }
 
 function assetFromFile(filename: string, size: number, createdAt: string): ServerMediaAsset {

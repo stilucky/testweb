@@ -27,6 +27,8 @@ npm ci --omit=dev=false
 echo "▸ Building..."
 npm run build
 
+mkdir -p public/uploads
+
 # Standalone output does not include static/public assets by default.
 # Keep the runtime bundle in sync with the latest build.
 echo "Syncing standalone assets..."
@@ -35,6 +37,7 @@ rm -rf .next/standalone/.next/static
 cp -r .next/static .next/standalone/.next/static
 rm -rf .next/standalone/public
 cp -r public .next/standalone/public
+mkdir -p .next/standalone/public/uploads
 
 # Restart / start with PM2 using ecosystem config (carries env vars)
 echo "▸ Restarting app with PM2..."

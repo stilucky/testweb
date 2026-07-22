@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile } from "fs/promises";
 import { randomUUID } from "crypto";
-import { addMediaAssets, ensureUploadDir, uploadPath, uploadUrl } from "@/lib/server-media-library";
+import { addMediaAssets, ensureUploadDir, ensureUploadPath, uploadPath, uploadUrl } from "@/lib/server-media-library";
 
 export const runtime = "nodejs";
 
@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
 
       const filename = `${randomUUID()}.${ext === "ifif" || ext === "jfif" ? "jpg" : ext}`;
       const buffer = Buffer.from(await file.arrayBuffer());
+      await ensureUploadPath(filename);
       await writeFile(uploadPath(filename), buffer);
       const url = uploadUrl(filename);
       urls.push(url);

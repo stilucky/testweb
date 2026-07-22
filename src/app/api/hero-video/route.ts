@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile } from "fs/promises";
 import { randomUUID } from "crypto";
-import { ensureUploadDir, uploadPath, uploadUrl } from "@/lib/server-media-library";
+import { ensureUploadDir, ensureUploadPath, uploadPath, uploadUrl } from "@/lib/server-media-library";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
 
     const filename = `${randomUUID()}.${ALLOWED_EXTENSIONS.includes(ext) ? ext : "mp4"}`;
     const buffer = Buffer.from(await file.arrayBuffer());
+    await ensureUploadPath(filename);
     await writeFile(uploadPath(filename), buffer);
 
     return NextResponse.json({
