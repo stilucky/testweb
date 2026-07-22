@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, Suspense } from "react";
+import { useEffect, useState, useMemo, useSyncExternalStore, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { SlidersHorizontal, X, ChevronDown, Lock } from "lucide-react";
 import Link from "next/link";
@@ -23,6 +23,8 @@ const priceRanges = [
 ];
 
 const baseCategoryValues = ["dresses", "tops", "bottoms", "sets", "outerwear", "accessories"];
+
+const subscribeToClient = () => () => {};
 
 function normalizeCategory(value: string | null | undefined) {
   const normalized = (value || "all")
@@ -55,7 +57,7 @@ function titleCaseCategory(value: string) {
 }
 
 function ProductsContent({ initialProducts }: { initialProducts: Product[] }) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(subscribeToClient, () => true, () => false);
   const searchParams = useSearchParams();
   const filterParam      = searchParams.get("filter");
   const categoryParam    = normalizeCategory(searchParams.get("category"));
@@ -63,16 +65,19 @@ function ProductsContent({ initialProducts }: { initialProducts: Product[] }) {
 
   const setProducts    = useProductStore((s) => s.setProducts);
   const products       = initialProducts;
-  const { collections } = useCollectionStore();
+  const { collections, serverHydrated } = useCollectionStore();
   const currentUser    = useAuthStore((s) => s.currentUser);
   const language       = useLocaleStore((s) => s.language);
-  const displayCollections = mounted ? collections : [];
+  const collectionsReady = mounted && serverHydrated;
+  const displayCollections = useMemo(
+    () => collectionsReady ? collections : [],
+    [collections, collectionsReady]
+  );
   const displayCurrentUser = mounted ? currentUser : null;
   const displayLanguage    = mounted ? language : "EN";
   const t              = useTranslations(displayLanguage);
 
   useEffect(() => {
-    setMounted(true);
     setProducts(initialProducts);
   }, [initialProducts, setProducts]);
 
@@ -103,10 +108,11 @@ function ProductsContent({ initialProducts }: { initialProducts: Product[] }) {
 
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(categoryParam);
-
-  useEffect(() => {
+  const [lastCategoryParam, setLastCategoryParam] = useState(categoryParam);
+  if (lastCategoryParam !== categoryParam) {
+    setLastCategoryParam(categoryParam);
     setSelectedCategory(categoryParam);
-  }, [categoryParam]);
+  }
 
   // Sync category khi URL thay đổi
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
@@ -195,6 +201,14 @@ function ProductsContent({ initialProducts }: { initialProducts: Product[] }) {
 
   const hasFilters =
     selectedCategory !== "all" || selectedSizes.length > 0 || selectedPrice !== null;
+
+  if (collectionParam && !collectionsReady) {
+    return (
+      <div className="flex min-h-[55vh] items-center justify-center" role="status" aria-label="Loading collection">
+        <span className="h-5 w-5 animate-spin rounded-full border-2 border-stone-200 border-t-stone-800" />
+      </div>
+    );
+  }
 
   // Members-only gate
   if (isMembersOnlyCollection && !displayCurrentUser) {

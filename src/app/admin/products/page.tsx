@@ -162,7 +162,7 @@ export default function AdminProductsPage() {
   const [productList, setProductList]   = useState<Product[]>([]);
   const [loading, setLoading]           = useState(true);
   const { addProduct, updateProduct, removeProduct, setProducts } = useProductStore();
-  const { collections, updateCollection } = useCollectionStore();
+  const { collections, setProductCollections } = useCollectionStore();
   const { subscribers, addCampaign } = useSubscriberStore();
   const addMediaAssets = useMediaLibraryStore((state) => state.addAssets);
   const { toasts, addToast, removeToast } = useToast(3000);
@@ -197,7 +197,7 @@ export default function AdminProductsPage() {
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/shopify/products?limit=50");
+      const res = await fetch("/api/shopify/products?limit=250", { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to load");
       const list = data.products ?? [];
@@ -364,15 +364,7 @@ export default function AdminProductsPage() {
   };
 
   const syncCollections = (productId: string, selectedColIds: string[]) => {
-    collections.forEach((col) => {
-      const shouldInclude = selectedColIds.includes(col.id);
-      const isIncluded = col.productIds.includes(productId);
-      if (shouldInclude && !isIncluded) {
-        updateCollection(col.id, { productIds: [...col.productIds, productId] });
-      } else if (!shouldInclude && isIncluded) {
-        updateCollection(col.id, { productIds: col.productIds.filter((id) => id !== productId) });
-      }
-    });
+    setProductCollections(productId, selectedColIds);
   };
 
   const handleSave = async () => {

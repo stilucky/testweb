@@ -45,7 +45,7 @@ export const defaultCollections: Collection[] = [
     description: "A curated selection from our atelier — timeless investment pieces crafted to last a lifetime.",
     image: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&q=80",
     season: "Year-Round",
-    status: "draft",
+    status: "active",
     featured: false,
     productIds: [],
     createdAt: "2026-03-01T00:00:00.000Z",

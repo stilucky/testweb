@@ -41,14 +41,12 @@ function toSlug(text: string) {
 export default function AdminCollectionsPage() {
   const {
     collections,
-    serverHydrated,
-    serverInitialized,
-    syncCollections,
     addCollection,
     updateCollection,
     removeCollection,
   } = useCollectionStore();
-  const { products } = useProductStore();
+  const { products, setProducts } = useProductStore();
+  const [productsLoading, setProductsLoading] = useState(true);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing]     = useState<Collection | null>(null);
@@ -61,10 +59,23 @@ export default function AdminCollectionsPage() {
   const { toasts, addToast, removeToast } = useToast(3000);
 
   useEffect(() => {
-    if (!serverHydrated || serverInitialized) return;
-    const syncTimer = window.setTimeout(() => void syncCollections(), 0);
-    return () => window.clearTimeout(syncTimer);
-  }, [serverHydrated, serverInitialized, syncCollections]);
+    const controller = new AbortController();
+    fetch("/api/shopify/products?limit=250", {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then((res) => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
+      .then((data) => {
+        if (Array.isArray(data.products)) setProducts(data.products);
+      })
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        addToast("error", `Failed to load Shopify products: ${err}`);
+      })
+      .finally(() => setProductsLoading(false));
+
+    return () => controller.abort();
+  }, [addToast, setProducts]);
 
   const openAdd = () => {
     setEditing(null);
@@ -458,7 +469,9 @@ export default function AdminCollectionsPage() {
                 />
 
                 <div className="border border-stone-100 max-h-48 overflow-y-auto divide-y divide-stone-50">
-                  {filteredProducts.length === 0 ? (
+                  {productsLoading ? (
+                    <p className="text-xs text-stone-400 px-4 py-4 text-center">Loading Shopify products...</p>
+                  ) : filteredProducts.length === 0 ? (
                     <p className="text-xs text-stone-400 px-4 py-4 text-center">No products found</p>
                   ) : (
                     filteredProducts.map((p) => (

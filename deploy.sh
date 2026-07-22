@@ -25,7 +25,7 @@ npm ci --omit=dev=false
 
 # Build production bundle
 echo "▸ Building..."
-npm run build
+npm run build -- --webpack
 
 mkdir -p public/uploads
 
@@ -38,6 +38,11 @@ cp -r .next/static .next/standalone/.next/static
 rm -rf .next/standalone/public
 cp -r public .next/standalone/public
 mkdir -p .next/standalone/public/uploads
+
+# Turbopack/standalone can omit runtime files used by Next image optimization.
+# Keep the complete Next package in the deployed bundle.
+rm -rf .next/standalone/node_modules/next
+cp -r node_modules/next .next/standalone/node_modules/next
 
 # Restart / start with PM2 using ecosystem config (carries env vars)
 echo "▸ Restarting app with PM2..."
