@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useHeroStore } from "@/store/heroStore";
+import type { HeroSettings } from "@/lib/server-hero";
 
 function getYouTubeId(url: string): string | null {
   const patterns = [
@@ -24,16 +25,23 @@ function HeroNativeVideo({
   src,
   poster,
   objectPosition,
+  active,
 }: {
   src: string;
   poster?: string;
   objectPosition?: string;
+  active: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+    if (!active) {
+      video.pause();
+      video.load();
+      return;
+    }
 
     const play = () => {
       video.muted = true;
@@ -54,7 +62,7 @@ function HeroNativeVideo({
       video.removeEventListener("canplay", play);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [src]);
+  }, [active, src]);
 
   return (
     <video
@@ -74,13 +82,32 @@ function HeroNativeVideo({
   );
 }
 
-export default function HeroSection() {
+function videoMimeType(src: string) {
+  const cleanSrc = src.split("?")[0].toLowerCase();
+  if (cleanSrc.endsWith(".webm")) return "video/webm";
+  if (cleanSrc.endsWith(".ogv") || cleanSrc.endsWith(".ogg")) return "video/ogg";
+  if (cleanSrc.endsWith(".mov")) return "video/quicktime";
+  if (cleanSrc.endsWith(".m4v")) return "video/x-m4v";
+  return "video/mp4";
+}
+
+function shouldPreloadNativeVideo(src?: string) {
+  return Boolean(src && !src.startsWith("data:") && !src.startsWith("blob:"));
+}
+
+export default function HeroSection({ initialSettings }: { initialSettings?: HeroSettings | null }) {
   const { slides: allSlides, autoplayInterval, setHeroSettings } = useHeroStore();
-  const slides = allSlides.filter((s) => s.enabled !== false);
+  const configuredSlides = initialSettings?.slides ?? allSlides;
+  const configuredAutoplayInterval = initialSettings?.autoplayInterval ?? autoplayInterval;
+  const slides = configuredSlides.filter((s) => s.enabled !== false);
   const [current, setCurrent] = useState(0);
-  const [heroLoaded, setHeroLoaded] = useState(false);
 
   useEffect(() => {
+    if (initialSettings?.slides) {
+      setHeroSettings(initialSettings);
+      return;
+    }
+
     const controller = new AbortController();
 
     fetch("/api/hero", { cache: "no-store", signal: controller.signal })
@@ -93,27 +120,21 @@ export default function HeroSection() {
             autoplayInterval: data.autoplayInterval,
           });
         }
-        setHeroLoaded(true);
       })
       .catch((err) => {
         if (err instanceof DOMException && err.name === "AbortError") return;
         console.warn("[HeroSection] Failed to load hero settings", err);
-        setHeroLoaded(true);
       });
 
     return () => controller.abort();
-  }, [setHeroSettings]);
+  }, [initialSettings, setHeroSettings]);
 
   useEffect(() => {
     if (slides.length <= 1) return;
-    const ms = autoplayInterval * 1000;
+    const ms = configuredAutoplayInterval * 1000;
     const timer = setInterval(() => setCurrent((c) => (c + 1) % slides.length), ms);
     return () => clearInterval(timer);
-  }, [slides.length, autoplayInterval]);
-
-  if (!heroLoaded) {
-    return <section className="relative h-[100svh] w-full bg-stone-900 md:h-screen" />;
-  }
+  }, [slides.length, configuredAutoplayInterval]);
 
   if (slides.length === 0) return null;
 
@@ -122,13 +143,30 @@ export default function HeroSection() {
 
   const activeIndex = Math.min(current, slides.length - 1);
   const activeSlide = slides[activeIndex];
+  const nextIndex = slides.length > 1 ? (activeIndex + 1) % slides.length : activeIndex;
+  const preloadVideoUrls = [activeSlide, slides[nextIndex]]
+    .filter((slide) => slide?.videoType === "native" && shouldPreloadNativeVideo(slide.videoUrl))
+    .map((slide) => slide.videoUrl as string)
+    .filter((url, index, list) => list.indexOf(url) === index);
+  const hasYouTubeSlide = slides.some((slide) => slide.videoType === "youtube" && slide.videoUrl);
 
   return (
     <section className="relative h-[100svh] w-full overflow-hidden bg-stone-900 md:h-screen">
+      {hasYouTubeSlide && (
+        <>
+          <link rel="preconnect" href="https://www.youtube.com" />
+          <link rel="preconnect" href="https://www.google.com" />
+          <link rel="preconnect" href="https://i.ytimg.com" />
+        </>
+      )}
+      {preloadVideoUrls.map((url) => (
+        <link key={url} rel="preload" href={url} as="video" type={videoMimeType(url)} />
+      ))}
 
       {/* ── Slides ── */}
       {slides.map((s, i) => {
         const isActive = i === activeIndex;
+        const shouldWarmVideo = i === nextIndex;
         const ytId = s.videoUrl && s.videoType === "youtube" ? getYouTubeId(s.videoUrl) : null;
 
         return (
@@ -150,12 +188,13 @@ export default function HeroSection() {
                     className="pointer-events-none absolute left-1/2 top-1/2 h-[max(63vw,112svh)] w-[max(112vw,199.111111svh)] -translate-x-1/2 -translate-y-1/2 border-0"
                   />
                 )}
-                {/* Native video — only active */}
-                {s.videoType === "native" && isActive && (
+                {/* Native video — active slide plays, next slide preloads in place */}
+                {s.videoType === "native" && (isActive || shouldWarmVideo) && (
                   <HeroNativeVideo
                     src={s.videoUrl}
                     poster={s.image || undefined}
                     objectPosition={s.imagePosition}
+                    active={isActive}
                   />
                 )}
                 {/* Thumbnail fallback when this slide is not active */}
