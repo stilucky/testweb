@@ -382,6 +382,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
       </div>
 
       <SizeChart
+        key={`${product.id}-${sizeChart ?? "default"}`}
         open={sizeChartOpen}
         onClose={() => setSizeChartOpen(false)}
         gender={product.gender}

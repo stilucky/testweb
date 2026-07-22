@@ -61,21 +61,49 @@ function parseCustomChart(raw?: string) {
   return { headers, rows };
 }
 
-function formatCustomMeasurement(value: string | undefined, cellIndex: number, header?: string) {
+type MeasurementUnit = "in" | "cm";
+
+function detectCustomChartUnit(headers?: string[]): MeasurementUnit {
+  return headers?.some((header) => /\(cm\)/i.test(header)) ? "cm" : "in";
+}
+
+function formatCustomHeader(header: string, cellIndex: number, unit: MeasurementUnit) {
+  if (cellIndex === 0) return header;
+  if (/\((?:in|cm)\)/i.test(header)) {
+    return header.replace(/\((?:in|cm)\)/i, `(${unit})`);
+  }
+  return `${header} (${unit})`;
+}
+
+function formatCustomMeasurement(
+  value: string | undefined,
+  cellIndex: number,
+  sourceUnit: MeasurementUnit,
+  displayUnit: MeasurementUnit
+) {
   const clean = value?.trim();
   if (!clean) return "-";
   if (cellIndex === 0) return clean;
-  if (/^\d+(\.\d+)?$/.test(clean)) {
-    const unit = header?.match(/\((in|cm)\)/i)?.[1]?.toLowerCase() ?? "in";
-    return `${clean} ${unit}`;
-  }
-  return clean;
+  if (!/\d/.test(clean)) return clean;
+
+  const unitless = clean
+    .replace(/\s*(?:cm|inches?|in)\b/gi, "")
+    .replace(/\s*[\"\u2033]/g, "")
+    .trim();
+  const factor = sourceUnit === displayUnit ? 1 : sourceUnit === "in" ? 2.54 : 1 / 2.54;
+  const converted = unitless.replace(/\d+(?:\.\d+)?/g, (match) => {
+    const valueAsNumber = Number(match) * factor;
+    return Number(valueAsNumber.toFixed(1)).toString();
+  });
+
+  return `${converted} ${displayUnit}`;
 }
 
 export default function SizeChart({ open, onClose, gender = "women", customChart, customFitNote }: Props) {
-  const [unit, setUnit] = useState<"in" | "cm">("in");
-  const [tab, setTab] = useState<"chart" | "how">("chart");
   const parsedCustomChart = parseCustomChart(customChart);
+  const customChartUnit = detectCustomChartUnit(parsedCustomChart?.headers);
+  const [unit, setUnit] = useState<MeasurementUnit>(() => customChartUnit);
+  const [tab, setTab] = useState<"chart" | "how">("chart");
   const fitNote = customFitNote?.trim();
 
   return (
@@ -137,7 +165,7 @@ export default function SizeChart({ open, onClose, gender = "women", customChart
                 <p className="text-xs text-stone-500">
                   {gender === "men" ? "Men" : "Women"} · Regular Fit
                 </p>
-                {!parsedCustomChart && <div className="flex border border-stone-200 text-xs">
+                <div className="flex border border-stone-200 text-xs">
                   {(["in", "cm"] as const).map((u) => (
                     <button
                       key={u}
@@ -150,7 +178,7 @@ export default function SizeChart({ open, onClose, gender = "women", customChart
                       {u}
                     </button>
                   ))}
-                </div>}
+                </div>
               </div>
 
               {parsedCustomChart && (
@@ -158,9 +186,9 @@ export default function SizeChart({ open, onClose, gender = "women", customChart
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-stone-200">
-                        {parsedCustomChart.headers.map((header) => (
+                        {parsedCustomChart.headers.map((header, cellIndex) => (
                           <th key={header} className="text-left text-[10px] tracking-widests uppercase text-stone-400 font-normal pb-3 pr-4 whitespace-nowrap">
-                            {header}
+                            {formatCustomHeader(header, cellIndex, unit)}
                           </th>
                         ))}
                       </tr>
@@ -176,7 +204,7 @@ export default function SizeChart({ open, onClose, gender = "women", customChart
                                 cellIndex === 0 ? "font-medium text-stone-900" : "text-stone-700"
                               )}
                             >
-                              {formatCustomMeasurement(row[cellIndex], cellIndex, header)}
+                              {formatCustomMeasurement(row[cellIndex], cellIndex, customChartUnit, unit)}
                             </td>
                           ))}
                         </tr>
