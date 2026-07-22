@@ -791,13 +791,12 @@ export default function AdminProductsPage() {
       {/* Table */}
       <div className="bg-white border border-stone-100 overflow-hidden">
         <div className="overflow-x-auto">
-        <div className="min-w-[760px]">
+        <div className="min-w-[640px]">
         <div className="grid grid-cols-12 gap-4 px-4 md:px-6 py-3 border-b border-stone-100 bg-stone-50">
-          <p className="col-span-3 text-[10px] tracking-widest uppercase text-stone-400">Product</p>
+          <p className="col-span-4 text-[10px] tracking-widest uppercase text-stone-400">Product</p>
           <p className="col-span-1 text-[10px] tracking-widest uppercase text-stone-400">Category</p>
-          <p className="col-span-2 text-[10px] tracking-widest uppercase text-stone-400">Collection</p>
           <p className="col-span-2 text-[10px] tracking-widest uppercase text-stone-400">Labels</p>
-          <p className="col-span-1 text-[10px] tracking-widest uppercase text-stone-400 text-right">Price</p>
+          <p className="col-span-2 text-[10px] tracking-widest uppercase text-stone-400 text-right">Price</p>
           <p className="col-span-1 text-[10px] tracking-widest uppercase text-stone-400 text-center">Stock</p>
           <p className="col-span-2 text-[10px] tracking-widest uppercase text-stone-400 text-right">Actions</p>
         </div>
@@ -819,13 +818,10 @@ export default function AdminProductsPage() {
           <div className="divide-y divide-stone-50">
             {filtered.map((product) => {
               const { cls: stockCls, label: stockLabel } = stockBadge(product.stock);
-              const productCollections = collections.filter((collection) =>
-                collection.productIds.includes(product.id)
-              );
               return (
                 <div key={product.id} className="grid grid-cols-12 gap-4 px-4 md:px-6 py-3 md:py-4 items-center hover:bg-stone-50/50 transition-colors group">
                   {/* Product name + image */}
-                  <div className="col-span-3 flex items-center gap-4 min-w-0">
+                  <div className="col-span-4 flex items-center gap-4 min-w-0">
                     <div className="relative w-12 h-16 bg-stone-100 shrink-0 overflow-hidden">
                       {product.images[0] ? (
                         <Image src={product.images[0]} alt={product.name} fill className="object-cover" sizes="48px" />
@@ -847,24 +843,6 @@ export default function AdminProductsPage() {
                     <p className="text-xs text-stone-500 capitalize">{product.category}</p>
                   </div>
 
-                  {/* Collection */}
-                  <div className="col-span-2 min-w-0">
-                    {productCollections.length > 0 ? (
-                      <div className="flex flex-wrap gap-1" title={productCollections.map((collection) => collection.name).join(", ")}>
-                        {productCollections.map((collection) => (
-                          <span
-                            key={collection.id}
-                            className="max-w-full truncate text-[10px] bg-stone-100 text-stone-600 px-1.5 py-0.5 tracking-wider uppercase"
-                          >
-                            {collection.name}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-[10px] text-stone-300">—</span>
-                    )}
-                  </div>
-
                   {/* Labels */}
                   <div className="col-span-2">
                     <div className="flex flex-col gap-1">
@@ -876,7 +854,7 @@ export default function AdminProductsPage() {
                   </div>
 
                   {/* Price */}
-                  <div className="col-span-1 text-right">
+                  <div className="col-span-2 text-right">
                     {(product.salePriceCAD ?? product.salePrice) ? (
                       <>
                         <p className="text-sm text-red-600" style={{ fontFamily: "var(--font-cormorant), serif" }}>{formatPrice(product.salePriceCAD ?? product.salePrice ?? 0, "CAD")}</p>
