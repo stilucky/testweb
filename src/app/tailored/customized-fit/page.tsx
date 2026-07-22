@@ -19,6 +19,8 @@ interface CFProduct {
   description: string;
 }
 
+const RANDOM_IMAGE_SEED = Math.random();
+
 const fallbackProducts: CFProduct[] = [
   {
     id: "cf-1",
@@ -128,10 +130,6 @@ export default function CustomizedFitPage() {
     () => products.map((product) => product.image).filter(Boolean),
     [products]
   );
-  const sideImageIndex = useMemo(
-    () => (collectionImages.length > 0 ? Math.floor(collectionImages.length / 2) : 0),
-    [collectionImages.length]
-  );
   const [selectedProduct, setSelectedProduct] = useState<CFProduct | null>(null);
   const [form, setForm] = useState({
     fullName: "", height: "", bust: "", waist: "",
@@ -148,7 +146,7 @@ export default function CustomizedFitPage() {
   const setTailoredImages = useTailoredContentStore((s) => s.setImages);
   const heroImage = tailoredImageByKey(tailoredImages, "customizedFitHero");
   const randomCollectionImage =
-    collectionImages[sideImageIndex] ?? fallbackProducts[0].image;
+    collectionImages[Math.floor(RANDOM_IMAGE_SEED * collectionImages.length)] ?? fallbackProducts[0].image;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -211,7 +209,7 @@ export default function CustomizedFitPage() {
   return (
     <>
       {/* ── 1. HERO ── */}
-      <section className="relative h-[90svh] min-h-[640px] overflow-hidden bg-stone-900">
+      <section className="relative h-[90vh] overflow-hidden">
         <Image
           src={heroImage.image}
           alt="Customized Fit"
@@ -221,14 +219,12 @@ export default function CustomizedFitPage() {
           style={{ objectPosition: heroImage.imagePosition }}
         />
         <div className="absolute inset-0 bg-black/30" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/10" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/20 to-transparent" />
-        <div className="relative z-[1] h-full flex flex-col justify-end pb-16 px-8 md:px-20">
-          <p className="text-white/75 text-[10px] tracking-[0.2em] uppercase mb-4">Lunelle Atelier</p>
-          <h1 className="text-4xl md:text-5xl text-white mb-5 leading-none font-light drop-shadow-sm">
+        <div className="relative z-10 h-full flex flex-col justify-end pb-16 px-10 md:px-20">
+          <p className="text-white/50 text-[10px] tracking-[0.2em] uppercase mb-4">Lunelle Atelier</p>
+          <h1 className="text-4xl md:text-5xl text-white mb-5 leading-none font-light">
             Customized Fit
           </h1>
-          <p className="text-white/85 text-sm leading-relaxed max-w-sm mb-8 drop-shadow-sm">
+          <p className="text-white/70 text-sm leading-relaxed max-w-sm mb-8">
             Designed around you: your proportions, preferences, and the way you want to feel in your clothing.
           </p>
           <a
