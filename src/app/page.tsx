@@ -1,10 +1,15 @@
 import HeroSection from "@/components/home/HeroSection";
 import SplitFeatureSection from "@/components/home/SplitFeatureSection";
+import { readHeroSettings } from "@/lib/server-hero";
 
-export default function HomePage() {
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const heroSettings = await readHeroSettings();
+
   return (
     <>
-      <HeroSection />
+      <HeroSection initialSettings={heroSettings} />
       <SplitFeatureSection />
     </>
   );
