@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useHeroStore } from "@/store/heroStore";
+import type { HeroSettings } from "@/lib/server-hero";
 
 function getYouTubeId(url: string): string | null {
   const patterns = [
@@ -74,13 +75,18 @@ function HeroNativeVideo({
   );
 }
 
-export default function HeroSection() {
+export default function HeroSection({ initialSettings }: { initialSettings?: HeroSettings | null }) {
   const { slides: allSlides, autoplayInterval, setHeroSettings } = useHeroStore();
-  const slides = allSlides.filter((s) => s.enabled !== false);
+  const activeSettings = initialSettings ?? { slides: allSlides, autoplayInterval };
+  const slides = activeSettings.slides.filter((s) => s.enabled !== false);
   const [current, setCurrent] = useState(0);
-  const [heroLoaded, setHeroLoaded] = useState(false);
+  const [heroLoaded, setHeroLoaded] = useState(Boolean(initialSettings));
 
   useEffect(() => {
+    if (initialSettings) {
+      setHeroSettings(initialSettings);
+    }
+
     const controller = new AbortController();
 
     fetch("/api/hero", { cache: "no-store", signal: controller.signal })
@@ -102,14 +108,14 @@ export default function HeroSection() {
       });
 
     return () => controller.abort();
-  }, [setHeroSettings]);
+  }, [initialSettings, setHeroSettings]);
 
   useEffect(() => {
     if (slides.length <= 1) return;
-    const ms = autoplayInterval * 1000;
+    const ms = activeSettings.autoplayInterval * 1000;
     const timer = setInterval(() => setCurrent((c) => (c + 1) % slides.length), ms);
     return () => clearInterval(timer);
-  }, [slides.length, autoplayInterval]);
+  }, [slides.length, activeSettings.autoplayInterval]);
 
   if (!heroLoaded) {
     return <section className="relative h-[100svh] w-full bg-stone-900 md:h-screen" />;

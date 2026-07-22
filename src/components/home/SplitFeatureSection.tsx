@@ -4,15 +4,19 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { defaultHomeFeatures, useHomeFeatureStore } from "@/store/homeFeatureStore";
+import type { HomeFeature } from "@/store/homeFeatureStore";
 
-export default function SplitFeatureSection() {
+export default function SplitFeatureSection({ initialFeatures }: { initialFeatures?: HomeFeature[] | null }) {
   const [mounted, setMounted] = useState(false);
   const features = useHomeFeatureStore((state) => state.features);
   const setFeatures = useHomeFeatureStore((state) => state.setFeatures);
-  const displayFeatures = mounted ? features : defaultHomeFeatures;
+  const displayFeatures = initialFeatures ?? (mounted ? features : defaultHomeFeatures);
 
   useEffect(() => {
     setMounted(true);
+    if (initialFeatures) {
+      setFeatures(initialFeatures);
+    }
 
     const controller = new AbortController();
     fetch("/api/homepage", { cache: "no-store", signal: controller.signal })
@@ -26,7 +30,7 @@ export default function SplitFeatureSection() {
       });
 
     return () => controller.abort();
-  }, [setFeatures]);
+  }, [initialFeatures, setFeatures]);
 
   return (
     <section className="grid min-h-screen grid-cols-1 gap-3 bg-white py-3 md:grid-cols-2 md:gap-4 md:py-4">

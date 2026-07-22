@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listShopifyProducts, createShopifyProduct } from "@/lib/shopify-admin";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     const limit = parseInt(req.nextUrl.searchParams.get("limit") ?? "50");
     const products = await listShopifyProducts(limit);
-    return NextResponse.json({ products });
+    return NextResponse.json(
+      { products },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (err) {
     console.error("[GET /api/shopify/products]", err);
     return NextResponse.json({ error: String(err) }, { status: 500 });
