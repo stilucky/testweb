@@ -5,8 +5,9 @@
 
 import { Product, Color } from "@/types";
 import { readFile } from "fs/promises";
-import { basename, join } from "path";
+import { basename } from "path";
 import { CAD_RATE } from "@/store/localeStore";
+import { uploadPath } from "@/lib/server-media-library";
 
 const DOMAIN  = process.env.SHOPIFY_SHOP_DOMAIN!;
 const TOKEN   = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN!;
@@ -205,7 +206,7 @@ async function imageInput(src: string, index: number): Promise<ShopifyImageInput
     return remoteImageInput(trimmed);
   }
 
-  const buffer = await readFile(join(process.cwd(), "public", "uploads", filename));
+  const buffer = await readFile(uploadPath(filename));
   return {
     attachment: buffer.toString("base64"),
     filename: basename(filename),
