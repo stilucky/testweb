@@ -313,49 +313,45 @@ export default function MadeToOrderPage() {
   return (
     <>
       {/* ── 1. HERO ── */}
-      <section className="relative overflow-hidden bg-stone-950 text-white">
+      <section className="relative h-[90svh] min-h-[640px] overflow-hidden bg-stone-900">
         <Image
           src={heroImage.image}
           alt=""
           fill
           sizes="100vw"
           aria-hidden="true"
-          className="scale-110 object-cover opacity-30 blur-2xl"
+          className="scale-110 object-cover opacity-55 blur-2xl"
           style={{ objectPosition: heroImage.imagePosition }}
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-black/90 via-stone-950/80 to-black/60" />
-
-        <div className="relative z-[1] grid min-h-[calc(100svh-80px)] items-center gap-10 px-6 py-24 md:grid-cols-[0.85fr_1.15fr] md:px-20">
-          <div className="max-w-md">
-            <p className="type-label text-white/75 mb-4">Lunelle Atelier</p>
-            <h1
-              className="text-4xl md:text-6xl text-white mb-5 leading-none drop-shadow-sm"
-              style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
-            >
-              Made to Order
-            </h1>
-            <p className="text-white/85 text-sm leading-relaxed max-w-sm mb-8 drop-shadow-sm">
-              Each piece is crafted after purchase, precisely to your measurements.
-              No excess, no compromise.
-            </p>
-            <Link
-              href="#collection"
-              className="inline-flex items-center gap-2 bg-white text-stone-900 text-[10px] tracking-[0.2em] uppercase px-8 py-4 hover:bg-stone-100 transition-colors w-fit"
-            >
-              View the Collection <ChevronRight size={12} />
-            </Link>
-          </div>
-
-          <div className="relative mx-auto h-[min(58svh,560px)] w-full max-w-[520px] md:h-[min(76svh,720px)] md:max-w-[620px]">
-            <Image
-              src={heroImage.image}
-              alt="Made to Order"
-              fill priority
-              sizes="(max-width: 768px) 92vw, 620px"
-              className="object-contain object-center"
-              style={{ objectPosition: heroImage.imagePosition }}
-            />
-          </div>
+        <Image
+          src={heroImage.image}
+          alt="Made to Order"
+          fill priority
+          sizes="100vw"
+          className="object-contain object-center p-4 md:object-right md:p-10"
+          style={{ objectPosition: heroImage.imagePosition }}
+        />
+        <div className="absolute inset-0 bg-black/20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/10" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/20 to-transparent" />
+        <div className="relative z-[1] h-full flex flex-col justify-end pb-16 px-8 md:px-20">
+          <p className="type-label text-white/75 mb-4">Lunelle Atelier</p>
+          <h1
+            className="text-4xl md:text-6xl text-white mb-5 leading-none drop-shadow-sm"
+            style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
+          >
+            Made to Order
+          </h1>
+          <p className="text-white/85 text-sm leading-relaxed max-w-sm mb-8 drop-shadow-sm">
+            Each piece is crafted after purchase, precisely to your measurements.
+            No excess, no compromise.
+          </p>
+          <Link
+            href="#collection"
+            className="inline-flex items-center gap-2 bg-white text-stone-900 text-[10px] tracking-[0.2em] uppercase px-8 py-4 hover:bg-stone-100 transition-colors w-fit"
+          >
+            View the Collection <ChevronRight size={12} />
+          </Link>
         </div>
       </section>
 
