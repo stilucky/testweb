@@ -214,13 +214,22 @@ export default function CustomizedFitPage() {
       <section className="relative h-[90svh] min-h-[640px] overflow-hidden bg-stone-900">
         <Image
           src={heroImage.image}
+          alt=""
+          fill
+          sizes="100vw"
+          aria-hidden="true"
+          className="scale-110 object-cover opacity-55 blur-2xl"
+          style={{ objectPosition: heroImage.imagePosition }}
+        />
+        <Image
+          src={heroImage.image}
           alt="Customized Fit"
           fill priority
           sizes="100vw"
-          className="object-cover object-top"
+          className="object-contain object-center p-4 md:object-right md:p-10"
           style={{ objectPosition: heroImage.imagePosition }}
         />
-        <div className="absolute inset-0 bg-black/30" />
+        <div className="absolute inset-0 bg-black/20" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/10" />
         <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/20 to-transparent" />
         <div className="relative z-[1] h-full flex flex-col justify-end pb-16 px-8 md:px-20">
