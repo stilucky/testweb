@@ -9,6 +9,7 @@ import LocaleInit from "./LocaleInit";
 import WelcomePopup from "./WelcomePopup";
 import { useAuthStore } from "@/store/authStore";
 import { useProductStore } from "@/store/productStore";
+import { useCollectionStore } from "@/store/collectionStore";
 
 export default function StoreShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -17,6 +18,7 @@ export default function StoreShell({ children }: { children: React.ReactNode }) 
   const isHome   = currentPath === "/";
   const checkSessionExpiry = useAuthStore((s) => s.checkSessionExpiry);
   const setProducts = useProductStore((s) => s.setProducts);
+  const loadCollections = useCollectionStore((s) => s.loadCollections);
 
   useEffect(() => {
     // Check session expiry immediately on mount, then every hour
@@ -24,6 +26,10 @@ export default function StoreShell({ children }: { children: React.ReactNode }) 
     const interval = setInterval(checkSessionExpiry, 60 * 60 * 1000);
     return () => clearInterval(interval);
   }, [checkSessionExpiry]);
+
+  useEffect(() => {
+    void loadCollections();
+  }, [loadCollections]);
 
   useEffect(() => {
     if (isAdmin) return;

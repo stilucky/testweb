@@ -1,71 +1,76 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { defaultCollections, type Collection } from "@/lib/collections";
 
-export interface Collection {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  image: string;
-  season: string;
-  status: "active" | "draft";
-  featured: boolean;
-  membersOnly?: boolean;
-  productIds: string[];
-  createdAt: string;
-}
+export { defaultCollections } from "@/lib/collections";
+export type { Collection } from "@/lib/collections";
 
 interface CollectionStore {
   collections: Collection[];
+  serverHydrated: boolean;
+  serverInitialized: boolean;
+  setCollections: (collections: Collection[]) => void;
+  loadCollections: () => Promise<void>;
+  syncCollections: () => Promise<void>;
   addCollection: (c: Omit<Collection, "id" | "createdAt">) => void;
   updateCollection: (id: string, data: Partial<Collection>) => void;
   removeCollection: (id: string) => void;
 }
 
-const defaultCollections: Collection[] = [
-  {
-    id: "col-1",
-    name: "Pre-Fall 2026",
-    slug: "pre-fall-2026",
-    description: "A refined transition into the cooler season — understated layers, warm neutrals, and quiet confidence.",
-    image: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800&q=80",
-    season: "Fall/Winter 2026",
-    status: "active",
-    featured: true,
-    membersOnly: true,
-    productIds: [],
-    createdAt: "2026-01-15T00:00:00.000Z",
-  },
-  {
-    id: "col-2",
-    name: "Clair de Lune",
-    slug: "claire-de-lune",
-    description: "Luminous, moonlit pieces for evenings and occasions that deserve a second look.",
-    image: "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=800&q=80",
-    season: "Spring/Summer 2026",
-    status: "active",
-    featured: true,
-    productIds: [],
-    createdAt: "2026-02-10T00:00:00.000Z",
-  },
-  {
-    id: "col-3",
-    name: "Atelier Edit",
-    slug: "atelier-edit",
-    description: "A curated selection from our atelier — timeless investment pieces crafted to last a lifetime.",
-    image: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&q=80",
-    season: "Year-Round",
-    status: "draft",
-    featured: false,
-    productIds: [],
-    createdAt: "2026-03-01T00:00:00.000Z",
-  },
-];
+function mergeWithDefaultCollections(collections: Collection[]) {
+  const merged = [...collections];
+  const ids = new Set(collections.map((collection) => collection.id));
+  defaultCollections.forEach((collection) => {
+    if (!ids.has(collection.id)) merged.push(collection);
+  });
+  return merged;
+}
 
 export const useCollectionStore = create<CollectionStore>()(
   persist(
     (set, get) => ({
       collections: defaultCollections,
+      serverHydrated: false,
+      serverInitialized: false,
+
+      setCollections: (collections) => set({ collections }),
+
+      loadCollections: async () => {
+        try {
+          const res = await fetch("/api/collections", { cache: "no-store" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json() as { collections?: Collection[]; initialized?: boolean };
+          const serverCollections = Array.isArray(data.collections) ? data.collections : [];
+
+          set((state) => ({
+            collections: data.initialized
+              ? serverCollections
+              : mergeWithDefaultCollections(state.collections),
+            serverHydrated: true,
+            serverInitialized: data.initialized === true,
+          }));
+        } catch (err) {
+          console.warn("[collections] Failed to load shared collections", err);
+          set((state) => ({
+            collections: mergeWithDefaultCollections(state.collections),
+            serverHydrated: true,
+          }));
+        }
+      },
+
+      syncCollections: async () => {
+        try {
+          const res = await fetch("/api/collections", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ collections: get().collections }),
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          set({ serverInitialized: true, serverHydrated: true });
+        } catch (err) {
+          console.warn("[collections] Failed to save shared collections", err);
+        }
+      },
 
       addCollection: (data) => {
         const newCollection: Collection = {
@@ -74,6 +79,7 @@ export const useCollectionStore = create<CollectionStore>()(
           createdAt: new Date().toISOString(),
         };
         set((s) => ({ collections: [newCollection, ...s.collections] }));
+        queueMicrotask(() => void get().syncCollections());
       },
 
       updateCollection: (id, data) => {
@@ -82,14 +88,41 @@ export const useCollectionStore = create<CollectionStore>()(
             c.id === id ? { ...c, ...data } : c
           ),
         }));
+        queueMicrotask(() => void get().syncCollections());
       },
 
       removeCollection: (id) => {
         set((s) => ({
           collections: s.collections.filter((c) => c.id !== id),
         }));
+        queueMicrotask(() => void get().syncCollections());
       },
     }),
-    { name: "lunelle-collections" }
+    {
+      name: "lunelle-collections",
+      version: 2,
+      partialize: (state) => ({ collections: state.collections }),
+      migrate: (persisted, version) => {
+        const saved = persisted as Partial<CollectionStore>;
+        return {
+          collections: version < 2
+            ? mergeWithDefaultCollections(
+                Array.isArray(saved.collections) ? saved.collections : []
+              )
+            : (Array.isArray(saved.collections) ? saved.collections : defaultCollections),
+        };
+      },
+      merge: (persisted, current) => {
+        const saved = persisted as Partial<CollectionStore>;
+        return {
+          ...current,
+          collections: Array.isArray(saved.collections)
+            ? saved.collections
+            : current.collections,
+          serverHydrated: false,
+          serverInitialized: false,
+        };
+      },
+    }
   )
 );

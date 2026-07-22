@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import {
   Plus, Trash2, Edit, X, Save, Eye, EyeOff, Star, StarOff,
@@ -39,7 +39,15 @@ function toSlug(text: string) {
 }
 
 export default function AdminCollectionsPage() {
-  const { collections, addCollection, updateCollection, removeCollection } = useCollectionStore();
+  const {
+    collections,
+    serverHydrated,
+    serverInitialized,
+    syncCollections,
+    addCollection,
+    updateCollection,
+    removeCollection,
+  } = useCollectionStore();
   const { products } = useProductStore();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -51,6 +59,12 @@ export default function AdminCollectionsPage() {
   const [productSearch, setProductSearch] = useState("");
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
   const { toasts, addToast, removeToast } = useToast(3000);
+
+  useEffect(() => {
+    if (!serverHydrated || serverInitialized) return;
+    const syncTimer = window.setTimeout(() => void syncCollections(), 0);
+    return () => window.clearTimeout(syncTimer);
+  }, [serverHydrated, serverInitialized, syncCollections]);
 
   const openAdd = () => {
     setEditing(null);
