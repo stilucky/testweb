@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
-import { ShieldAlert } from "lucide-react";
+import { Loader2, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 
 export default function AdminGuard({ children }: { children: React.ReactNode }) {
@@ -52,8 +52,39 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
     }
   }, [currentUser, hydrated, router]);
 
-  if (!hydrated || !currentUser) {
-    return null;
+  if (!hydrated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-stone-50 px-4">
+        <div className="flex items-center gap-3 text-stone-400">
+          <Loader2 size={18} className="animate-spin" />
+          <span className="text-xs tracking-widest uppercase">Loading admin</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-stone-50 px-4">
+        <div className="text-center max-w-sm">
+          <h1
+            className="text-3xl mb-3"
+            style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
+          >
+            Admin Sign In Required
+          </h1>
+          <p className="text-stone-500 text-sm mb-8">
+            Please sign in with an admin account to access the dashboard.
+          </p>
+          <Link
+            href="/auth"
+            className="inline-flex px-6 py-3 bg-stone-900 text-white text-xs tracking-widest uppercase hover:bg-stone-700 transition-colors"
+          >
+            Sign In
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   if (currentUser.role !== "admin") {
