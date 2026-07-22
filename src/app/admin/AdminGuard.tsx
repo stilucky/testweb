@@ -14,32 +14,34 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     const persist = useAuthStore.persist;
     let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
 
     const markHydrated = () => {
       if (!cancelled) setHydrated(true);
     };
 
+    const timer = setTimeout(markHydrated, 500);
+
     if (!persist) {
-      timer = setTimeout(markHydrated, 0);
       return () => {
         cancelled = true;
-        if (timer) clearTimeout(timer);
+        clearTimeout(timer);
       };
     }
 
     if (persist.hasHydrated()) {
-      timer = setTimeout(markHydrated, 0);
+      setTimeout(markHydrated, 0);
       return () => {
         cancelled = true;
-        if (timer) clearTimeout(timer);
+        clearTimeout(timer);
       };
     }
 
     const unsub = persist.onFinishHydration(markHydrated);
+    void Promise.resolve(persist.rehydrate()).finally(markHydrated);
 
     return () => {
       cancelled = true;
+      clearTimeout(timer);
       unsub();
     };
   }, []);

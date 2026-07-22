@@ -49,3 +49,10 @@ DEPLOY_VPS.md
 
 # temp product image uploads (served from public/uploads/, cleaned up after Shopify sync)
 /public/uploads/
+
+# local browser test artifacts
+/.edge-*/
+/.chrome-*/
+/.admin-*.png
+/.mto-*.png
+/.cf-*.png
