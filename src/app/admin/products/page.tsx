@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import {
   Search, Plus, Edit, Trash2, Eye, ChevronDown,
-  Package, X, Save, RefreshCw, Cloud, CloudOff,
-  AlertCircle, CheckCircle, Loader2, ImagePlus, Trash, Video, Send, Mail,
+  Package, X, Save, RefreshCw, Cloud,
+  AlertCircle, CheckCircle, Loader2, ImagePlus, Trash, Send, Mail,
 } from "lucide-react";
 import { Product } from "@/types";
 import { formatPrice, cn } from "@/lib/utils";
@@ -100,6 +100,20 @@ function isValidProductImageSource(src: string) {
   }
 }
 
+function isValidCloudinaryVideoUrl(src: string) {
+  const trimmed = src.trim();
+  if (!trimmed) return true;
+
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "https:"
+      && url.hostname === "res.cloudinary.com"
+      && url.pathname.includes("/video/upload/");
+  } catch {
+    return false;
+  }
+}
+
 type SizeChartKey = "sizeChart" | "sizeChartFR";
 type SizeChartTable = { headers: string[]; rows: string[][] };
 type MeasurementUnit = "in" | "cm";
@@ -187,11 +201,9 @@ export default function AdminProductsPage() {
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
-  const [uploadedVideoUrl, setUploadedVideoUrl] = useState<string>("");
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
   const [measurementUnit, setMeasurementUnit] = useState<MeasurementUnit>("in");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
 
   // ── fetch from Shopify ────────────────────────────────────────────────────
   const fetchProducts = useCallback(async () => {
@@ -208,22 +220,14 @@ export default function AdminProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [addToast]);
+  }, [addToast, setProducts]);
 
-  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+  useEffect(() => {
+    const fetchTimer = window.setTimeout(() => void fetchProducts(), 0);
+    return () => window.clearTimeout(fetchTimer);
+  }, [fetchProducts]);
 
   // ── modal helpers ─────────────────────────────────────────────────────────
-  const handleProductVideoUpload = (file: File | null) => {
-    if (!file) return;
-    if (!file.type.startsWith("video/")) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      if (result) setUploadedVideoUrl(result);
-    };
-    reader.readAsDataURL(file);
-  };
-
   const handleImageUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     const imageFiles = Array.from(files);
@@ -274,7 +278,6 @@ export default function AdminProductsPage() {
     setForm(emptyForm);
     setErrors({});
     setUploadedImages([]);
-    setUploadedVideoUrl("");
     setShowUrlInput(false);
     setMeasurementUnit("in");
     setModalOpen(true);
@@ -288,7 +291,6 @@ export default function AdminProductsPage() {
     }, {});
     setEditingProduct(product);
     setUploadedImages([]);
-    setUploadedVideoUrl("");
     setForm({
       name: product.name,
       slug: product.slug,
@@ -335,7 +337,6 @@ export default function AdminProductsPage() {
     setForm(emptyForm);
     setErrors({});
     setUploadedImages([]);
-    setUploadedVideoUrl("");
     setShowUrlInput(false);
   };
 
@@ -357,6 +358,9 @@ export default function AdminProductsPage() {
     if (!form.images.trim() && uploadedImages.length === 0) e.images = "At least one image required";
     if (!e.images && parseUrls(form.images).some((url) => !isValidProductImageSource(url))) {
       e.images = "Use full http(s) image URLs, /uploads/... images, or upload files from your computer";
+    }
+    if (form.videoUrl.trim() && !isValidCloudinaryVideoUrl(form.videoUrl)) {
+      e.videoUrl = "Use a Cloudinary video delivery URL";
     }
     if (form.collections.length === 0) e.collections = "Select at least one collection";
     setErrors(e);
@@ -416,7 +420,7 @@ export default function AdminProductsPage() {
       isBestSeller: form.isBestSeller,
       featured: form.featured,
       tags: [],
-      videoUrl: uploadedVideoUrl || form.videoUrl.trim() || undefined,
+      videoUrl: form.videoUrl.trim() || undefined,
       priceCAD: form.priceCAD ? Number(form.priceCAD) : undefined,
       salePriceCAD: form.salePriceCAD ? Number(form.salePriceCAD) : undefined,
     };
@@ -1464,64 +1468,30 @@ export default function AdminProductsPage() {
               </Field>
 
               {/* Product Video */}
-              <Field label="Product Video">
+              <Field label="Product Video (Cloudinary)" error={errors.videoUrl}>
                 <input
-                  ref={videoInputRef}
-                  type="file"
-                  accept="video/*"
-                  className="hidden"
-                  onChange={(e) => handleProductVideoUpload(e.target.files?.[0] ?? null)}
+                  type="url"
+                  value={form.videoUrl}
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, videoUrl: e.target.value }));
+                    if (errors.videoUrl) setErrors((prev) => ({ ...prev, videoUrl: undefined }));
+                  }}
+                  placeholder="https://res.cloudinary.com/.../video/upload/..."
+                  className={cn(
+                    "w-full border px-4 py-3 font-mono text-xs transition-colors focus:outline-none",
+                    errors.videoUrl ? "border-red-400" : "border-stone-200 focus:border-stone-800"
+                  )}
                 />
 
-                {/* Upload or YouTube tabs */}
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  <button
-                    type="button"
-                    onClick={() => videoInputRef.current?.click()}
-                    className="flex items-center justify-center gap-2 border border-dashed border-stone-200 hover:border-stone-400 py-3 text-xs text-stone-500 hover:text-stone-800 transition-colors"
-                  >
-                    <Video size={14} /> Upload file (MP4/WebM)
-                  </button>
-                  <div className="relative">
-                    <input
-                      type="url"
-                      value={form.videoUrl}
-                      onChange={(e) => { setForm((f) => ({ ...f, videoUrl: e.target.value })); setUploadedVideoUrl(""); }}
-                      placeholder="YouTube URL..."
-                      className="w-full px-3 py-3 border border-stone-200 text-xs focus:outline-none focus:border-stone-800 transition-colors"
-                    />
-                  </div>
-                </div>
-
-                {/* Uploaded video preview */}
-                {uploadedVideoUrl && (
-                  <div className="mt-2 space-y-1">
-                    <video src={uploadedVideoUrl} controls className="w-full rounded border border-stone-200" style={{ maxHeight: 200 }} />
-                    <button type="button" onClick={() => { setUploadedVideoUrl(""); if (videoInputRef.current) videoInputRef.current.value = ""; }}
-                      className="flex items-center gap-1 text-[11px] text-red-500 hover:text-red-700">
-                      <Trash size={10} /> Xoá video
-                    </button>
-                  </div>
+                {form.videoUrl && isValidCloudinaryVideoUrl(form.videoUrl) && (
+                  <video
+                    src={form.videoUrl.trim()}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    className="mt-3 max-h-64 w-full border border-stone-200 bg-black object-contain"
+                  />
                 )}
-
-                {/* YouTube preview */}
-                {!uploadedVideoUrl && form.videoUrl && (() => {
-                  const patterns = [/youtube\.com\/watch\?v=([^&]+)/, /youtu\.be\/([^?/]+)/, /youtube\.com\/embed\/([^?]+)/];
-                  const id = patterns.reduce<string | null>((acc, p) => acc ?? (form.videoUrl.match(p)?.[1] ?? null), null);
-                  return id ? (
-                    <div className="mt-2 relative aspect-video bg-stone-900 overflow-hidden rounded">
-                      <img src={`https://img.youtube.com/vi/${id}/mqdefault.jpg`} alt="Video preview"
-                        className="w-full h-full object-cover opacity-70" />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center">
-                          <svg viewBox="0 0 24 24" fill="white" className="w-4 h-4 ml-0.5"><path d="M8 5v14l11-7z"/></svg>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="mt-1.5 text-[11px] text-amber-500">URL YouTube không hợp lệ</p>
-                  );
-                })()}
               </Field>
 
               {/* Collections */}
