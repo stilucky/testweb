@@ -15,26 +15,23 @@ export default function AdminDashboard() {
   const { orders } = useOrderStore();
   const { users } = useAuthStore();
   const { orders: tailoredOrders } = useTailoredOrderStore();
-  const safeOrders = Array.isArray(orders) ? orders : [];
-  const safeUsers = Array.isArray(users) ? users : [];
-  const safeTailoredOrders = Array.isArray(tailoredOrders) ? tailoredOrders : [];
 
   // ── Regular orders ──────────────────────────────────────────────
-  const totalRevenue = safeOrders
+  const totalRevenue = orders
     .filter((o) => o.payment === "paid")
     .reduce((s, o) => s + o.total, 0);
 
-  const recentOrders = [...safeOrders].slice(0, 5);
+  const recentOrders = [...orders].slice(0, 5);
 
   // ── Tailored orders breakdown ────────────────────────────────────
-  const madeToOrderCount   = safeTailoredOrders.filter((o) => o.type === "made-to-order").length;
-  const customizedFitCount = safeTailoredOrders.filter((o) => o.type === "customized-fit").length;
-  const pendingTailored    = safeTailoredOrders.filter((o) => o.status === "pending").length;
-  const recentTailored     = [...safeTailoredOrders]
+  const madeToOrderCount   = tailoredOrders.filter((o) => o.type === "made-to-order").length;
+  const customizedFitCount = tailoredOrders.filter((o) => o.type === "customized-fit").length;
+  const pendingTailored    = tailoredOrders.filter((o) => o.status === "pending").length;
+  const recentTailored     = [...tailoredOrders]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);
 
-  const tailoredRevenue = safeTailoredOrders
+  const tailoredRevenue = tailoredOrders
     .filter((o) => o.status !== "cancelled")
     .reduce((s, o) => s + o.totalPrice, 0);
 
@@ -48,7 +45,7 @@ export default function AdminDashboard() {
     },
     {
       label: "Regular Orders",
-      value: String(safeOrders.length),
+      value: String(orders.length),
       icon: ShoppingCart,
       sub: "ready-to-wear",
       href: "/admin/orders",
@@ -252,14 +249,14 @@ export default function AdminDashboard() {
         <div className="bg-white border border-stone-100 p-4">
           <p className="text-[10px] tracking-widests uppercase text-stone-400 mb-2">Customers</p>
           <p className="text-2xl" style={{ fontFamily: "var(--font-cormorant), serif" }}>
-            {safeUsers.filter((u) => u.role === "customer").length}
+            {users.filter((u) => u.role === "customer").length}
           </p>
           <p className="text-xs text-stone-400 mt-1">registered</p>
         </div>
         <div className="bg-white border border-stone-100 p-4">
           <p className="text-[10px] tracking-widests uppercase text-stone-400 mb-2">Tailored Total</p>
           <p className="text-2xl" style={{ fontFamily: "var(--font-cormorant), serif" }}>
-            {safeTailoredOrders.length}
+            {tailoredOrders.length}
           </p>
           <p className="text-xs text-stone-400 mt-1">
             {madeToOrderCount} make · {customizedFitCount} custom fit
