@@ -136,6 +136,7 @@ const METAFIELD_KEYS = {
   sizeChart: "size_chart",
   sizeChartFR: "size_chart_fr",
   videoUrl: "video_url",
+  videoThumbnailUrl: "video_thumbnail_url",
 } as const;
 
 function metafieldValue(sp: ShopifyProduct, key: string): string | undefined {
@@ -234,6 +235,7 @@ export function shopifyToProduct(sp: ShopifyProduct): Product {
   const sizeChart = metafieldValue(sp, METAFIELD_KEYS.sizeChart);
   const sizeChartFR = metafieldValue(sp, METAFIELD_KEYS.sizeChartFR);
   const videoUrl = metafieldValue(sp, METAFIELD_KEYS.videoUrl);
+  const videoThumbnailUrl = metafieldValue(sp, METAFIELD_KEYS.videoThumbnailUrl);
 
   // Parse colors from tags: "color:Black:000000"
   const colors: Color[] = sp.tags
@@ -284,6 +286,7 @@ export function shopifyToProduct(sp: ShopifyProduct): Product {
     sizeChart,
     sizeChartFR,
     videoUrl,
+    videoThumbnailUrl,
     price,
     salePrice,
     priceCAD,
@@ -434,6 +437,7 @@ async function syncProductMetafields(productId: string, p: Partial<Product>) {
     upsertProductMetafield(productId, existing, METAFIELD_KEYS.sizeChart, p.sizeChart, "multi_line_text_field"),
     upsertProductMetafield(productId, existing, METAFIELD_KEYS.sizeChartFR, p.sizeChartFR, "multi_line_text_field"),
     upsertProductMetafield(productId, existing, METAFIELD_KEYS.videoUrl, p.videoUrl, "single_line_text_field"),
+    upsertProductMetafield(productId, existing, METAFIELD_KEYS.videoThumbnailUrl, p.videoThumbnailUrl, "single_line_text_field"),
   ]);
 }
 

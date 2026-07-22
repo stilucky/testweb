@@ -16,6 +16,7 @@ import { ToastContainer, useToast } from "@/components/ui/Toast";
 import { CAD_RATE } from "@/store/localeStore";
 import MediaPicker from "@/components/admin/MediaPicker";
 import { compressImageFiles, useMediaLibraryStore } from "@/store/mediaLibraryStore";
+import { cloudinaryVideoThumbnailUrl, isValidCloudinaryVideoUrl } from "@/lib/cloudinary";
 
 const categoryOptions = ["all", "dresses", "tops", "bottoms", "sets", "outerwear", "accessories"];
 const allSizes = ["XS", "S", "M", "L", "XL", "XXL"];
@@ -50,7 +51,7 @@ type FormData = {
   priceCAD: string; salePriceCAD: string;
   category: string;
   gender: "women" | "men" | "unisex"; sizes: string[]; inventoryBySize: Record<string, string>; colors: FormColor[];
-  images: string; videoUrl: string; isNew: boolean; isBestSeller: boolean; featured: boolean;
+  images: string; videoUrl: string; videoThumbnailUrl: string; isNew: boolean; isBestSeller: boolean; featured: boolean;
   collections: string[];
 };
 type FormErrors = Partial<Record<keyof FormData | "stock", string>>;
@@ -66,7 +67,7 @@ const emptyForm: FormData = {
   price: "", salePrice: "",
   priceCAD: "", salePriceCAD: "",
   category: "dresses",
-  gender: "women", sizes: [], inventoryBySize: {}, colors: [], images: "", videoUrl: "",
+  gender: "women", sizes: [], inventoryBySize: {}, colors: [], images: "", videoUrl: "", videoThumbnailUrl: "",
   isNew: false, isBestSeller: false, featured: false,
   collections: [],
 };
@@ -95,20 +96,6 @@ function isValidProductImageSource(src: string) {
   try {
     const url = new URL(trimmed);
     return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
-function isValidCloudinaryVideoUrl(src: string) {
-  const trimmed = src.trim();
-  if (!trimmed) return true;
-
-  try {
-    const url = new URL(trimmed);
-    return url.protocol === "https:"
-      && url.hostname === "res.cloudinary.com"
-      && url.pathname.includes("/video/upload/");
   } catch {
     return false;
   }
@@ -201,6 +188,7 @@ export default function AdminProductsPage() {
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
+  const [videoThumbnailPickerOpen, setVideoThumbnailPickerOpen] = useState(false);
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
   const [measurementUnit, setMeasurementUnit] = useState<MeasurementUnit>("in");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -270,6 +258,7 @@ export default function AdminProductsPage() {
       setForm((f) => ({ ...f, images: [...existing, url].join("\n") }));
     }
     setShowUrlInput(false);
+    setVideoThumbnailPickerOpen(false);
     if (errors.images) setErrors((prev) => ({ ...prev, images: undefined }));
   };
 
@@ -279,6 +268,7 @@ export default function AdminProductsPage() {
     setErrors({});
     setUploadedImages([]);
     setShowUrlInput(false);
+    setVideoThumbnailPickerOpen(false);
     setMeasurementUnit("in");
     setModalOpen(true);
   };
@@ -317,6 +307,7 @@ export default function AdminProductsPage() {
       })),
       images: product.images.join("\n"),
       videoUrl: product.videoUrl ?? "",
+      videoThumbnailUrl: product.videoThumbnailUrl ?? "",
       priceCAD: product.priceCAD ? String(product.priceCAD) : "",
       salePriceCAD: product.salePriceCAD ? String(product.salePriceCAD) : "",
       isNew: product.isNew,
@@ -328,6 +319,7 @@ export default function AdminProductsPage() {
     });
     setErrors({});
     setShowUrlInput(false);
+    setVideoThumbnailPickerOpen(false);
     setModalOpen(true);
   };
 
@@ -338,6 +330,7 @@ export default function AdminProductsPage() {
     setErrors({});
     setUploadedImages([]);
     setShowUrlInput(false);
+    setVideoThumbnailPickerOpen(false);
   };
 
   const validate = (): boolean => {
@@ -361,6 +354,9 @@ export default function AdminProductsPage() {
     }
     if (form.videoUrl.trim() && !isValidCloudinaryVideoUrl(form.videoUrl)) {
       e.videoUrl = "Use a Cloudinary video delivery URL";
+    }
+    if (form.videoThumbnailUrl.trim() && !isValidProductImageSource(form.videoThumbnailUrl)) {
+      e.videoThumbnailUrl = "Use a valid thumbnail image URL";
     }
     if (form.collections.length === 0) e.collections = "Select at least one collection";
     setErrors(e);
@@ -421,6 +417,7 @@ export default function AdminProductsPage() {
       featured: form.featured,
       tags: [],
       videoUrl: form.videoUrl.trim() || undefined,
+      videoThumbnailUrl: form.videoThumbnailUrl.trim() || undefined,
       priceCAD: form.priceCAD ? Number(form.priceCAD) : undefined,
       salePriceCAD: form.salePriceCAD ? Number(form.salePriceCAD) : undefined,
     };
@@ -680,6 +677,13 @@ export default function AdminProductsPage() {
       if (sortBy === "stock-asc")  return a.stock - b.stock;
       return 0;
     });
+
+  const videoThumbnailUrl = form.videoThumbnailUrl.trim()
+    || cloudinaryVideoThumbnailUrl(form.videoUrl);
+  const videoThumbnailChoices = Array.from(new Set([
+    ...parseUrls(form.images),
+    ...uploadedImages,
+  ]));
 
   const stockBadge = (stock: number) => {
     if (stock === 0)  return { cls: "bg-red-50 text-red-500",      label: "Out" };
@@ -1484,13 +1488,85 @@ export default function AdminProductsPage() {
                 />
 
                 {form.videoUrl && isValidCloudinaryVideoUrl(form.videoUrl) && (
-                  <video
-                    src={form.videoUrl.trim()}
-                    controls
-                    playsInline
-                    preload="metadata"
-                    className="mt-3 max-h-64 w-full border border-stone-200 bg-black object-contain"
-                  />
+                  <div className="mt-3 space-y-3">
+                    <video
+                      src={form.videoUrl.trim()}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      poster={videoThumbnailUrl || undefined}
+                      className="max-h-64 w-full border border-stone-200 bg-black object-contain"
+                    />
+
+                    <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-3 border border-stone-200 p-3">
+                      <div className="relative aspect-video overflow-hidden bg-stone-100">
+                        {videoThumbnailUrl ? (
+                          <Image
+                            src={videoThumbnailUrl}
+                            alt="Video thumbnail"
+                            fill
+                            sizes="120px"
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-[10px] uppercase tracking-widest text-stone-300">
+                            No image
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="min-w-0">
+                        <p className="mb-2 text-[10px] uppercase tracking-widest text-stone-400">Video Thumbnail</p>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setForm((f) => ({ ...f, videoThumbnailUrl: "" }));
+                              setVideoThumbnailPickerOpen(false);
+                            }}
+                            className={cn(
+                              "inline-flex items-center gap-1.5 border px-3 py-2 text-[10px] uppercase tracking-widest transition-colors",
+                              !form.videoThumbnailUrl
+                                ? "border-stone-900 bg-stone-900 text-white"
+                                : "border-stone-200 text-stone-600 hover:border-stone-800"
+                            )}
+                          >
+                            <RefreshCw size={11} /> Auto Frame
+                          </button>
+                          <button
+                            type="button"
+                            disabled={videoThumbnailChoices.length === 0}
+                            onClick={() => setVideoThumbnailPickerOpen((open) => !open)}
+                            className="inline-flex items-center gap-1.5 border border-stone-200 px-3 py-2 text-[10px] uppercase tracking-widest text-stone-600 transition-colors hover:border-stone-800 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            <ImagePlus size={11} /> Choose Image
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {videoThumbnailPickerOpen && videoThumbnailChoices.length > 0 && (
+                      <div className="grid grid-cols-4 gap-2 border border-stone-200 p-2">
+                        {videoThumbnailChoices.map((url) => (
+                          <button
+                            key={url}
+                            type="button"
+                            onClick={() => {
+                              setForm((f) => ({ ...f, videoThumbnailUrl: url }));
+                              setVideoThumbnailPickerOpen(false);
+                            }}
+                            className={cn(
+                              "relative aspect-square overflow-hidden border-2 bg-stone-100 transition-colors",
+                              form.videoThumbnailUrl === url ? "border-stone-900" : "border-transparent hover:border-stone-400"
+                            )}
+                            title="Use this image"
+                          >
+                            <Image src={url} alt="" fill sizes="120px" className="object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </Field>
 

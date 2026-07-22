@@ -29,6 +29,7 @@ export interface Product {
   inventoryBySize?: Record<string, number>;
   tags: string[];
   videoUrl?: string;
+  videoThumbnailUrl?: string;
   priceCAD?: number;
   salePriceCAD?: number;
   createdAt?: string;

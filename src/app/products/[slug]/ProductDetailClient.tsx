@@ -11,6 +11,7 @@ import { useTranslations } from "@/lib/i18n";
 import ProductCard from "@/components/product/ProductCard";
 import SizeChart from "@/components/product/SizeChart";
 import type { Product } from "@/types";
+import { cloudinaryVideoThumbnailUrl } from "@/lib/cloudinary";
 
 interface Props {
   product: Product;
@@ -44,6 +45,8 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
 
   const videoId = product.videoUrl ? getYouTubeId(product.videoUrl) : null;
   const isNativeVideo = !!product.videoUrl && !videoId;
+  const videoThumbnailUrl = product.videoThumbnailUrl
+    || cloudinaryVideoThumbnailUrl(product.videoUrl ?? "");
 
   const activeColor = product.colors.find((c) => c.name === selectedColor);
   const displayImages =
@@ -154,6 +157,14 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
                     sizes="64px"
                     className="object-cover opacity-50"
                   />
+                ) : videoThumbnailUrl ? (
+                  <Image
+                    src={videoThumbnailUrl}
+                    alt="Video preview"
+                    fill
+                    sizes="64px"
+                    className="object-cover opacity-65"
+                  />
                 ) : (
                   <Film size={18} className="text-white/60" />
                 )}
@@ -178,6 +189,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
                 autoPlay
                 controls
                 playsInline
+                poster={videoThumbnailUrl || undefined}
                 className="absolute inset-0 w-full h-full object-contain bg-black"
               />
             ) : (
