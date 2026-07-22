@@ -762,7 +762,7 @@ function SlideForm({
               <button key={tab} onClick={() => switchVideoTab(tab)}
                 className={cn("px-4 py-2 text-xs transition-colors",
                   videoTab === tab ? "border-b-2 border-stone-900 text-stone-900 font-medium -mb-px" : "text-stone-400 hover:text-stone-600")}>
-                {tab === "youtube" ? "YouTube URL" : "Upload file"}
+                {tab === "youtube" ? "YouTube URL" : "Video URL / Upload"}
               </button>
             ))}
           </div>
@@ -790,10 +790,22 @@ function SlideForm({
 
           {videoTab === "native" && (
             <div>
+              <label className={labelCls}>Video URL *</label>
+              <input
+                type="url"
+                value={form.videoUrl ?? ""}
+                onChange={(e) => setForm((f) => ({ ...f, videoUrl: e.target.value, videoType: "native" }))}
+                placeholder="https://res.cloudinary.com/.../video/upload/f_auto,q_auto,w_1920/hero.mp4"
+                className={inputCls}
+              />
+              <p className="mt-1.5 text-[10px] text-stone-400">
+                Paste a direct MP4/WebM URL from Cloudinary, or upload a local video below.
+              </p>
+
               <input ref={fileRef} type="file" accept="video/mp4,video/webm,video/ogg,video/quicktime,.mp4,.webm,.ogv,.mov,.m4v" className="hidden"
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) handleNativeUpload(f); }} />
               {form.videoUrl && form.videoType === "native" ? (
-                <div>
+                <div className="mt-3">
                   <video src={form.videoUrl} controls className="w-full border border-stone-200" style={{ maxHeight: 160 }} />
                   <p className="mt-1.5 break-all text-[10px] text-stone-400">{form.videoUrl}</p>
                   <button onClick={() => { setForm(f => ({ ...f, videoUrl: "" })); if (fileRef.current) fileRef.current.value = ""; }}
