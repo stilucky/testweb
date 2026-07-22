@@ -313,7 +313,7 @@ export default function MadeToOrderPage() {
   return (
     <>
       {/* ── 1. HERO ── */}
-      <section className="relative h-[90vh] overflow-hidden">
+      <section className="relative h-[90svh] min-h-[640px] overflow-hidden bg-stone-900">
         <Image
           src={heroImage.image}
           alt="Made to Order"
@@ -322,16 +322,18 @@ export default function MadeToOrderPage() {
           className="object-cover object-top"
           style={{ objectPosition: heroImage.imagePosition }}
         />
-        <div className="absolute inset-0 bg-black/35" />
-        <div className="relative z-10 h-full flex flex-col justify-end pb-16 px-10 md:px-20">
-          <p className="type-label text-white/60 mb-4">Lunelle Atelier</p>
+        <div className="absolute inset-0 bg-black/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/10" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/20 to-transparent" />
+        <div className="relative z-[1] h-full flex flex-col justify-end pb-16 px-8 md:px-20">
+          <p className="type-label text-white/75 mb-4">Lunelle Atelier</p>
           <h1
-            className="text-4xl md:text-6xl text-white mb-5 leading-none"
+            className="text-4xl md:text-6xl text-white mb-5 leading-none drop-shadow-sm"
             style={{ fontFamily: "var(--font-cormorant), serif", fontWeight: 300 }}
           >
             Made to Order
           </h1>
-          <p className="text-white/70 text-sm leading-relaxed max-w-sm mb-8">
+          <p className="text-white/85 text-sm leading-relaxed max-w-sm mb-8 drop-shadow-sm">
             Each piece is crafted after purchase, precisely to your measurements.
             No excess, no compromise.
           </p>
