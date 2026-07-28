@@ -28,10 +28,22 @@ export interface EmailCampaign {
 interface SubscriberState {
   subscribers: Subscriber[];
   emailCampaigns: EmailCampaign[];
+  setSubscriberSettings: (settings: Partial<Pick<SubscriberState, "subscribers" | "emailCampaigns">>) => void;
+  loadSubscriberSettings: () => Promise<void>;
   subscribe: (email: string) => { success: true; couponCode: string } | { success: false; error: string };
   markCouponUsed: (email: string) => void;
   deleteSubscriber: (id: string) => void;
   addCampaign: (campaign: Omit<EmailCampaign, "id">) => void;
+}
+
+function saveSubscriberSettings(settings: Pick<SubscriberState, "subscribers" | "emailCampaigns">) {
+  if (typeof window === "undefined") return;
+
+  fetch("/api/subscribers", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  }).catch((err) => console.warn("[subscriberStore] Failed to save subscriber settings", err));
 }
 
 function generateCode(): string {
@@ -49,12 +61,48 @@ export const useSubscriberStore = create<SubscriberState>()(
       subscribers: [],
       emailCampaigns: [],
 
+      setSubscriberSettings: (settings) =>
+        set((s) => ({
+          subscribers: settings.subscribers ?? s.subscribers,
+          emailCampaigns: settings.emailCampaigns ?? s.emailCampaigns,
+        })),
+
+      loadSubscriberSettings: async () => {
+        const localSettings = {
+          subscribers: get().subscribers,
+          emailCampaigns: get().emailCampaigns,
+        };
+        try {
+          const res = await fetch("/api/subscribers", { cache: "no-store" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json() as Partial<Pick<SubscriberState, "subscribers" | "emailCampaigns">> & {
+            initialized?: boolean;
+          };
+          if (data.initialized === false) {
+            if (localSettings.subscribers.length > 0 || localSettings.emailCampaigns.length > 0) {
+              saveSubscriberSettings(localSettings);
+            }
+            return;
+          }
+          set((s) => ({
+            subscribers: Array.isArray(data.subscribers) ? data.subscribers : s.subscribers,
+            emailCampaigns: Array.isArray(data.emailCampaigns) ? data.emailCampaigns : s.emailCampaigns,
+          }));
+        } catch (err) {
+          console.warn("[subscriberStore] Failed to load subscriber settings", err);
+        }
+      },
+
       addCampaign: (campaign) => {
         const newCampaign: EmailCampaign = {
           ...campaign,
           id: `campaign_${Date.now()}`,
         };
         set((s) => ({ emailCampaigns: [newCampaign, ...s.emailCampaigns] }));
+        saveSubscriberSettings({
+          subscribers: get().subscribers,
+          emailCampaigns: get().emailCampaigns,
+        });
       },
 
       subscribe: (email) => {
@@ -77,6 +125,10 @@ export const useSubscriberStore = create<SubscriberState>()(
           couponUsed: false,
         };
         set((s) => ({ subscribers: [...s.subscribers, sub] }));
+        saveSubscriberSettings({
+          subscribers: get().subscribers,
+          emailCampaigns: get().emailCampaigns,
+        });
         return { success: true, couponCode };
       },
 
@@ -88,10 +140,18 @@ export const useSubscriberStore = create<SubscriberState>()(
               : sub
           ),
         }));
+        saveSubscriberSettings({
+          subscribers: get().subscribers,
+          emailCampaigns: get().emailCampaigns,
+        });
       },
 
       deleteSubscriber: (id) => {
         set((s) => ({ subscribers: s.subscribers.filter((sub) => sub.id !== id) }));
+        saveSubscriberSettings({
+          subscribers: get().subscribers,
+          emailCampaigns: get().emailCampaigns,
+        });
       },
     }),
     {

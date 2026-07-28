@@ -27,16 +27,23 @@ export interface AboutPost {
   updatedAt: string;
 }
 
+export type AboutSettings = {
+  sections: AboutSection[];
+  posts: AboutPost[];
+};
+
 interface AboutStore {
   sections: AboutSection[];
   posts: AboutPost[];
+  setAboutSettings: (settings: Partial<AboutSettings>) => void;
+  loadAboutSettings: () => Promise<void>;
   updateSection: (key: AboutKey, data: Partial<Omit<AboutSection, "key">>) => void;
   addPost: (post: Omit<AboutPost, "id" | "createdAt" | "updatedAt">) => void;
   updatePost: (id: string, data: Partial<Omit<AboutPost, "id" | "sectionKey" | "createdAt">>) => void;
   deletePost: (id: string) => void;
 }
 
-const defaultSections: AboutSection[] = [
+export const defaultSections: AboutSection[] = [
   {
     key: "origin",
     label: "Origin",
@@ -67,7 +74,7 @@ const defaultSections: AboutSection[] = [
   },
 ];
 
-const defaultPosts: AboutPost[] = [
+export const defaultPosts: AboutPost[] = [
   // Origin posts
   {
     id: "post-1",
@@ -187,18 +194,67 @@ function normalizeAboutState(state: Partial<AboutStore>): Partial<AboutStore> {
   return { ...state, sections, posts };
 }
 
+function saveAboutSettings(settings: AboutSettings) {
+  if (typeof window === "undefined") return;
+
+  fetch("/api/about", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  }).catch((err) => console.warn("[aboutStore] Failed to save about settings", err));
+}
+
+function hasCustomAboutSettings(settings: AboutSettings) {
+  return (
+    JSON.stringify(settings.sections) !== JSON.stringify(defaultSections) ||
+    JSON.stringify(settings.posts) !== JSON.stringify(defaultPosts)
+  );
+}
+
 export const useAboutStore = create<AboutStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       sections: defaultSections,
       posts: defaultPosts,
 
-      updateSection: (key, data) =>
+      setAboutSettings: (settings) =>
+        set((s) => ({
+          sections: settings.sections ?? s.sections,
+          posts: settings.posts ?? s.posts,
+        })),
+
+      loadAboutSettings: async () => {
+        const localSettings = {
+          sections: get().sections,
+          posts: get().posts,
+        };
+
+        try {
+          const res = await fetch("/api/about", { cache: "no-store" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json() as Partial<AboutSettings> & { initialized?: boolean };
+
+          if (data.initialized === false) {
+            if (hasCustomAboutSettings(localSettings)) saveAboutSettings(localSettings);
+            return;
+          }
+
+          if (Array.isArray(data.sections) && Array.isArray(data.posts)) {
+            set({ sections: data.sections, posts: data.posts });
+          }
+        } catch (err) {
+          console.warn("[aboutStore] Failed to load about settings", err);
+        }
+      },
+
+      updateSection: (key, data) => {
         set((s) => ({
           sections: s.sections.map((sec) =>
             sec.key === key ? { ...sec, ...data } : sec
           ),
-        })),
+        }));
+        saveAboutSettings({ sections: get().sections, posts: get().posts });
+      },
 
       addPost: (post) => {
         const now = new Date().toISOString();
@@ -209,6 +265,7 @@ export const useAboutStore = create<AboutStore>()(
           updatedAt: now,
         };
         set((s) => ({ posts: [...s.posts, newPost] }));
+        saveAboutSettings({ sections: get().sections, posts: get().posts });
       },
 
       updatePost: (id, data) => {
@@ -217,10 +274,13 @@ export const useAboutStore = create<AboutStore>()(
             p.id === id ? { ...p, ...data, updatedAt: new Date().toISOString() } : p
           ),
         }));
+        saveAboutSettings({ sections: get().sections, posts: get().posts });
       },
 
-      deletePost: (id) =>
-        set((s) => ({ posts: s.posts.filter((p) => p.id !== id) })),
+      deletePost: (id) => {
+        set((s) => ({ posts: s.posts.filter((p) => p.id !== id) }));
+        saveAboutSettings({ sections: get().sections, posts: get().posts });
+      },
     }),
     {
       name: "lunelle-about-v2",

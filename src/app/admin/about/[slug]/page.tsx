@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useRef, useCallback } from "react";
+import { use, useEffect, useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -508,7 +508,26 @@ export default function AdminAboutSectionPage({
   if (!VALID_SLUGS.includes(slug as AboutKey)) notFound();
 
   const sectionKey = slug as AboutKey;
-  const { sections, posts, updatePost, deletePost } = useAboutStore();
+  const { sections, posts, setAboutSettings, updatePost, deletePost } = useAboutStore();
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    fetch("/api/about", { cache: "no-store", signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.initialized !== false && Array.isArray(data?.sections) && Array.isArray(data?.posts)) {
+          setAboutSettings({ sections: data.sections, posts: data.posts });
+        }
+      })
+      .catch((err) => {
+        if (err?.name !== "AbortError") {
+          console.warn("[AdminAboutSectionPage] Failed to load about settings", err);
+        }
+      });
+
+    return () => controller.abort();
+  }, [setAboutSettings]);
   const section = sections.find((s) => s.key === sectionKey);
   if (!section) notFound();
 

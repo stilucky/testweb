@@ -123,11 +123,11 @@ export default function WelcomePopup() {
             {/* Left: editorial image */}
             <div className="relative aspect-[4/5] md:aspect-auto md:min-h-[500px] overflow-hidden">
               <Image
-                src="https://images.unsplash.com/photo-1539008835657-9e8e9680c956?w=800&q=90"
+                src="/api/uploads/f0aab47f-c277-4134-b4cb-057f862d9724.jfif"
                 alt="Lunelle"
                 fill
                 sizes="(max-width: 768px) 100vw, 410px"
-                className="object-cover object-top"
+                className="object-cover object-[45%_35%]"
                 priority
               />
 

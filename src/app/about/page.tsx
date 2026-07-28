@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
@@ -13,7 +14,26 @@ const SECTION_ORDER: import("@/store/aboutStore").AboutKey[] = [
 ];
 
 export default function AboutPage() {
-  const { sections, posts } = useAboutStore();
+  const { sections, posts, setAboutSettings } = useAboutStore();
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    fetch("/api/about", { cache: "no-store", signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.initialized !== false && Array.isArray(data?.sections) && Array.isArray(data?.posts)) {
+          setAboutSettings({ sections: data.sections, posts: data.posts });
+        }
+      })
+      .catch((err) => {
+        if (err?.name !== "AbortError") {
+          console.warn("[AboutPage] Failed to load about settings", err);
+        }
+      });
+
+    return () => controller.abort();
+  }, [setAboutSettings]);
 
   const ordered = SECTION_ORDER.map((k) => sections.find((s) => s.key === k)!).filter(Boolean);
 
@@ -21,12 +41,12 @@ export default function AboutPage() {
     <div className="bg-white pt-16">
 
       {/* ── Hero brand statement ── */}
-      <div className="max-w-3xl mx-auto px-6 py-28 text-center">
-        <p className="text-[9px] tracking-[0.4em] uppercase text-stone-300 mb-8">
+      <div className="mx-auto max-w-3xl px-5 py-16 text-center md:px-6 md:py-28">
+        <p className="mb-6 text-[9px] uppercase tracking-[0.32em] text-stone-300 md:mb-8 md:tracking-[0.4em]">
           Est. 2020 — Montréal
         </p>
         <p
-          className="text-2xl md:text-4xl font-light text-stone-900 leading-[1.6]"
+          className="text-2xl font-light leading-[1.5] text-stone-900 md:text-4xl md:leading-[1.6]"
           style={{ fontFamily: "var(--font-cormorant), serif" }}
         >
           Lunelle is a fashion house rooted in feminine sensibility,
@@ -35,7 +55,7 @@ export default function AboutPage() {
       </div>
 
       {/* ── Full-width divider image ── */}
-      <div className="relative w-full overflow-hidden" style={{ height: "60vh" }}>
+      <div className="relative h-[52svh] min-h-[360px] w-full overflow-hidden md:h-[60vh]">
         <Image
           src={ordered[0]?.heroImage ?? ""}
           alt="Lunelle"
@@ -48,12 +68,12 @@ export default function AboutPage() {
       </div>
 
       {/* ── Section grid ── */}
-      <div className="max-w-screen-xl mx-auto px-6 md:px-10 py-24">
-        <p className="text-[9px] tracking-[0.35em] uppercase text-stone-300 mb-16 text-center">
+      <div className="mx-auto max-w-screen-xl px-4 py-16 md:px-10 md:py-24">
+        <p className="mb-10 text-center text-[9px] uppercase tracking-[0.32em] text-stone-300 md:mb-16 md:tracking-[0.35em]">
           Our chapters
         </p>
 
-        <div className="grid md:grid-cols-2 gap-px bg-stone-100">
+        <div className="grid gap-3 bg-transparent md:grid-cols-2 md:gap-px md:bg-stone-100">
           {ordered.map((section, i) => {
             const count = posts.filter(
               (p) => p.sectionKey === section.key && p.status === "published"
@@ -68,7 +88,7 @@ export default function AboutPage() {
                 {/* Image */}
                 <div
                   className="relative overflow-hidden"
-                  style={{ aspectRatio: i === 0 ? "16/9" : "4/3" }}
+                  style={{ aspectRatio: "4/3" }}
                 >
                   <Image
                     src={section.heroImage}
@@ -82,7 +102,7 @@ export default function AboutPage() {
                 </div>
 
                 {/* Info */}
-                <div className="p-8 md:p-10">
+                <div className="p-5 md:p-10">
                   <p className="text-[9px] tracking-[0.3em] uppercase text-stone-300 mb-3">
                     {String(i + 1).padStart(2, "0")}
                     {count > 0 && <span className="ml-3">{count} {count === 1 ? "story" : "stories"}</span>}

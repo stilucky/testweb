@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -33,7 +33,26 @@ export default function AboutSectionPage({
 
   if (!VALID_SLUGS.includes(slug as AboutKey)) notFound();
 
-  const { sections, posts } = useAboutStore();
+  const { sections, posts, setAboutSettings } = useAboutStore();
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    fetch("/api/about", { cache: "no-store", signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.initialized !== false && Array.isArray(data?.sections) && Array.isArray(data?.posts)) {
+          setAboutSettings({ sections: data.sections, posts: data.posts });
+        }
+      })
+      .catch((err) => {
+        if (err?.name !== "AbortError") {
+          console.warn("[AboutSectionPage] Failed to load about settings", err);
+        }
+      });
+
+    return () => controller.abort();
+  }, [setAboutSettings]);
   const section = sections.find((s) => s.key === slug as AboutKey);
   if (!section) notFound();
 
@@ -52,7 +71,7 @@ export default function AboutSectionPage({
     <div className="bg-white pt-16">
 
       {/* ── Hero ── */}
-      <div className="relative w-full overflow-hidden" style={{ height: "75vh" }}>
+      <div className="relative h-[68svh] min-h-[520px] w-full overflow-hidden md:h-[75vh]">
         <Image
           src={section.heroImage}
           alt={section.label}
@@ -67,13 +86,13 @@ export default function AboutSectionPage({
         {/* Back link */}
         <Link
           href="/about"
-          className="absolute top-8 left-8 flex items-center gap-2 text-white/80 hover:text-white text-[10px] tracking-[0.2em] uppercase transition-colors"
+          className="absolute left-5 top-6 flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-white/80 transition-colors hover:text-white md:left-8 md:top-8"
         >
           <ArrowLeft size={13} /> About
         </Link>
 
         {/* Hero text */}
-        <div className="absolute bottom-0 left-0 right-0 px-10 pb-16 text-center">
+        <div className="absolute bottom-0 left-0 right-0 px-6 pb-12 text-center md:px-10 md:pb-16">
           <p className="text-[9px] tracking-[0.4em] uppercase text-white/50 mb-4">
             {SECTION_INDEX[slug as AboutKey]}
           </p>
@@ -113,9 +132,9 @@ export default function AboutSectionPage({
 
                 {post.image2 ? (
                   /* Two-image layout */
-                  <section className="py-24">
+                  <section className="py-16 md:py-24">
                     {/* Text centred above images */}
-                    <div className="max-w-2xl mx-auto px-6 text-center mb-16">
+                    <div className="mx-auto mb-10 max-w-2xl px-6 text-center md:mb-16">
                       <p className="text-[9px] tracking-[0.3em] uppercase text-stone-300 mb-6">
                         {new Date(post.createdAt).toLocaleDateString("en-CA", {
                           year: "numeric", month: "long",
@@ -138,13 +157,13 @@ export default function AboutSectionPage({
                     </div>
 
                     {/* Two images side-by-side */}
-                    <div className="grid grid-cols-2 gap-2 max-w-screen-xl mx-auto px-6 md:px-10">
+                    <div className="mx-auto grid max-w-screen-xl grid-cols-1 gap-2 px-4 sm:grid-cols-2 md:px-10">
                       <div className="relative overflow-hidden" style={{ aspectRatio: "3/4" }}>
                         <Image
                           src={post.image}
                           alt={post.title}
                           fill
-                          sizes="50vw"
+                          sizes="(max-width: 640px) 100vw, 50vw"
                           className="object-cover"
                           style={{ objectPosition: post.imagePosition ?? "center" }}
                         />
@@ -154,7 +173,7 @@ export default function AboutSectionPage({
                           src={post.image2}
                           alt={post.title}
                           fill
-                          sizes="50vw"
+                          sizes="(max-width: 640px) 100vw, 50vw"
                           className="object-cover"
                           style={{ objectPosition: post.image2Position ?? "center" }}
                         />
@@ -163,16 +182,15 @@ export default function AboutSectionPage({
                   </section>
                 ) : (
                   /* Single image layout — alternating sides */
-                  <section className={`py-20 ${index > 0 ? "border-t border-stone-100" : ""}`}>
+                  <section className={`py-14 md:py-20 ${index > 0 ? "border-t border-stone-100" : ""}`}>
                     <div
-                      className={`max-w-screen-xl mx-auto px-6 md:px-10 grid md:grid-cols-2 gap-0 items-stretch ${
+                      className={`mx-auto grid max-w-screen-xl items-stretch gap-0 px-4 md:grid-cols-2 md:px-10 ${
                         isEven ? "" : "md:[direction:rtl]"
                       }`}
                     >
                       {/* Image */}
                       <div
-                        className={`relative overflow-hidden ${isEven ? "" : "md:[direction:ltr]"}`}
-                        style={{ minHeight: "560px" }}
+                        className={`relative min-h-[360px] overflow-hidden sm:min-h-[480px] md:min-h-[560px] ${isEven ? "" : "md:[direction:ltr]"}`}
                       >
                         <Image
                           src={post.image}

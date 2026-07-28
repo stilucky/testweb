@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ExternalLink, ChevronRight } from "lucide-react";
@@ -14,7 +15,26 @@ const INDEX_LABEL: Record<AboutKey, string> = {
 };
 
 export default function AdminAboutPage() {
-  const { sections, posts } = useAboutStore();
+  const { sections, posts, setAboutSettings } = useAboutStore();
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    fetch("/api/about", { cache: "no-store", signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.initialized !== false && Array.isArray(data?.sections) && Array.isArray(data?.posts)) {
+          setAboutSettings({ sections: data.sections, posts: data.posts });
+        }
+      })
+      .catch((err) => {
+        if (err?.name !== "AbortError") {
+          console.warn("[AdminAboutPage] Failed to load about settings", err);
+        }
+      });
+
+    return () => controller.abort();
+  }, [setAboutSettings]);
 
   const ordered = SECTION_ORDER.map((k) => sections.find((s) => s.key === k)!).filter(Boolean);
 

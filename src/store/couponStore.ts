@@ -21,6 +21,8 @@ export interface Coupon {
 
 interface CouponState {
   coupons: Coupon[];
+  setCoupons: (coupons: Coupon[]) => void;
+  loadCoupons: () => Promise<void>;
   addCoupon: (data: Omit<Coupon, "id" | "usedCount" | "createdAt">) => void;
   updateCoupon: (id: string, data: Partial<Omit<Coupon, "id" | "createdAt">>) => void;
   deleteCoupon: (id: string) => void;
@@ -28,7 +30,7 @@ interface CouponState {
   useCoupon: (code: string) => void;
 }
 
-const defaultCoupons: Coupon[] = [
+export const defaultCoupons: Coupon[] = [
   {
     id: "c1",
     code: "WELCOME10",
@@ -73,10 +75,46 @@ const defaultCoupons: Coupon[] = [
   },
 ];
 
+function saveCoupons(coupons: Coupon[]) {
+  if (typeof window === "undefined") return;
+
+  fetch("/api/coupons", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ coupons }),
+  }).catch((err) => console.warn("[couponStore] Failed to save coupons", err));
+}
+
+function hasCustomCouponData(coupons: Coupon[]) {
+  const defaults = new Map(defaultCoupons.map((coupon) => [coupon.id, coupon]));
+  return coupons.some((coupon) => {
+    const fallback = defaults.get(coupon.id);
+    return !fallback || JSON.stringify(fallback) !== JSON.stringify(coupon);
+  });
+}
+
 export const useCouponStore = create<CouponState>()(
   persist(
     (set, get) => ({
       coupons: defaultCoupons,
+
+      setCoupons: (coupons) => set({ coupons }),
+
+      loadCoupons: async () => {
+        const localCoupons = get().coupons;
+        try {
+          const res = await fetch("/api/coupons", { cache: "no-store" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json() as { coupons?: Coupon[]; initialized?: boolean };
+          if (data.initialized === false) {
+            if (hasCustomCouponData(localCoupons)) saveCoupons(localCoupons);
+            return;
+          }
+          if (Array.isArray(data.coupons)) set({ coupons: data.coupons });
+        } catch (err) {
+          console.warn("[couponStore] Failed to load coupons", err);
+        }
+      },
 
       addCoupon: (data) => {
         const coupon: Coupon = {
@@ -86,16 +124,19 @@ export const useCouponStore = create<CouponState>()(
           createdAt: new Date().toISOString(),
         };
         set((s) => ({ coupons: [...s.coupons, coupon] }));
+        saveCoupons(get().coupons);
       },
 
       updateCoupon: (id, data) => {
         set((s) => ({
           coupons: s.coupons.map((c) => (c.id === id ? { ...c, ...data } : c)),
         }));
+        saveCoupons(get().coupons);
       },
 
       deleteCoupon: (id) => {
         set((s) => ({ coupons: s.coupons.filter((c) => c.id !== id) }));
+        saveCoupons(get().coupons);
       },
 
       validateCoupon: (code, orderAmount) => {
@@ -139,6 +180,7 @@ export const useCouponStore = create<CouponState>()(
             : c
           ),
         }));
+        saveCoupons(get().coupons);
       },
     }),
     { name: "Lunelle-coupons", version: 1 }

@@ -10,6 +10,10 @@ import WelcomePopup from "./WelcomePopup";
 import { useAuthStore } from "@/store/authStore";
 import { useProductStore } from "@/store/productStore";
 import { useCollectionStore } from "@/store/collectionStore";
+import { useCouponStore } from "@/store/couponStore";
+import { useSubscriberStore } from "@/store/subscriberStore";
+import { useVideoStore } from "@/store/videoStore";
+import { useAboutStore } from "@/store/aboutStore";
 
 export default function StoreShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -19,6 +23,10 @@ export default function StoreShell({ children }: { children: React.ReactNode }) 
   const checkSessionExpiry = useAuthStore((s) => s.checkSessionExpiry);
   const setProducts = useProductStore((s) => s.setProducts);
   const loadCollections = useCollectionStore((s) => s.loadCollections);
+  const loadCoupons = useCouponStore((s) => s.loadCoupons);
+  const loadSubscriberSettings = useSubscriberStore((s) => s.loadSubscriberSettings);
+  const loadVideoSettings = useVideoStore((s) => s.loadVideoSettings);
+  const loadAboutSettings = useAboutStore((s) => s.loadAboutSettings);
 
   useEffect(() => {
     // Check session expiry immediately on mount, then every hour
@@ -29,7 +37,11 @@ export default function StoreShell({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     void loadCollections();
-  }, [loadCollections]);
+    void loadCoupons();
+    void loadSubscriberSettings();
+    void loadVideoSettings();
+    void loadAboutSettings();
+  }, [loadCollections, loadCoupons, loadSubscriberSettings, loadVideoSettings, loadAboutSettings]);
 
   useEffect(() => {
     if (isAdmin) return;
