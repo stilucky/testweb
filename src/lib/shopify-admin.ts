@@ -137,6 +137,7 @@ const METAFIELD_KEYS = {
   sizeChartFR: "size_chart_fr",
   videoUrl: "video_url",
   videoThumbnailUrl: "video_thumbnail_url",
+  colorImages: "color_images",
 } as const;
 
 function metafieldValue(sp: ShopifyProduct, key: string): string | undefined {
@@ -144,6 +145,45 @@ function metafieldValue(sp: ShopifyProduct, key: string): string | undefined {
     (m) => m.namespace === METAFIELD_NAMESPACE && m.key === key
   )?.value;
   return value?.trim() || undefined;
+}
+
+function parseColorImages(raw: string | undefined): Record<string, string[]> {
+  if (!raw) return {};
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+
+    return Object.entries(parsed).reduce<Record<string, string[]>>((acc, [name, images]) => {
+      if (!Array.isArray(images)) return acc;
+      acc[name] = images.filter((image): image is string => typeof image === "string" && image.trim().length > 0);
+      return acc;
+    }, {});
+  } catch {
+    return {};
+  }
+}
+
+function colorImagesMetafieldValue(colors: Color[] | undefined): string | undefined {
+  const mapping = (colors ?? []).reduce<Record<string, string[]>>((acc, color) => {
+    const images = (color.images ?? []).map((image) => image.trim()).filter(Boolean);
+    if (images.length > 0) acc[color.name] = images;
+    return acc;
+  }, {});
+
+  return Object.keys(mapping).length > 0 ? JSON.stringify(mapping) : undefined;
+}
+
+function inventoryBySizeFromColorSize(
+  sizes: string[],
+  inventoryByColorSize: Record<string, Record<string, number>> | undefined
+): Record<string, number> | undefined {
+  if (!inventoryByColorSize || Object.keys(inventoryByColorSize).length === 0) return undefined;
+
+  return sizes.reduce<Record<string, number>>((acc, size) => {
+    acc[size] = Object.values(inventoryByColorSize).reduce((sum, colorInventory) => sum + (colorInventory[size] ?? 0), 0);
+    return acc;
+  }, {});
 }
 
 function localUploadFilename(src: string): string | null {
@@ -236,6 +276,7 @@ export function shopifyToProduct(sp: ShopifyProduct): Product {
   const sizeChartFR = metafieldValue(sp, METAFIELD_KEYS.sizeChartFR);
   const videoUrl = metafieldValue(sp, METAFIELD_KEYS.videoUrl);
   const videoThumbnailUrl = metafieldValue(sp, METAFIELD_KEYS.videoThumbnailUrl);
+  const colorImages = parseColorImages(metafieldValue(sp, METAFIELD_KEYS.colorImages));
 
   // Parse colors from tags: "color:Black:000000"
   const colors: Color[] = sp.tags
@@ -244,12 +285,14 @@ export function shopifyToProduct(sp: ShopifyProduct): Product {
     .filter((t) => t.startsWith("color:"))
     .map((t) => {
       const [, name, hex] = t.split(":");
-      return { name, hex: hex ? `#${hex}` : "#000000" } as Color;
+      return { name, hex: hex ? `#${hex}` : "#000000", images: colorImages[name] ?? [] } as Color;
     });
 
   // Sizes from options
   const sizeOption = sp.options.find((o) => o.name.toLowerCase() === "size");
   const sizes = sizeOption?.values ?? (sp.variants.map((v) => v.option1).filter(Boolean) as string[]);
+  const colorOption = sp.options.find((o) => o.name.toLowerCase() === "color");
+  const colorsFromOptions = colorOption?.values ?? [];
 
   // Price logic: Shopify price is the Canada storefront price (CAD).
   const firstVariant = sp.variants[0];
@@ -264,10 +307,23 @@ export function shopifyToProduct(sp: ShopifyProduct): Product {
 
   // Total inventory across all variants
   const stock = sp.variants.reduce((s, v) => s + (v.inventory_quantity ?? 0), 0);
-  const inventoryBySize = sp.variants.reduce<Record<string, number>>((acc, v) => {
-    if (v.option1) acc[v.option1] = v.inventory_quantity ?? 0;
+  const inventoryByColorSize = sp.variants.reduce<Record<string, Record<string, number>>>((acc, v) => {
+    const color = v.option2;
+    const size = v.option1;
+    if (color && size) {
+      acc[color] = acc[color] ?? {};
+      acc[color][size] = v.inventory_quantity ?? 0;
+    }
     return acc;
   }, {});
+  const inventoryBySize = inventoryBySizeFromColorSize(sizes.filter(Boolean), inventoryByColorSize)
+    ?? sp.variants.reduce<Record<string, number>>((acc, v) => {
+      if (v.option1) acc[v.option1] = v.inventory_quantity ?? 0;
+      return acc;
+    }, {});
+  const displayColors = colors.length > 0
+    ? colors
+    : colorsFromOptions.map((name) => ({ name, hex: "#000000", images: colorImages[name] ?? [] } as Color));
 
   return {
     id: String(sp.id),
@@ -295,12 +351,13 @@ export function shopifyToProduct(sp: ShopifyProduct): Product {
     category: normalizeCategory(sp.product_type || tagMap["cat"]),
     gender: (tagMap["gender"] as Product["gender"]) || "women",
     sizes: sizes.filter(Boolean),
-    colors,
+    colors: displayColors,
     featured: false,
     isNew: "isNew" in tagMap,
     isBestSeller: "isBestSeller" in tagMap,
     stock,
     inventoryBySize,
+    inventoryByColorSize: Object.keys(inventoryByColorSize).length > 0 ? inventoryByColorSize : undefined,
     tags: sp.tags.split(",").map((t) => t.trim()).filter((t) => !t.startsWith("color:") && !t.startsWith("gender:") && !t.startsWith("cat:")),
     createdAt: sp.created_at,
   };
@@ -313,13 +370,24 @@ async function productToShopify(p: Partial<Product> & { name: string; price: num
   const isOnSale = cadSalePrice !== undefined && cadSalePrice > 0 && cadSalePrice < cadPrice;
 
   // Each size → one variant
-  const variants = (p.sizes ?? ["One Size"]).map((size) => ({
-    option1: size,
-    price: String(isOnSale ? cadSalePrice! : cadPrice),
-    compare_at_price: isOnSale ? String(cadPrice) : null,
-    inventory_management: "shopify",
-    inventory_quantity: p.inventoryBySize?.[size] ?? 0,
-  }));
+  const sizes = p.sizes ?? ["One Size"];
+  const colors = p.colors ?? [];
+  const variants = colors.length > 0
+    ? colors.flatMap((color) => sizes.map((size) => ({
+      option1: size,
+      option2: color.name,
+      price: String(isOnSale ? cadSalePrice! : cadPrice),
+      compare_at_price: isOnSale ? String(cadPrice) : null,
+      inventory_management: "shopify",
+      inventory_quantity: p.inventoryByColorSize?.[color.name]?.[size] ?? p.inventoryBySize?.[size] ?? 0,
+    })))
+    : sizes.map((size) => ({
+      option1: size,
+      price: String(isOnSale ? cadSalePrice! : cadPrice),
+      compare_at_price: isOnSale ? String(cadPrice) : null,
+      inventory_management: "shopify",
+      inventory_quantity: p.inventoryBySize?.[size] ?? 0,
+    }));
 
   const tags = buildTags(
     p.gender ?? "women",
@@ -338,7 +406,10 @@ async function productToShopify(p: Partial<Product> & { name: string; price: num
     vendor: "Lunelle Story",
     tags,
     status: "active",
-    options: [{ name: "Size", values: p.sizes ?? ["One Size"] }],
+    options: [
+      { name: "Size", values: sizes },
+      ...(colors.length > 0 ? [{ name: "Color", values: colors.map((color) => color.name) }] : []),
+    ],
     variants,
     images: await imageInputs(p.images),
   };
@@ -438,6 +509,7 @@ async function syncProductMetafields(productId: string, p: Partial<Product>) {
     upsertProductMetafield(productId, existing, METAFIELD_KEYS.sizeChartFR, p.sizeChartFR, "multi_line_text_field"),
     upsertProductMetafield(productId, existing, METAFIELD_KEYS.videoUrl, p.videoUrl, "single_line_text_field"),
     upsertProductMetafield(productId, existing, METAFIELD_KEYS.videoThumbnailUrl, p.videoThumbnailUrl, "single_line_text_field"),
+    upsertProductMetafield(productId, existing, METAFIELD_KEYS.colorImages, colorImagesMetafieldValue(p.colors), "multi_line_text_field"),
   ]);
 }
 
@@ -478,29 +550,42 @@ export async function updateShopifyProduct(id: string, p: Partial<Product>): Pro
 
   // Merge sizes with existing variants
   const sizes = p.sizes ?? raw.options.find((o) => o.name === "Size")?.values ?? [];
+  const colors = p.colors ?? raw.options.find((o) => o.name === "Color")?.values.map((name) => ({ name, hex: "#000000" } as Color)) ?? [];
   const price = p.priceCAD ?? p.price ?? parseFloat(raw.variants[0]?.price ?? "0");
   const salePrice = p.salePriceCAD;
   const isOnSale = salePrice !== undefined && salePrice > 0 && salePrice < price;
 
-  // Match existing variants by size to preserve IDs
-  const updatedVariants = sizes.map((size) => {
-    const existing = raw.variants.find((v) => v.option1 === size);
-    return {
-      ...(existing ? { id: existing.id } : {}),
-      option1: size,
-      price: String(isOnSale ? salePrice! : price),
-      compare_at_price: isOnSale ? String(price) : null,
-      inventory_management: "shopify",
-      ...(p.inventoryBySize && !existing ? { inventory_quantity: p.inventoryBySize[size] ?? 0 } : {}),
-    };
-  });
+  const updatedVariants = colors.length > 0
+    ? colors.flatMap((color) => sizes.map((size) => {
+      const existing = raw.variants.find((v) => v.option1 === size && v.option2 === color.name);
+      return {
+        ...(existing ? { id: existing.id } : {}),
+        option1: size,
+        option2: color.name,
+        price: String(isOnSale ? salePrice! : price),
+        compare_at_price: isOnSale ? String(price) : null,
+        inventory_management: "shopify",
+        ...(!existing ? { inventory_quantity: p.inventoryByColorSize?.[color.name]?.[size] ?? p.inventoryBySize?.[size] ?? 0 } : {}),
+      };
+    }))
+    : sizes.map((size) => {
+      const existing = raw.variants.find((v) => v.option1 === size && !v.option2);
+      return {
+        ...(existing ? { id: existing.id } : {}),
+        option1: size,
+        price: String(isOnSale ? salePrice! : price),
+        compare_at_price: isOnSale ? String(price) : null,
+        inventory_management: "shopify",
+        ...(p.inventoryBySize && !existing ? { inventory_quantity: p.inventoryBySize[size] ?? 0 } : {}),
+      };
+    });
 
   const tags = buildTags(
     p.gender ?? "women",
     p.category ?? raw.product_type,
     p.isNew ?? false,
     p.isBestSeller ?? false,
-    p.colors ?? [],
+    colors,
     []
   );
 
@@ -513,7 +598,12 @@ export async function updateShopifyProduct(id: string, p: Partial<Product>): Pro
     tags,
     variants: updatedVariants,
     ...(p.images ? { images: await imageInputs(p.images) } : {}),
-    ...(sizes.length  ? { options: [{ name: "Size", values: sizes }] } : {}),
+    ...(sizes.length  ? {
+      options: [
+        { name: "Size", values: sizes },
+        ...(colors.length > 0 ? [{ name: "Color", values: colors.map((color) => color.name) }] : []),
+      ],
+    } : {}),
   };
 
   const data = await shopifyFetch(`/products/${id}.json`, {
@@ -533,16 +623,19 @@ export async function deleteShopifyProduct(id: string): Promise<void> {
 export async function updateVariantInventory(
   productId: string,
   sizeLabel: string | null,
-  newQuantity: number
+  newQuantity: number,
+  colorLabel?: string | null
 ): Promise<void> {
   const raw = await getRawShopifyProduct(productId);
 
-  // Find matching variant(s) — if sizeLabel is null, update all
-  const targets = sizeLabel
-    ? raw.variants.filter((v) => v.option1 === sizeLabel)
-    : raw.variants;
+  const targets = raw.variants.filter((v) =>
+    (!sizeLabel || v.option1 === sizeLabel) &&
+    (!colorLabel || v.option2 === colorLabel)
+  );
 
-  if (targets.length === 0) throw new Error(`No variant found for size "${sizeLabel}"`);
+  if (targets.length === 0) {
+    throw new Error(`No variant found for size "${sizeLabel}"${colorLabel ? ` and color "${colorLabel}"` : ""}`);
+  }
 
   const locationId = await getInventoryLocationId();
 
@@ -569,6 +662,20 @@ export async function updateVariantInventories(
   await Promise.all(
     Object.entries(inventoryBySize).map(([size, quantity]) =>
       updateVariantInventory(productId, size, quantity)
+    )
+  );
+}
+
+/** Update inventory for multiple color + size variants */
+export async function updateColorSizeVariantInventories(
+  productId: string,
+  inventoryByColorSize: Record<string, Record<string, number>>
+): Promise<void> {
+  await Promise.all(
+    Object.entries(inventoryByColorSize).flatMap(([color, sizeInventory]) =>
+      Object.entries(sizeInventory).map(([size, quantity]) =>
+        updateVariantInventory(productId, size, quantity, color)
+      )
     )
   );
 }

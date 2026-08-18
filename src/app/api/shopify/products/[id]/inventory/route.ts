@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { updateTotalStock, updateVariantInventories, updateVariantInventory } from "@/lib/shopify-admin";
+import {
+  updateColorSizeVariantInventories,
+  updateTotalStock,
+  updateVariantInventories,
+  updateVariantInventory,
+} from "@/lib/shopify-admin";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -14,13 +19,33 @@ function isInventoryPermissionError(err: unknown) {
 
 /**
  * PUT /api/shopify/products/[id]/inventory
- * Body: { stock: number }              → update total stock (distributed across variants)
- *   or: { size: string, stock: number } → update specific size variant
+ * Body: { stock: number }                         -> update total stock
+ *   or: { size: string, stock: number }            -> update specific size variant
+ *   or: { inventoryBySize: Record<string, number> }
+ *   or: { inventoryByColorSize: Record<string, Record<string, number>> }
  */
 export async function PUT(req: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
-    const body: { stock?: number; size?: string; inventoryBySize?: Record<string, number> } = await req.json();
+    const body: {
+      stock?: number;
+      size?: string;
+      color?: string;
+      inventoryBySize?: Record<string, number>;
+      inventoryByColorSize?: Record<string, Record<string, number>>;
+    } = await req.json();
+
+    if (body.inventoryByColorSize) {
+      await updateColorSizeVariantInventories(id, body.inventoryByColorSize);
+      const inventoryBySize = Object.values(body.inventoryByColorSize).reduce<Record<string, number>>((acc, colorInventory) => {
+        Object.entries(colorInventory).forEach(([size, qty]) => {
+          acc[size] = (acc[size] ?? 0) + qty;
+        });
+        return acc;
+      }, {});
+      const stock = Object.values(inventoryBySize).reduce((sum, qty) => sum + qty, 0);
+      return NextResponse.json({ success: true, stock, inventoryBySize, inventoryByColorSize: body.inventoryByColorSize });
+    }
 
     if (body.inventoryBySize) {
       await updateVariantInventories(id, body.inventoryBySize);
@@ -33,7 +58,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
 
     if (body.size) {
-      await updateVariantInventory(id, body.size, body.stock);
+      await updateVariantInventory(id, body.size, body.stock, body.color);
     } else {
       await updateTotalStock(id, body.stock);
     }

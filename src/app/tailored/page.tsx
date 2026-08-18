@@ -44,9 +44,6 @@ export default async function TailoredPage() {
         >
           Tailored for You
         </h1>
-        <p className="text-xs tracking-[0.2em] uppercase text-stone-400">
-          Tailored Section Structure
-        </p>
       </section>
 
       {/* ── Navigation pills ── */}

@@ -18,16 +18,24 @@ interface Props {
   relatedProducts: Product[];
 }
 
+function uniqueImages(images: string[]) {
+  return Array.from(new Set(images.map((image) => image.trim()).filter(Boolean)));
+}
+
 export default function ProductDetailClient({ product, relatedProducts }: Props) {
   const [selectedImage, setSelectedImage] = useState(0);
   const [showVideo, setShowVideo] = useState(false);
   const [selectedSize, setSelectedSize] = useState("");
-  const [selectedColor, setSelectedColor] = useState(product.colors[0]?.name ?? "");
+  const [selectedColor, setSelectedColor] = useState("");
 
   const handleColorChange = (colorName: string) => {
-    setSelectedColor(colorName);
+    const nextColor = selectedColor === colorName ? "" : colorName;
+    setSelectedColor(nextColor);
     setSelectedImage(0);
     setShowVideo(false);
+    if (nextColor && selectedSize && (product.inventoryByColorSize?.[nextColor]?.[selectedSize] ?? product.inventoryBySize?.[selectedSize] ?? product.stock) <= 0) {
+      setSelectedSize("");
+    }
   };
 
   const getYouTubeId = (url: string): string | null => {
@@ -48,11 +56,19 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
   const videoThumbnailUrl = product.videoThumbnailUrl
     || cloudinaryVideoThumbnailUrl(product.videoUrl ?? "");
 
-  const activeColor = product.colors.find((c) => c.name === selectedColor);
+  const activeColor = selectedColor ? product.colors.find((c) => c.name === selectedColor) : undefined;
   const displayImages =
-    activeColor?.images?.length ? activeColor.images : product.images;
+    activeColor?.images?.length ? uniqueImages(activeColor.images) : uniqueImages(product.images);
+  const selectedColorInventory = product.inventoryByColorSize?.[selectedColor];
+  const selectedColorStock = selectedColorInventory
+    ? Object.values(selectedColorInventory).reduce((sum, qty) => sum + qty, 0)
+    : product.stock;
+  const selectedVariantStock = selectedSize
+    ? selectedColorInventory?.[selectedSize] ?? product.inventoryBySize?.[selectedSize] ?? product.stock
+    : selectedColorStock;
   const [wishlisted, setWishlisted] = useState(false);
   const [sizeError, setSizeError] = useState(false);
+  const [colorError, setColorError] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>("description");
   const [sizeChartOpen, setSizeChartOpen] = useState(false);
 
@@ -76,6 +92,11 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
   const related = relatedProducts;
 
   const handleAddToCart = () => {
+    if (!selectedColor && product.colors.length > 0) {
+      setColorError(true);
+      setTimeout(() => setColorError(false), 2000);
+      return;
+    }
     if (!selectedSize) {
       setSizeError(true);
       setTimeout(() => setSizeError(false), 2000);
@@ -270,8 +291,10 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
           {/* Color selector */}
           <div className="mb-6">
             <p className="text-xs tracking-widest uppercase mb-3 flex justify-between">
-              <span>Color</span>
-              <span className="text-stone-400 normal-case tracking-normal">{selectedColor}</span>
+              <span className={cn(colorError && "text-red-600")}>{colorError ? "Select color" : "Color"}</span>
+              {selectedColor && (
+                <span className="text-stone-400 normal-case tracking-normal">{selectedColor}</span>
+              )}
             </p>
             <div className="flex gap-2">
               {product.colors.map((color) => (
@@ -297,22 +320,30 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
               {sizeError ? t("selectSize") : t("size")}
             </p>
             <div className="flex gap-2 flex-wrap">
-              {product.sizes.map((size) => (
-                <button
-                  key={size}
-                  onClick={() => setSelectedSize(size)}
-                  className={cn(
-                    "w-12 h-12 border text-xs transition-all",
-                    selectedSize === size
-                      ? "border-stone-900 bg-stone-900 text-white"
-                      : sizeError
-                      ? "border-red-300 text-stone-600 hover:border-stone-400"
-                      : "border-stone-200 text-stone-600 hover:border-stone-400"
-                  )}
-                >
-                  {size}
-                </button>
-              ))}
+              {product.sizes.map((size) => {
+                const sizeStock = selectedColorInventory?.[size] ?? product.inventoryBySize?.[size] ?? product.stock;
+                const unavailable = sizeStock <= 0;
+
+                return (
+                  <button
+                    key={size}
+                    onClick={() => !unavailable && setSelectedSize(size)}
+                    disabled={unavailable}
+                    className={cn(
+                      "w-12 h-12 border text-xs transition-all",
+                      selectedSize === size
+                        ? "border-stone-900 bg-stone-900 text-white"
+                        : unavailable
+                        ? "border-stone-100 text-stone-300 cursor-not-allowed line-through"
+                        : sizeError
+                        ? "border-red-300 text-stone-600 hover:border-stone-400"
+                        : "border-stone-200 text-stone-600 hover:border-stone-400"
+                    )}
+                  >
+                    {size}
+                  </button>
+                );
+              })}
             </div>
             <button
               onClick={() => setSizeChartOpen(true)}
@@ -323,9 +354,9 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
           </div>
 
           {/* Scarcity — Jost 11px wt400 italic ls0.02em */}
-          {product.stock > 0 && product.stock <= 5 && (
+          {selectedVariantStock > 0 && selectedVariantStock <= 5 && (
             <p className="type-scarcity text-stone-400 mb-4">
-              Only {product.stock} {product.stock === 1 ? "piece" : "pieces"} remaining
+              Only {selectedVariantStock} {selectedVariantStock === 1 ? "piece" : "pieces"} remaining
             </p>
           )}
 

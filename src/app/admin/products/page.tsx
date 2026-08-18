@@ -38,7 +38,7 @@ const allColors = [
   { name: "Terracotta",hex: "#E2725B" },
 ];
 
-type FormColor = { name: string; hex: string; isPrimary: boolean };
+type FormColor = { name: string; hex: string; isPrimary: boolean; images: string };
 type FormData = {
   name: string; slug: string;
   shortDescription: string; shortDescriptionFR: string;
@@ -50,7 +50,7 @@ type FormData = {
   price: string; salePrice: string;
   priceCAD: string; salePriceCAD: string;
   category: string;
-  gender: "women" | "men" | "unisex"; sizes: string[]; inventoryBySize: Record<string, string>; colors: FormColor[];
+  gender: "women" | "men" | "unisex"; sizes: string[]; inventoryBySize: Record<string, string>; inventoryByColorSize: Record<string, Record<string, string>>; colors: FormColor[];
   images: string; videoUrl: string; videoThumbnailUrl: string; isNew: boolean; isBestSeller: boolean; featured: boolean;
   collections: string[];
 };
@@ -67,7 +67,7 @@ const emptyForm: FormData = {
   price: "", salePrice: "",
   priceCAD: "", salePriceCAD: "",
   category: "dresses",
-  gender: "women", sizes: [], inventoryBySize: {}, colors: [], images: "", videoUrl: "", videoThumbnailUrl: "",
+  gender: "women", sizes: [], inventoryBySize: {}, inventoryByColorSize: {}, colors: [], images: "", videoUrl: "", videoThumbnailUrl: "",
   isNew: false, isBestSeller: false, featured: false,
   collections: [],
 };
@@ -76,15 +76,36 @@ function toSlug(text: string) {
   return text.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-");
 }
 
-function normalizeInventoryBySize(sizes: string[], values: Record<string, string>): Record<string, number> {
+function normalizeInventoryByColorSize(
+  colors: FormColor[],
+  sizes: string[],
+  values: Record<string, Record<string, string>>
+): Record<string, Record<string, number>> {
+  return colors.reduce<Record<string, Record<string, number>>>((acc, color) => {
+    acc[color.name] = sizes.reduce<Record<string, number>>((sizeAcc, size) => {
+      sizeAcc[size] = Math.max(0, Math.floor(Number(values[color.name]?.[size] || 0)));
+      return sizeAcc;
+    }, {});
+    return acc;
+  }, {});
+}
+
+function inventoryBySizeFromColorSize(
+  sizes: string[],
+  inventoryByColorSize: Record<string, Record<string, number>>
+): Record<string, number> {
   return sizes.reduce<Record<string, number>>((acc, size) => {
-    acc[size] = Math.max(0, Math.floor(Number(values[size] || 0)));
+    acc[size] = Object.values(inventoryByColorSize).reduce((sum, colorInventory) => sum + (colorInventory[size] ?? 0), 0);
     return acc;
   }, {});
 }
 
 function totalInventory(values: Record<string, number>) {
   return Object.values(values).reduce((sum, qty) => sum + qty, 0);
+}
+
+function totalInventoryByColorSize(values: Record<string, Record<string, number>>) {
+  return Object.values(values).reduce((sum, colorInventory) => sum + totalInventory(colorInventory), 0);
 }
 
 function isValidProductImageSource(src: string) {
@@ -190,6 +211,7 @@ export default function AdminProductsPage() {
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [videoThumbnailPickerOpen, setVideoThumbnailPickerOpen] = useState(false);
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+  const [colorMediaPicker, setColorMediaPicker] = useState<string | null>(null);
   const [measurementUnit, setMeasurementUnit] = useState<MeasurementUnit>("in");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -246,6 +268,7 @@ export default function AdminProductsPage() {
   };
 
   const parseUrls = (raw: string) => raw.split("\n").map((u) => u.trim()).filter(Boolean);
+  const uniqueUrls = (urls: string[]) => Array.from(new Set(urls.map((url) => url.trim()).filter(Boolean)));
 
   const removeUrlFromImages = (urlToRemove: string) => {
     const updated = parseUrls(form.images).filter((u) => u !== urlToRemove);
@@ -253,6 +276,22 @@ export default function AdminProductsPage() {
   };
 
   const addImageFromLibrary = (url: string) => {
+    if (colorMediaPicker) {
+      setForm((f) => ({
+        ...f,
+        colors: f.colors.map((c) => (
+          c.name === colorMediaPicker
+            ? { ...c, images: uniqueUrls([...parseUrls(c.images), url]).join("\n") }
+            : c
+        )),
+      }));
+      setColorMediaPicker(null);
+      setShowUrlInput(false);
+      setVideoThumbnailPickerOpen(false);
+      if (errors.images) setErrors((prev) => ({ ...prev, images: undefined }));
+      return;
+    }
+
     const existing = parseUrls(form.images);
     if (!existing.includes(url)) {
       setForm((f) => ({ ...f, images: [...existing, url].join("\n") }));
@@ -262,6 +301,53 @@ export default function AdminProductsPage() {
     if (errors.images) setErrors((prev) => ({ ...prev, images: undefined }));
   };
 
+  const removeUrlFromColorImages = (colorName: string, urlToRemove: string) => {
+    setForm((f) => ({
+      ...f,
+      colors: f.colors.map((c) => (
+        c.name === colorName
+          ? { ...c, images: parseUrls(c.images).filter((u) => u !== urlToRemove).join("\n") }
+          : c
+      )),
+    }));
+  };
+
+  const handleColorImageUpload = async (colorName: string, files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const imageFiles = Array.from(files);
+    if (imageFiles.length === 0) return;
+    setUploadingImages(true);
+    try {
+      const compressedImages = await compressImageFiles(imageFiles);
+      if (compressedImages.length === 0) return;
+      const fd = new FormData();
+      compressedImages.forEach((f) => fd.append("files", f));
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Upload failed");
+      const urls = data.urls as string[];
+      addMediaAssets(urls.map((url, index) => ({
+        name: compressedImages[index]?.name ?? `${colorName}-image-${index + 1}`,
+        url,
+        type: compressedImages[index]?.type ?? "image/*",
+        size: compressedImages[index]?.size ?? 0,
+      })));
+      setForm((f) => ({
+        ...f,
+        colors: f.colors.map((c) => (
+          c.name === colorName
+            ? { ...c, images: uniqueUrls([...parseUrls(c.images), ...urls]).join("\n") }
+            : c
+        )),
+      }));
+      if (errors.images) setErrors((prev) => ({ ...prev, images: undefined }));
+    } catch (err) {
+      addToast("error", `Upload failed: ${err}`);
+    } finally {
+      setUploadingImages(false);
+    }
+  };
+
   const openAdd = () => {
     setEditingProduct(null);
     setForm(emptyForm);
@@ -269,6 +355,7 @@ export default function AdminProductsPage() {
     setUploadedImages([]);
     setShowUrlInput(false);
     setVideoThumbnailPickerOpen(false);
+    setColorMediaPicker(null);
     setMeasurementUnit("in");
     setModalOpen(true);
   };
@@ -277,6 +364,18 @@ export default function AdminProductsPage() {
     setMeasurementUnit(detectMeasurementUnit(product.sizeChart ?? product.sizeChartFR ?? ""));
     const inventoryBySize = product.sizes.reduce<Record<string, string>>((acc, size) => {
       acc[size] = String(product.inventoryBySize?.[size] ?? 0);
+      return acc;
+    }, {});
+    const primaryColor = product.colors[0]?.name;
+    const inventoryByColorSize = product.colors.reduce<Record<string, Record<string, string>>>((acc, color) => {
+      acc[color.name] = product.sizes.reduce<Record<string, string>>((sizeAcc, size) => {
+        sizeAcc[size] = String(
+          product.inventoryByColorSize?.[color.name]?.[size]
+            ?? (color.name === primaryColor ? product.inventoryBySize?.[size] : 0)
+            ?? 0
+        );
+        return sizeAcc;
+      }, {});
       return acc;
     }, {});
     setEditingProduct(product);
@@ -302,8 +401,9 @@ export default function AdminProductsPage() {
       gender: product.gender,
       sizes: [...product.sizes],
       inventoryBySize,
+      inventoryByColorSize,
       colors: product.colors.map((c, i) => ({
-        name: c.name, hex: c.hex, isPrimary: i === 0,
+        name: c.name, hex: c.hex, isPrimary: i === 0, images: (c.images ?? []).join("\n"),
       })),
       images: product.images.join("\n"),
       videoUrl: product.videoUrl ?? "",
@@ -320,6 +420,7 @@ export default function AdminProductsPage() {
     setErrors({});
     setShowUrlInput(false);
     setVideoThumbnailPickerOpen(false);
+    setColorMediaPicker(null);
     setModalOpen(true);
   };
 
@@ -331,6 +432,7 @@ export default function AdminProductsPage() {
     setUploadedImages([]);
     setShowUrlInput(false);
     setVideoThumbnailPickerOpen(false);
+    setColorMediaPicker(null);
   };
 
   const validate = (): boolean => {
@@ -343,15 +445,21 @@ export default function AdminProductsPage() {
     if (form.salePrice && (isNaN(Number(form.salePrice)) || Number(form.salePrice) <= 0)) e.salePrice = "Invalid USD sale price";
     if (!form.shortDescription.trim()) e.shortDescription = "Required";
     if (form.sizes.length === 0) e.sizes = "Select at least one size";
-    const invalidSizeStock = form.sizes.some((size) => {
-      const qty = form.inventoryBySize[size];
-      return qty === undefined || qty === "" || isNaN(Number(qty)) || Number(qty) < 0;
-    });
-    if (invalidSizeStock) e.stock = "Enter a valid quantity for each selected size";
-    if (!form.images.trim() && uploadedImages.length === 0) e.images = "At least one image required";
-    if (!e.images && parseUrls(form.images).some((url) => !isValidProductImageSource(url))) {
+    if (form.colors.length === 0) e.colors = "Select at least one color";
+    const invalidVariantStock = form.colors.some((color) =>
+      form.sizes.some((size) => {
+        const qty = form.inventoryByColorSize[color.name]?.[size];
+        return qty === undefined || qty === "" || isNaN(Number(qty)) || Number(qty) < 0;
+      })
+    );
+    if (invalidVariantStock) e.stock = "Enter a valid quantity for each selected color and size";
+    const colorImageUrls = form.colors.flatMap((color) => parseUrls(color.images));
+    if (!form.images.trim() && uploadedImages.length === 0 && colorImageUrls.length === 0) e.images = "At least one image required";
+    if (!e.images && [...parseUrls(form.images), ...colorImageUrls].some((url) => !isValidProductImageSource(url))) {
       e.images = "Use full http(s) image URLs, /uploads/... images, or upload files from your computer";
     }
+    const colorWithoutImages = form.colors.find((color) => parseUrls(color.images).length === 0);
+    if (!e.images && colorWithoutImages) e.images = `Add at least one image for ${colorWithoutImages.name}`;
     if (form.videoUrl.trim() && !isValidCloudinaryVideoUrl(form.videoUrl)) {
       e.videoUrl = "Use a Cloudinary video delivery URL";
     }
@@ -371,14 +479,21 @@ export default function AdminProductsPage() {
     if (!validate()) return;
     setSaving(true);
 
-    const imageList = [...uploadedImages, ...parseUrls(form.images)];
     // Sort primary color to front
     const sortedColors = [...form.colors].sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0));
     const builtColors = sortedColors.map((c) => ({
-      name: c.name, hex: c.hex, images: [],
+      name: c.name,
+      hex: c.hex,
+      images: parseUrls(c.images),
     }));
-    const inventoryBySize = normalizeInventoryBySize(form.sizes, form.inventoryBySize);
-    const stock = totalInventory(inventoryBySize);
+    const imageList = uniqueUrls([
+      ...uploadedImages,
+      ...parseUrls(form.images),
+      ...builtColors.flatMap((color) => color.images ?? []),
+    ]);
+    const inventoryByColorSize = normalizeInventoryByColorSize(sortedColors, form.sizes, form.inventoryByColorSize);
+    const inventoryBySize = inventoryBySizeFromColorSize(form.sizes, inventoryByColorSize);
+    const stock = totalInventoryByColorSize(inventoryByColorSize);
 
     const payload: Omit<Product, "id"> = {
       name: form.name,
@@ -399,6 +514,7 @@ export default function AdminProductsPage() {
       salePrice: form.salePrice ? Number(form.salePrice) : form.salePriceCAD ? Math.round((Number(form.salePriceCAD) / CAD_RATE) * 100) / 100 : undefined,
       stock,
       inventoryBySize,
+      inventoryByColorSize,
       category: form.category,
       gender: form.gender,
       sizes: form.sizes,
@@ -428,13 +544,13 @@ export default function AdminProductsPage() {
         const inventoryRes = await fetch(`/api/shopify/products/${editingProduct.id}/inventory`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ inventoryBySize }),
+          body: JSON.stringify({ inventoryByColorSize }),
         });
         const inventoryData = await inventoryRes.json();
         if (!inventoryRes.ok) throw new Error(inventoryData.error ?? "Inventory update failed");
         if (inventoryData.warning) addToast("success", inventoryData.warning);
 
-        const updatedProduct = inventoryData.warning ? data.product : { ...data.product, stock, inventoryBySize };
+        const updatedProduct = inventoryData.warning ? data.product : { ...data.product, stock, inventoryBySize, inventoryByColorSize };
         setProductList((prev) => prev.map((p) => p.id === editingProduct.id ? updatedProduct : p));
         updateProduct(updatedProduct); // sync store
         syncCollections(data.product.id, form.collections);
@@ -561,13 +677,26 @@ export default function AdminProductsPage() {
   const toggleSize = (size: string) => setForm((f) => {
     if (f.sizes.includes(size)) {
       const inventoryBySize = { ...f.inventoryBySize };
+      const inventoryByColorSize = Object.fromEntries(
+        Object.entries(f.inventoryByColorSize).map(([colorName, sizeInventory]) => {
+          const nextSizeInventory = { ...sizeInventory };
+          delete nextSizeInventory[size];
+          return [colorName, nextSizeInventory];
+        })
+      );
       delete inventoryBySize[size];
-      return { ...f, sizes: f.sizes.filter((s) => s !== size), inventoryBySize };
+      return { ...f, sizes: f.sizes.filter((s) => s !== size), inventoryBySize, inventoryByColorSize };
     }
     return {
       ...f,
       sizes: [...f.sizes, size],
       inventoryBySize: { ...f.inventoryBySize, [size]: f.inventoryBySize[size] ?? "0" },
+      inventoryByColorSize: Object.fromEntries(
+        f.colors.map((color) => [
+          color.name,
+          { ...(f.inventoryByColorSize[color.name] ?? {}), [size]: f.inventoryByColorSize[color.name]?.[size] ?? "0" },
+        ])
+      ),
     };
   });
 
@@ -641,15 +770,39 @@ export default function AdminProductsPage() {
     const exists = f.colors.some((c) => c.name === color.name);
     if (exists) {
       const remaining = f.colors.filter((c) => c.name !== color.name);
+      const inventoryByColorSize = { ...f.inventoryByColorSize };
+      delete inventoryByColorSize[color.name];
       // If removed color was primary, make first remaining color primary
       if (f.colors.find((c) => c.name === color.name)?.isPrimary && remaining.length > 0) {
         remaining[0] = { ...remaining[0], isPrimary: true };
       }
-      return { ...f, colors: remaining };
+      return { ...f, colors: remaining, inventoryByColorSize };
     }
     const isPrimary = f.colors.length === 0; // First color is automatically primary
-    return { ...f, colors: [...f.colors, { ...color, isPrimary }] };
+    return {
+      ...f,
+      colors: [...f.colors, { ...color, isPrimary, images: "" }],
+      inventoryByColorSize: {
+        ...f.inventoryByColorSize,
+        [color.name]: f.sizes.reduce<Record<string, string>>((acc, size) => {
+          acc[size] = "0";
+          return acc;
+        }, {}),
+      },
+    };
   });
+
+  const updateVariantStock = (colorName: string, size: string, value: string) =>
+    setForm((f) => ({
+      ...f,
+      inventoryByColorSize: {
+        ...f.inventoryByColorSize,
+        [colorName]: {
+          ...(f.inventoryByColorSize[colorName] ?? {}),
+          [size]: value,
+        },
+      },
+    }));
 
   const setPrimaryColor = (colorName: string) =>
     setForm((f) => ({
@@ -689,8 +842,11 @@ export default function AdminProductsPage() {
 
       <MediaPicker
         open={mediaPickerOpen}
-        title="Product Images"
-        onClose={() => setMediaPickerOpen(false)}
+        title={colorMediaPicker ? `${colorMediaPicker} Images` : "Product Images"}
+        onClose={() => {
+          setMediaPickerOpen(false);
+          setColorMediaPicker(null);
+        }}
         onSelect={(asset) => addImageFromLibrary(asset.url)}
       />
 
@@ -1226,32 +1382,15 @@ export default function AdminProductsPage() {
                       </div>
                       <div className="overflow-x-auto">
                         <div className="min-w-[720px]">
-                          <div className="grid grid-cols-[70px_100px_repeat(4,minmax(110px,1fr))] gap-3 px-3 py-2 bg-white">
+                          <div className="grid grid-cols-[70px_repeat(4,minmax(110px,1fr))] gap-3 px-3 py-2 bg-white">
                             <span className="text-[10px] tracking-widest uppercase text-stone-400">Size</span>
-                            <span className="text-[10px] tracking-widest uppercase text-stone-400">Quantity</span>
                             {sizeChartHeaders("sizeChart", measurementUnit).slice(1).map((header) => (
                               <span key={header} className="text-[10px] tracking-widest uppercase text-stone-400">{header}</span>
                             ))}
                           </div>
                           {form.sizes.map((size) => (
-                            <div key={size} className="grid grid-cols-[70px_100px_repeat(4,minmax(110px,1fr))] gap-3 items-center px-3 py-2">
+                            <div key={size} className="grid grid-cols-[70px_repeat(4,minmax(110px,1fr))] gap-3 items-center px-3 py-2">
                               <span className="text-xs font-medium text-stone-700">{size}</span>
-                              <input
-                                type="number"
-                                min="0"
-                                step="1"
-                                value={form.inventoryBySize[size] ?? "0"}
-                                placeholder={`Qty for ${size}`}
-                                inputMode="numeric"
-                                onChange={(e) => setForm((f) => ({
-                                  ...f,
-                                  inventoryBySize: { ...f.inventoryBySize, [size]: e.target.value },
-                                }))}
-                                className={cn(
-                                  "w-full px-3 py-2 border text-sm focus:outline-none transition-colors",
-                                  errors.stock ? "border-red-400 focus:border-red-500" : "border-stone-200 focus:border-stone-800"
-                                )}
-                              />
                               {defaultSizeChartHeaders.sizeChart.slice(1).map((header, measurementIndex) => (
                                 <input
                                   key={`${size}-${header}`}
@@ -1267,10 +1406,7 @@ export default function AdminProductsPage() {
                         </div>
                       </div>
                       <div className="flex items-center justify-between px-3 py-2 bg-stone-50">
-                        <span className="text-[10px] tracking-widest uppercase text-stone-400">Total Stock</span>
-                        <span className="text-xs font-medium text-stone-700">
-                          {totalInventory(normalizeInventoryBySize(form.sizes, form.inventoryBySize))}
-                        </span>
+                        <span className="text-[10px] tracking-widest uppercase text-stone-400">Stock is entered by color below</span>
                       </div>
                     </div>
                   )}
@@ -1306,33 +1442,177 @@ export default function AdminProductsPage() {
                   <div className="border border-stone-100 rounded overflow-hidden">
                     <div className="px-3 py-2 bg-stone-50 border-b border-stone-100">
                       <p className="text-[10px] tracking-widest uppercase text-stone-400">
-                        Select primary display color
+                        Primary color and images
                       </p>
                     </div>
-                    {form.colors.map((c) => (
-                      <button
-                        key={c.name}
-                        type="button"
-                        onClick={() => setPrimaryColor(c.name)}
-                        className={cn(
-                          "w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors border-b border-stone-50 last:border-0",
-                          c.isPrimary ? "bg-stone-900" : "hover:bg-stone-50"
-                        )}
+                    <div className="divide-y divide-stone-100">
+                      {form.colors.map((c) => {
+                        const colorImages = parseUrls(c.images);
+
+                        return (
+                          <div key={c.name} className="p-3">
+                            <div className="mb-3 flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => setPrimaryColor(c.name)}
+                                className={cn(
+                                  "flex min-w-0 flex-1 items-center gap-3 px-3 py-2 text-left transition-colors border",
+                                  c.isPrimary
+                                    ? "border-stone-900 bg-stone-900 text-white"
+                                    : "border-stone-200 text-stone-700 hover:border-stone-400"
+                                )}
+                              >
+                                <span
+                                  className="h-5 w-5 shrink-0 rounded-full border border-stone-300"
+                                  style={{ backgroundColor: c.hex }}
+                                />
+                                <span className="flex-1 truncate text-xs">{c.name}</span>
+                                {c.isPrimary && (
+                                  <span className="text-[10px] uppercase tracking-widest text-white/70">
+                                    Primary
+                                  </span>
+                                )}
+                              </button>
+
+                              <label className="inline-flex cursor-pointer items-center gap-1.5 border border-stone-200 px-3 py-2 text-[10px] uppercase tracking-widest text-stone-600 transition-colors hover:border-stone-800 hover:text-stone-900">
+                                <ImagePlus size={11} />
+                                Upload
+                                <input
+                                  type="file"
+                                  accept="image/*,.jfif,.ifif"
+                                  multiple
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    void handleColorImageUpload(c.name, e.target.files);
+                                    e.currentTarget.value = "";
+                                  }}
+                                />
+                              </label>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setColorMediaPicker(c.name);
+                                  setMediaPickerOpen(true);
+                                }}
+                                className="inline-flex items-center gap-1.5 border border-stone-200 px-3 py-2 text-[10px] uppercase tracking-widest text-stone-600 transition-colors hover:border-stone-800 hover:text-stone-900"
+                              >
+                                <ImagePlus size={11} />
+                                Library
+                              </button>
+                            </div>
+
+                            {colorImages.length > 0 && (
+                              <div className="mb-3 grid grid-cols-4 gap-2">
+                                {colorImages.map((url, i) => (
+                                  <div key={`${c.name}-${url}`} className="group relative aspect-square overflow-hidden rounded-sm bg-stone-100">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={url} alt="" className="h-full w-full object-cover" />
+                                    <button
+                                      type="button"
+                                      onClick={() => removeUrlFromColorImages(c.name, url)}
+                                      className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                                    >
+                                      <Trash size={9} />
+                                    </button>
+                                    {i === 0 && (
+                                      <span className="absolute bottom-1 left-1 bg-stone-900/80 px-1.5 py-0.5 text-[9px] text-white">
+                                        Main
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            <textarea
+                              value={c.images}
+                              onChange={(e) => setForm((f) => ({
+                                ...f,
+                                colors: f.colors.map((color) => (
+                                  color.name === c.name ? { ...color, images: e.target.value } : color
+                                )),
+                              }))}
+                              placeholder={`${c.name} image URL\nhttps://...`}
+                              rows={colorImages.length > 0 ? 2 : 3}
+                              className="w-full resize-none border border-stone-200 px-3 py-2 font-mono text-xs transition-colors focus:border-stone-800 focus:outline-none"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </Field>
+
+              <Field label="Inventory by Color & Size" required error={errors.stock}>
+                {form.colors.length === 0 || form.sizes.length === 0 ? (
+                  <p className="text-[11px] text-stone-400">
+                    Select at least one color and one size to enter remaining stock.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto border border-stone-200">
+                    <div className="min-w-[560px]">
+                      <div
+                        className="grid gap-2 bg-stone-50 px-3 py-2"
+                        style={{ gridTemplateColumns: `150px repeat(${form.sizes.length}, minmax(82px, 1fr)) 90px` }}
                       >
-                        <span
-                          className="w-5 h-5 rounded-full border border-stone-300 shrink-0"
-                          style={{ backgroundColor: c.hex }}
-                        />
-                        <span className={cn("text-xs flex-1", c.isPrimary ? "text-white font-medium" : "text-stone-700")}>
-                          {c.name}
-                        </span>
-                        {c.isPrimary && (
-                          <span className="text-[10px] tracking-widest uppercase text-white/70">
-                            Primary
+                        <span className="text-[10px] uppercase tracking-widest text-stone-400">Color</span>
+                        {form.sizes.map((size) => (
+                          <span key={size} className="text-center text-[10px] uppercase tracking-widest text-stone-400">
+                            {size}
                           </span>
-                        )}
-                      </button>
-                    ))}
+                        ))}
+                        <span className="text-right text-[10px] uppercase tracking-widest text-stone-400">Total</span>
+                      </div>
+
+                      <div className="divide-y divide-stone-100">
+                        {form.colors.map((color) => {
+                          const normalizedColorStock = normalizeInventoryByColorSize([color], form.sizes, form.inventoryByColorSize);
+                          const colorTotal = totalInventory(normalizedColorStock[color.name] ?? {});
+
+                          return (
+                            <div
+                              key={color.name}
+                              className="grid items-center gap-2 px-3 py-2"
+                              style={{ gridTemplateColumns: `150px repeat(${form.sizes.length}, minmax(82px, 1fr)) 90px` }}
+                            >
+                              <div className="flex min-w-0 items-center gap-2">
+                                <span
+                                  className="h-5 w-5 shrink-0 rounded-full border border-stone-300"
+                                  style={{ backgroundColor: color.hex }}
+                                />
+                                <span className="truncate text-xs font-medium text-stone-700">{color.name}</span>
+                              </div>
+                              {form.sizes.map((size) => (
+                                <input
+                                  key={`${color.name}-${size}`}
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  value={form.inventoryByColorSize[color.name]?.[size] ?? "0"}
+                                  placeholder="0"
+                                  inputMode="numeric"
+                                  onChange={(e) => updateVariantStock(color.name, size, e.target.value)}
+                                  className={cn(
+                                    "w-full border px-3 py-2 text-center text-sm transition-colors focus:outline-none",
+                                    errors.stock ? "border-red-400 focus:border-red-500" : "border-stone-200 focus:border-stone-800"
+                                  )}
+                                />
+                              ))}
+                              <span className="text-right text-xs font-medium text-stone-700">{colorTotal}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex items-center justify-between bg-stone-50 px-3 py-2">
+                        <span className="text-[10px] uppercase tracking-widest text-stone-400">Total Stock</span>
+                        <span className="text-xs font-medium text-stone-700">
+                          {totalInventoryByColorSize(normalizeInventoryByColorSize(form.colors, form.sizes, form.inventoryByColorSize))}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 )}
               </Field>

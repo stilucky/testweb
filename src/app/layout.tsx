@@ -29,19 +29,26 @@ const didot = GFS_Didot({
 
 export const metadata: Metadata = {
   title: {
-    default: "Lunelle — Tailored Section Structure",
+    default: "Lunelle",
     template: "%s | Lunelle",
   },
   description:
-    "Lunelle — Tailored Section Structure. Discover made-to-order and customized fashion crafted with intention.",
+    "Discover made-to-order and customized fashion crafted with intention.",
   keywords: ["fashion", "boutique", "luxury", "tailored", "made to order", "customized fit"],
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [{ url: "/apple-icon.png", type: "image/png", sizes: "180x180" }],
+  },
   openGraph: {
     type: "website",
     locale: "en_US",
     url: "https://lunelle.com",
     siteName: "Lunelle",
-    title: "Lunelle — Tailored Section Structure",
-    description: "Lunelle — Tailored Section Structure. Fashion crafted with intention.",
+    title: "Lunelle",
+    description: "Fashion crafted with intention.",
   },
 };
 

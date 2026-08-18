@@ -27,6 +27,7 @@ export interface Product {
   isBestSeller: boolean;
   stock: number;
   inventoryBySize?: Record<string, number>;
+  inventoryByColorSize?: Record<string, Record<string, number>>;
   tags: string[];
   videoUrl?: string;
   videoThumbnailUrl?: string;

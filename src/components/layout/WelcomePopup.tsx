@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 import { usePathname } from "next/navigation";
 
-const HIDE_DELAY_MS = 3000;
+const HIDE_DELAY_MS = 300000;
 const EXIT_DURATION_MS = 400;
 
 export default function WelcomePopup() {
